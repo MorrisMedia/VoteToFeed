@@ -8,6 +8,7 @@ import { getCurrentWeekId, getWeekDateRange } from "@/lib/utils";
 import { getAnimalType } from "@/lib/admin-settings";
 import "./globals.css";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
+import { MetaPixel } from "@/components/providers/MetaPixel";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -50,6 +51,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head><MetaPixel /></head>
       <body className={`${inter.variable} font-sans antialiased min-h-screen flex flex-col`}>
         <PostHogProvider>
         <SessionProvider>
