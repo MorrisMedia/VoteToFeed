@@ -404,65 +404,15 @@ export function DashboardClient({
                   <circle cx="50" cy="180" r="80" fill="white" />
                 </svg>
               </div>
-              <div className="relative flex flex-col sm:flex-row items-center gap-6">
-                {/* Shelter dog illustration */}
-                <div className="flex-shrink-0 w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                  <svg viewBox="0 0 120 120" className="w-20 h-20 sm:w-28 sm:h-28" fill="none">
-                    {/* Bowl */}
-                    <ellipse cx="60" cy="95" rx="32" ry="8" fill="rgba(255,255,255,0.3)" />
-                    <path d="M30 80 C30 80 28 95 60 95 C92 95 90 80 90 80 L85 70 L35 70 Z" fill="#FDE68A" stroke="#F59E0B" strokeWidth="1.5" />
-                    <path d="M38 78 C38 78 48 82 60 82 C72 82 82 78 82 78" stroke="#F59E0B" strokeWidth="1" opacity="0.5" />
-                    {/* Kibble in bowl */}
-                    <circle cx="50" cy="74" r="3" fill="#D97706" />
-                    <circle cx="60" cy="72" r="3.5" fill="#B45309" />
-                    <circle cx="70" cy="74" r="3" fill="#D97706" />
-                    <circle cx="55" cy="76" r="2.5" fill="#92400E" />
-                    <circle cx="65" cy="76" r="2.5" fill="#92400E" />
-                    {/* Dog */}
-                    <ellipse cx="60" cy="48" rx="18" ry="16" fill="white" />
-                    {/* Ears */}
-                    <path d="M42 40 C38 28 32 30 36 42" fill="#E5E7EB" stroke="#D1D5DB" strokeWidth="1" />
-                    <path d="M78 40 C82 28 88 30 84 42" fill="#E5E7EB" stroke="#D1D5DB" strokeWidth="1" />
-                    {/* Eyes */}
-                    <circle cx="52" cy="44" r="3" fill="#374151" />
-                    <circle cx="68" cy="44" r="3" fill="#374151" />
-                    <circle cx="53" cy="43" r="1" fill="white" />
-                    <circle cx="69" cy="43" r="1" fill="white" />
-                    {/* Nose */}
-                    <ellipse cx="60" cy="52" rx="4" ry="3" fill="#374151" />
-                    <ellipse cx="60" cy="51.5" rx="1.5" ry="1" fill="#6B7280" />
-                    {/* Mouth */}
-                    <path d="M56 54 C58 57 62 57 64 54" stroke="#374151" strokeWidth="1" fill="none" strokeLinecap="round" />
-                    {/* Tongue */}
-                    <path d="M60 55 C60 55 58 60 60 62 C62 60 60 55 60 55" fill="#FDA4AF" />
-                    {/* Body */}
-                    <ellipse cx="60" cy="70" rx="16" ry="12" fill="white" />
-                    {/* Tail */}
-                    <path d="M76 62 C82 55 88 56 85 62" stroke="#D1D5DB" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    {/* Front paws */}
-                    <ellipse cx="50" cy="80" rx="4" ry="3" fill="white" stroke="#E5E7EB" strokeWidth="0.5" />
-                    <ellipse cx="70" cy="80" rx="4" ry="3" fill="white" stroke="#E5E7EB" strokeWidth="0.5" />
-                    {/* Heart */}
-                    <path d="M58 30 C56 26 50 26 50 31 C50 35 58 40 58 40 C58 40 66 35 66 31 C66 26 60 26 58 30" fill="#EF4444" />
-                  </svg>
-                </div>
-                <div className="text-center sm:text-left flex-1">
-                  <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
-                    Every vote you buy feeds a shelter pet
-                  </h2>
-                  <p className="mt-2 text-white/90 text-sm sm:text-base leading-relaxed">
-                    At the current rate, <strong>$1 = ~{mealRate} shelter {animalType} fed</strong>.
-                    Your votes don&apos;t just help your pet win — they provide real meals to animals in need.
-                  </p>
-                  <div className="mt-4 flex items-center gap-4 justify-center sm:justify-start">
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-sm font-medium">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                      100% goes to shelters
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-sm font-medium">
-                      🏆 Win up to $2,000
-                    </div>
-                  </div>
+              <div className="relative text-center sm:text-left">
+                <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+                  Every vote you buy feeds a shelter pet
+                </h2>
+                <p className="mt-2 text-white/90 text-sm sm:text-base leading-relaxed max-w-xl">
+                  Your votes don&apos;t just help your pet win — they provide real meals to animals in need.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-sm font-medium">
+                  🏆 Win up to $2,000
                 </div>
               </div>
             </div>
