@@ -57,6 +57,22 @@ async function main() {
     update: { role: "ADMIN" },
   });
 
+  const supportUser = await prisma.user.upsert({
+    where: { email: "support@petvoter.com" },
+    create: {
+      name: "Support User",
+      email: "support@petvoter.com",
+      password: passwordHash,
+      role: "SUPPORT",
+      freeVotesRemaining: 0,
+      paidVoteBalance: 0,
+      votingStreak: 0,
+      state: "CA",
+      city: "San Francisco",
+    },
+    update: { role: "SUPPORT" },
+  });
+
   const demoUser = await prisma.user.upsert({
     where: { email: "demo@petvoter.com" },
     create: {
@@ -96,7 +112,7 @@ async function main() {
     voters.push(user);
   }
 
-  const allUsers = [adminUser, demoUser, ...voters];
+  const allUsers = [adminUser, supportUser, demoUser, ...voters];
 
   // ─── Pets (Dogs) ───────────────────────────────────
   const dogData = [

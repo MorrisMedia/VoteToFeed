@@ -9,7 +9,7 @@ export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/auth/signin");
   const role = (session.user as { role?: string }).role;
-  if (role !== "ADMIN") redirect("/dashboard");
+  if (role !== "ADMIN" && role !== "SUPPORT") redirect("/dashboard");
 
   const weekId = getCurrentWeekId();
 

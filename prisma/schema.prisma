@@ -86,6 +86,7 @@ enum UserRole {
   USER
   ADMIN
   MODERATOR
+  SUPPORT
 }
 
 model UserNotificationPrefs {

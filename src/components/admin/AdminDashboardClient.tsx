@@ -100,7 +100,7 @@ type Props = {
   weekId: string;
 };
 
-type Tab = "overview" | "users" | "pets" | "revenue" | "email" | "settings";
+type Tab = "overview" | "users" | "pets" | "revenue" | "email" | "support" | "settings";
 
 export function AdminDashboardClient({
   settings: initialSettings,
@@ -161,6 +161,11 @@ export function AdminDashboardClient({
       id: "revenue",
       label: "Revenue",
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+    },
+    {
+      id: "support",
+      label: "Support",
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>,
     },
     {
       id: "email",
@@ -623,6 +628,9 @@ export function AdminDashboardClient({
 
         {/* ── REVENUE TAB ── */}
         {activeTab === "revenue" && <AdminRevenueTab animalType={settings.animalType} />}
+
+        {/* ── SUPPORT TAB ── */}
+        {activeTab === "support" && <SupportPanel />}
 
         {/* ── EMAIL ALERTS TAB ── */}
         {activeTab === "email" && <AdminEmailTab />}
@@ -1730,6 +1738,421 @@ function LegalPagesEditor({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── SUPPORT PANEL ───────────────────────────────────
+
+type SupportUser = {
+  id: string; name: string | null; email: string | null; role: string; image: string | null;
+  city: string | null; state: string | null; country: string | null; zipCode: string | null;
+  freeVotesRemaining: number; paidVoteBalance: number; votingStreak: number;
+  petsCount: number; votesCount: number; purchasesCount: number; commentsCount: number;
+  totalSpent: number; totalMeals: number; totalVotesPurchased: number;
+  linkedAccounts: number; createdAt: string; updatedAt: string;
+};
+
+type SupportUserDetail = {
+  user: SupportUser & { hasPassword: boolean; linkedAccounts: { provider: string; type: string }[]; notificationPrefs: Record<string, unknown> | null; lastFreeVoteReset: string | null; emailVerified: string | null; lastVotedWeek: string | null };
+  pets: { id: string; name: string; type: string; breed: string | null; bio: string | null; photos: string[]; isActive: boolean; createdAt: string; totalVotes: number; totalComments: number }[];
+  purchases: { id: string; tier: string; votes: number; amount: number; status: string; mealsProvided: number; stripeSessionId: string | null; stripePaymentId: string | null; createdAt: string }[];
+  votes: { id: string; petId: string; petName: string; petPhoto: string | null; type: string; quantity: number; contestWeek: string; createdAt: string }[];
+  comments: { id: string; petId: string; petName: string; text: string; createdAt: string }[];
+  lifetime: { totalSpent: number; totalMeals: number; totalVotesPurchased: number; totalPurchases: number };
+};
+
+function SupportPanel() {
+  const [users, setUsers] = useState<SupportUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [selectedUser, setSelectedUser] = useState<SupportUserDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [actionMsg, setActionMsg] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [activeSection, setActiveSection] = useState<"overview" | "pets" | "purchases" | "votes" | "comments">("overview");
+
+  // Action form states
+  const [grantVotesAmount, setGrantVotesAmount] = useState("10");
+  const [removeVotesAmount, setRemoveVotesAmount] = useState("10");
+  const [newPassword, setNewPassword] = useState("");
+  const [editProfile, setEditProfile] = useState({ name: "", email: "", city: "", state: "", zipCode: "" });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  async function loadUsers(p = page) {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(p), limit: "25" });
+      if (search) params.set("search", search);
+      if (roleFilter !== "ALL") params.set("role", roleFilter);
+      const res = await fetch(`/api/support/users?${params}`);
+      const data = await res.json();
+      setUsers(data.users || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.totalPages || 1);
+      setPage(data.page || 1);
+    } catch { /* */ }
+    setLoading(false);
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useState(() => { loadUsers(1); });
+
+  async function loadUserDetail(userId: string) {
+    setLoadingDetail(true);
+    setSelectedUser(null);
+    setActiveSection("overview");
+    try {
+      const res = await fetch(`/api/support/users/${userId}`);
+      const data = await res.json();
+      setSelectedUser(data);
+      setEditProfile({
+        name: data.user.name || "",
+        email: data.user.email || "",
+        city: data.user.city || "",
+        state: data.user.state || "",
+        zipCode: data.user.zipCode || "",
+      });
+    } catch { /* */ }
+    setLoadingDetail(false);
+  }
+
+  async function doAction(userId: string, action: string, value?: unknown) {
+    setActionMsg(""); setActionError("");
+    try {
+      const res = await fetch(`/api/support/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, value }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionMsg(data.message || "Done");
+        if (action === "deleteAccount") { setSelectedUser(null); loadUsers(); }
+        else loadUserDetail(userId);
+      } else {
+        setActionError(data.error || "Failed");
+      }
+    } catch { setActionError("Error"); }
+    setTimeout(() => { setActionMsg(""); setActionError(""); }, 4000);
+  }
+
+  // If a user is selected, show the detail panel
+  if (selectedUser) {
+    const u = selectedUser.user;
+    const sections: { id: typeof activeSection; label: string; count?: number }[] = [
+      { id: "overview", label: "Overview" },
+      { id: "pets", label: "Pets", count: selectedUser.pets.length },
+      { id: "purchases", label: "Purchases", count: selectedUser.purchases.length },
+      { id: "votes", label: "Votes", count: selectedUser.votes.length },
+      { id: "comments", label: "Comments", count: selectedUser.comments.length },
+    ];
+
+    return (
+      <div className="space-y-4 animate-fade-in">
+        {/* Back button + user header */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => setSelectedUser(null)} className="text-xs px-3 py-1.5 rounded-lg bg-surface-100 text-surface-600 hover:bg-surface-200 font-medium">← Back</button>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-surface-900">{u.name || "No Name"}</h2>
+              <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                u.role === "ADMIN" ? "bg-red-100 text-red-600" : u.role === "SUPPORT" ? "bg-violet-100 text-violet-600" : u.role === "MODERATOR" ? "bg-amber-100 text-amber-600" : "bg-surface-100 text-surface-500"
+              }`}>{u.role}</span>
+            </div>
+            <p className="text-xs text-surface-500">{u.email} · ID: {u.id}</p>
+          </div>
+        </div>
+
+        {(actionMsg || actionError) && (
+          <div className={`px-4 py-2.5 rounded-lg text-sm font-medium ${actionError ? "bg-red-50 text-red-700 border border-red-200" : "bg-accent-50 text-accent-700 border border-accent-200"}`}>
+            {actionMsg || actionError}
+          </div>
+        )}
+
+        {/* Section tabs */}
+        <div className="flex gap-1 overflow-x-auto hide-scrollbar">
+          {sections.map((s) => (
+            <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              activeSection === s.id ? "bg-white text-surface-900 shadow-sm border border-surface-200/80" : "text-surface-500 hover:text-surface-700 hover:bg-white/60"
+            }`}>
+              {s.label}{s.count !== undefined ? ` (${s.count})` : ""}
+            </button>
+          ))}
+        </div>
+
+        {/* ── OVERVIEW ── */}
+        {activeSection === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Quick stats */}
+            <div className="card p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-surface-900">Account Info</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-surface-400 text-xs">Joined</span><p className="font-medium">{new Date(u.createdAt).toLocaleDateString()}</p></div>
+                <div><span className="text-surface-400 text-xs">Auth</span><p className="font-medium">{u.hasPassword ? "Email/Password" : "OAuth only"} {u.linkedAccounts.map(a => a.provider).join(", ")}</p></div>
+                <div><span className="text-surface-400 text-xs">Free Votes</span><p className="font-medium">{u.freeVotesRemaining}</p></div>
+                <div><span className="text-surface-400 text-xs">Paid Balance</span><p className="font-medium">{u.paidVoteBalance}</p></div>
+                <div><span className="text-surface-400 text-xs">Total Spent</span><p className="font-medium">${(selectedUser.lifetime.totalSpent / 100).toFixed(2)}</p></div>
+                <div><span className="text-surface-400 text-xs">Shelter Impact</span><p className="font-medium">~{Math.round(selectedUser.lifetime.totalMeals)} fed</p></div>
+                <div><span className="text-surface-400 text-xs">Voting Streak</span><p className="font-medium">{u.votingStreak}w</p></div>
+                <div><span className="text-surface-400 text-xs">Location</span><p className="font-medium">{[u.city, u.state].filter(Boolean).join(", ") || "—"}</p></div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3">
+              {/* Role change */}
+              <div className="card p-4">
+                <h4 className="text-xs font-semibold text-surface-700 mb-2">Change Role</h4>
+                <div className="flex gap-1.5 flex-wrap">
+                  {(["USER", "MODERATOR", "SUPPORT", "ADMIN"] as const).map((r) => (
+                    <button key={r} onClick={() => doAction(u.id, "changeRole", r)} disabled={u.role === r} className={`text-[10px] px-3 py-1.5 rounded-lg font-bold uppercase transition-all ${
+                      u.role === r ? "bg-brand-500 text-white" : "bg-white border border-surface-200 text-surface-600 hover:border-brand-300"
+                    }`}>{r}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grant / Remove votes */}
+              <div className="card p-4">
+                <h4 className="text-xs font-semibold text-surface-700 mb-2">Vote Management</h4>
+                <div className="flex gap-2 items-center mb-2">
+                  <input type="number" min="1" value={grantVotesAmount} onChange={(e) => setGrantVotesAmount(e.target.value)} className="input-field text-xs w-24 py-1.5" />
+                  <button onClick={() => doAction(u.id, "grantVotes", grantVotesAmount)} className="text-xs px-3 py-1.5 rounded-lg bg-accent-500 text-white hover:bg-accent-600 font-medium">+ Grant</button>
+                  <input type="number" min="1" value={removeVotesAmount} onChange={(e) => setRemoveVotesAmount(e.target.value)} className="input-field text-xs w-24 py-1.5" />
+                  <button onClick={() => doAction(u.id, "removeVotes", removeVotesAmount)} className="text-xs px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 font-medium">- Remove</button>
+                </div>
+                <button onClick={() => doAction(u.id, "resetFreeVotes", "5")} className="text-xs px-3 py-1.5 rounded-lg bg-surface-100 text-surface-600 hover:bg-surface-200 font-medium">Reset Free Votes (5)</button>
+              </div>
+
+              {/* Reset password */}
+              <div className="card p-4">
+                <h4 className="text-xs font-semibold text-surface-700 mb-2">Reset Password</h4>
+                <div className="flex gap-2">
+                  <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="input-field text-xs flex-1 py-1.5" placeholder="New password (min 8 chars)" />
+                  <button onClick={() => { doAction(u.id, "resetPassword", newPassword); setNewPassword(""); }} disabled={newPassword.length < 8} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 font-medium disabled:opacity-50">Reset</button>
+                </div>
+              </div>
+
+              {/* Edit profile */}
+              <div className="card p-4">
+                <h4 className="text-xs font-semibold text-surface-700 mb-2">Edit Profile</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={editProfile.name} onChange={(e) => setEditProfile({ ...editProfile, name: e.target.value })} className="input-field text-xs py-1.5" placeholder="Name" />
+                  <input value={editProfile.email} onChange={(e) => setEditProfile({ ...editProfile, email: e.target.value })} className="input-field text-xs py-1.5" placeholder="Email" />
+                  <input value={editProfile.city} onChange={(e) => setEditProfile({ ...editProfile, city: e.target.value })} className="input-field text-xs py-1.5" placeholder="City" />
+                  <input value={editProfile.state} onChange={(e) => setEditProfile({ ...editProfile, state: e.target.value })} className="input-field text-xs py-1.5" placeholder="State" />
+                </div>
+                <button onClick={() => doAction(u.id, "updateProfile", editProfile)} className="mt-2 text-xs px-3 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 font-medium">Save Changes</button>
+              </div>
+
+              {/* Danger zone */}
+              <div className="card p-4 border-red-200">
+                <h4 className="text-xs font-semibold text-red-600 mb-2">Danger Zone</h4>
+                {!showDeleteConfirm ? (
+                  <button onClick={() => setShowDeleteConfirm(true)} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-medium">Delete Account Permanently</button>
+                ) : (
+                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-xs text-red-700 font-medium mb-2">This will permanently delete {u.email} and all their data (pets, votes, comments, purchases). This cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => doAction(u.id, "deleteAccount")} className="text-xs px-4 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 font-bold">Yes, Delete Forever</button>
+                      <button onClick={() => setShowDeleteConfirm(false)} className="text-xs px-3 py-1.5 rounded-lg bg-white text-surface-600 border border-surface-200 font-medium">Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PETS ── */}
+        {activeSection === "pets" && (
+          <div className="space-y-3">
+            {selectedUser.pets.length === 0 ? <p className="text-sm text-surface-400 text-center py-8">No pets</p> : selectedUser.pets.map((pet) => (
+              <div key={pet.id} className={`card p-4 flex items-start gap-4 ${!pet.isActive ? "opacity-60" : ""}`}>
+                {pet.photos[0] ? <img src={pet.photos[0]} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-surface-100 flex-shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-surface-900 text-sm">{pet.name}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-100 text-surface-500">{pet.type}</span>
+                    {!pet.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600">Deactivated</span>}
+                  </div>
+                  <p className="text-xs text-surface-400">{pet.breed || "—"} · {pet.totalVotes} votes · {pet.totalComments} comments</p>
+                  <p className="text-xs text-surface-400">Photos: {pet.photos.length} · Added {new Date(pet.createdAt).toLocaleDateString()}</p>
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {pet.photos.map((_, i) => (
+                      <button key={i} onClick={() => doAction(u.id, "removePetPhoto", { petId: pet.id, photoIndex: i })} className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium">Remove Photo {i + 1}</button>
+                    ))}
+                    {pet.isActive ? (
+                      <button onClick={() => doAction(u.id, "deactivatePet", { petId: pet.id })} className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium">Deactivate</button>
+                    ) : (
+                      <button onClick={() => doAction(u.id, "reactivatePet", { petId: pet.id })} className="text-[10px] px-2 py-1 rounded bg-accent-50 text-accent-600 hover:bg-accent-100 font-medium">Reactivate</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PURCHASES ── */}
+        {activeSection === "purchases" && (
+          <div className="card p-0 overflow-hidden">
+            {selectedUser.purchases.length === 0 ? <p className="text-sm text-surface-400 text-center py-8">No purchases</p> : (
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-surface-100">
+                  <th className="px-4 py-3 text-left text-[11px] font-medium text-surface-400 uppercase">Package</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-medium text-surface-400 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-medium text-surface-400 uppercase">Votes</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-medium text-surface-400 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-medium text-surface-400 uppercase">Stripe</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-medium text-surface-400 uppercase">Date</th>
+                  <th className="px-4 py-3 text-center text-[11px] font-medium text-surface-400 uppercase">Action</th>
+                </tr></thead>
+                <tbody className="divide-y divide-surface-50">
+                  {selectedUser.purchases.map((p) => (
+                    <tr key={p.id} className="hover:bg-surface-50/50">
+                      <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-600">{p.tier}</span></td>
+                      <td className="px-4 py-3 text-right font-semibold">${(p.amount / 100).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">{p.votes}</td>
+                      <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                        p.status === "COMPLETED" ? "bg-accent-50 text-accent-600" : p.status === "REFUNDED" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+                      }`}>{p.status}</span></td>
+                      <td className="px-4 py-3 text-xs text-surface-400 font-mono">{p.stripePaymentId ? "..." + p.stripePaymentId.slice(-8) : "—"}</td>
+                      <td className="px-4 py-3 text-right text-xs text-surface-400">{new Date(p.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-center">
+                        {p.status === "COMPLETED" && (
+                          <button onClick={() => doAction(u.id, "refundPurchase", { purchaseId: p.id })} className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium">Refund</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* ── VOTES ── */}
+        {activeSection === "votes" && (
+          <div className="card p-0 overflow-hidden">
+            {selectedUser.votes.length === 0 ? <p className="text-sm text-surface-400 text-center py-8">No votes</p> : (
+              <ul className="divide-y divide-surface-50 max-h-[500px] overflow-y-auto">
+                {selectedUser.votes.map((v) => (
+                  <li key={v.id} className="px-4 py-3 flex items-center gap-3">
+                    {v.petPhoto ? <img src={v.petPhoto} alt="" className="w-8 h-8 rounded-lg object-cover" /> : <div className="w-8 h-8 rounded-lg bg-surface-100" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-surface-700 truncate"><span className="font-medium">{v.petName}</span> {v.quantity > 1 && `x${v.quantity}`}</p>
+                      <p className="text-[10px] text-surface-400">{v.contestWeek} · {new Date(v.createdAt).toLocaleString()}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${v.type === "FREE" ? "bg-accent-50 text-accent-600" : "bg-brand-50 text-brand-600"}`}>{v.type}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* ── COMMENTS ── */}
+        {activeSection === "comments" && (
+          <div className="space-y-2">
+            {selectedUser.comments.length === 0 ? <p className="text-sm text-surface-400 text-center py-8">No comments</p> : selectedUser.comments.map((c) => (
+              <div key={c.id} className="card p-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-surface-500">on <span className="font-medium text-surface-700">{c.petName}</span> · {new Date(c.createdAt).toLocaleString()}</p>
+                  <p className="text-sm text-surface-800 mt-0.5">{c.text}</p>
+                </div>
+                <button onClick={() => doAction(u.id, "deleteComment", { commentId: c.id })} className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium flex-shrink-0">Delete</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // User list view
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div>
+        <h2 className="text-lg font-bold text-surface-900">Support — User Management</h2>
+        <p className="text-sm text-surface-500">Full access to manage any user account: edit profile, votes, purchases, refunds, photos, passwords, and account deletion.</p>
+      </div>
+
+      {/* Search */}
+      <div className="card p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <form onSubmit={(e) => { e.preventDefault(); setPage(1); loadUsers(1); }} className="flex-1 flex gap-2">
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, or user ID..." className="input-field text-sm flex-1" />
+          <button type="submit" className="btn-primary text-sm px-4 py-2">Search</button>
+        </form>
+        <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setTimeout(() => loadUsers(1), 0); }} className="input-field text-sm w-auto">
+          <option value="ALL">All Roles</option>
+          <option value="USER">Users</option>
+          <option value="ADMIN">Admins</option>
+          <option value="SUPPORT">Support</option>
+          <option value="MODERATOR">Moderators</option>
+        </select>
+      </div>
+
+      <p className="text-xs text-surface-400">{total.toLocaleString()} users found</p>
+
+      {/* User table */}
+      <div className="card p-0 overflow-hidden">
+        {loading ? (
+          <div className="px-5 py-12 text-center text-sm text-surface-400">Loading...</div>
+        ) : users.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-surface-400">No users found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-surface-100">
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-surface-400 uppercase">User</th>
+                <th className="px-4 py-3 text-left text-[11px] font-medium text-surface-400 uppercase">Role</th>
+                <th className="px-4 py-3 text-center text-[11px] font-medium text-surface-400 uppercase">Pets</th>
+                <th className="px-4 py-3 text-right text-[11px] font-medium text-surface-400 uppercase">Spent</th>
+                <th className="px-4 py-3 text-right text-[11px] font-medium text-surface-400 uppercase">Balance</th>
+                <th className="px-4 py-3 text-right text-[11px] font-medium text-surface-400 uppercase">Joined</th>
+                <th className="px-4 py-3 text-center text-[11px] font-medium text-surface-400 uppercase"></th>
+              </tr></thead>
+              <tbody className="divide-y divide-surface-50">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-surface-50/50 cursor-pointer" onClick={() => loadUserDetail(u.id)}>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-surface-800 truncate">{u.name || "—"}</p>
+                      <p className="text-[11px] text-surface-400 truncate">{u.email}</p>
+                    </td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                      u.role === "ADMIN" ? "bg-red-100 text-red-600" : u.role === "SUPPORT" ? "bg-violet-100 text-violet-600" : u.role === "MODERATOR" ? "bg-amber-100 text-amber-600" : "bg-surface-100 text-surface-500"
+                    }`}>{u.role}</span></td>
+                    <td className="px-4 py-3 text-center">{u.petsCount}</td>
+                    <td className="px-4 py-3 text-right font-medium">{u.totalSpent > 0 ? `$${(u.totalSpent / 100).toFixed(2)}` : "—"}</td>
+                    <td className="px-4 py-3 text-right">{u.paidVoteBalance}<span className="text-surface-400 text-[11px]"> +{u.freeVotesRemaining}f</span></td>
+                    <td className="px-4 py-3 text-right text-xs text-surface-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-center"><span className="text-xs text-brand-600 font-medium">Open →</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {loadingDetail && <div className="text-center py-8 text-sm text-surface-400">Loading user details...</div>}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-surface-400">Page {page} of {totalPages}</p>
+          <div className="flex gap-1">
+            <button onClick={() => { setPage(page - 1); loadUsers(page - 1); }} disabled={page <= 1} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 disabled:opacity-40">Previous</button>
+            <button onClick={() => { setPage(page + 1); loadUsers(page + 1); }} disabled={page >= totalPages} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-surface-200 text-surface-600 hover:bg-surface-50 disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

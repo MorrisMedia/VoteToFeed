@@ -117,7 +117,7 @@ export async function PUT(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     if (action === "changeRole") {
-      const validRoles = ["USER", "ADMIN", "MODERATOR"];
+      const validRoles = ["USER", "ADMIN", "MODERATOR", "SUPPORT"];
       if (!validRoles.includes(value)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
       await prisma.user.update({ where: { id: userId }, data: { role: value } });
       return NextResponse.json({ success: true, message: `${user.name || user.id} role changed to ${value}` });
