@@ -14,16 +14,136 @@ type ShelterPost = {
 type ShelterPartner = { id: string; name: string; logoUrl: string | null; website: string | null };
 
 const typeLabel: Record<string, string> = { UPDATE: "Update", STORY: "Story", ANNOUNCEMENT: "Announcement", GALLERY: "Gallery" };
-const typeBadge: Record<string, string> = { UPDATE: "bg-blue-100 text-blue-700", STORY: "bg-purple-100 text-purple-700", ANNOUNCEMENT: "bg-red-100 text-red-700", GALLERY: "bg-emerald-100 text-emerald-700" };
+const typeBadge: Record<string, string> = {
+  UPDATE: "bg-blue-100 text-blue-700",
+  STORY: "bg-purple-100 text-purple-700",
+  ANNOUNCEMENT: "bg-red-100 text-red-700",
+  GALLERY: "bg-emerald-100 text-emerald-700",
+};
 
 function getVideoEmbedUrl(url: string): string | null {
-  // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-  // Vimeo
   const vmMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vmMatch) return `https://player.vimeo.com/video/${vmMatch[1]}`;
   return null;
+}
+
+/** Render text with basic markdown: **bold**, double-newline → paragraphs, single newline → <br /> */
+function RichContent({ text }: { text: string }) {
+  const paragraphs = text.split(/\n\n+/);
+  return (
+    <div className="text-surface-700 leading-relaxed space-y-4">
+      {paragraphs.map((para, pi) => {
+        // Split by single newlines for <br /> within a paragraph
+        const lines = para.split("\n");
+        const rendered = lines.map((line, li) => {
+          // Parse **bold**
+          const parts = line.split(/(\*\*[^*]+\*\*)/g);
+          return (
+            <span key={li}>
+              {parts.map((part, i) =>
+                part.startsWith("**") && part.endsWith("**")
+                  ? <strong key={i}>{part.slice(2, -2)}</strong>
+                  : <span key={i}>{part}</span>
+              )}
+              {li < lines.length - 1 && <br />}
+            </span>
+          );
+        });
+        return <p key={pi}>{rendered}</p>;
+      })}
+    </div>
+  );
+}
+
+/** Full blog-style post card */
+function PostCard({ post }: { post: ShelterPost }) {
+  const embedUrl = post.videoUrl ? getVideoEmbedUrl(post.videoUrl) : null;
+  const badge = typeBadge[post.type] || "bg-surface-100 text-surface-600";
+  const label = typeLabel[post.type] || post.type;
+  const date = new Date(post.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  return (
+    <article className="bg-white rounded-2xl border border-surface-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {/* Featured image */}
+      {post.featuredImage && (
+        <div className="w-full aspect-[16/7] overflow-hidden bg-surface-100">
+          <img src={post.featuredImage} alt={post.title || ""} className="w-full h-full object-cover" />
+        </div>
+      )}
+
+      {/* Text block */}
+      <div className="p-6 sm:p-8">
+        {/* Badge + type */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badge}`}>{label}</span>
+        </div>
+
+        {/* Title */}
+        {post.title && (
+          <h2 className="text-xl sm:text-2xl font-bold text-surface-900 leading-tight mb-2">{post.title}</h2>
+        )}
+
+        {/* Caption / subheading */}
+        {post.caption && (
+          <p className="text-base text-surface-500 font-medium mb-4">{post.caption}</p>
+        )}
+
+        {/* Full content */}
+        {post.content && (
+          <div className="mb-6">
+            <RichContent text={post.content} />
+          </div>
+        )}
+
+        {/* Video embed */}
+        {embedUrl && (
+          <div className="aspect-video rounded-xl overflow-hidden mb-6">
+            <iframe src={embedUrl} className="w-full h-full" allowFullScreen title="Video" />
+          </div>
+        )}
+
+        {/* Photo gallery grid */}
+        {post.photos.length > 0 && (
+          <div className="mb-6">
+            <div className={`grid gap-2 ${post.photos.length === 1 ? "grid-cols-1" : post.photos.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+              {post.photos.map((url, i) => (
+                <img key={i} src={url} alt="" className="w-full h-40 sm:h-48 object-cover rounded-xl" />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Meta row */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-400 border-t border-surface-100 pt-4 mt-2">
+          {post.location && (
+            <span className="flex items-center gap-1">
+              <span>📍</span>{post.location}
+            </span>
+          )}
+          <span>{date}</span>
+          {post.author?.name && (
+            <span className="flex items-center gap-1">
+              <span>✍️</span>{post.author.name}
+            </span>
+          )}
+          {post.contest && (
+            <span className="flex items-center gap-1 text-brand-600 font-medium">
+              <span>🏆</span>{post.contest.name}
+            </span>
+          )}
+          {post.tags.length > 0 && (
+            <div className="flex gap-1 flex-wrap ml-auto">
+              {post.tags.map(t => (
+                <span key={t} className="rounded-full bg-surface-100 px-2 py-0.5 text-surface-500">{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export default function VotesForSheltersPage() {
@@ -31,7 +151,6 @@ export default function VotesForSheltersPage() {
   const [partners, setPartners] = useState<ShelterPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
-  const [selectedPost, setSelectedPost] = useState<ShelterPost | null>(null);
 
   useEffect(() => {
     fetch("/api/shelter-posts").then(r => r.json()).then(d => {
@@ -42,7 +161,6 @@ export default function VotesForSheltersPage() {
   }, []);
 
   const filtered = filter ? posts.filter(p => p.type === filter) : posts;
-  const [hero, ...rest] = filtered;
 
   if (loading) return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
@@ -50,54 +168,9 @@ export default function VotesForSheltersPage() {
     </div>
   );
 
-  // Detail view modal
-  if (selectedPost) {
-    const embedUrl = selectedPost.videoUrl ? getVideoEmbedUrl(selectedPost.videoUrl) : null;
-    return (
-      <div className="min-h-screen bg-[#FAFAFA]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-          <button onClick={() => setSelectedPost(null)} className="text-sm text-brand-600 hover:underline mb-6 inline-block">← Back to all posts</button>
-          {selectedPost.featuredImage && (
-            <img src={selectedPost.featuredImage} alt={selectedPost.title || ""} className="w-full h-64 sm:h-80 object-cover rounded-2xl mb-6" />
-          )}
-          <div className="flex items-center gap-2 mb-3">
-            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${typeBadge[selectedPost.type] || "bg-surface-100"}`}>{typeLabel[selectedPost.type] || selectedPost.type}</span>
-            {selectedPost.location && <span className="text-xs text-surface-500">📍 {selectedPost.location}</span>}
-            <span className="text-xs text-surface-400">{new Date(selectedPost.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-surface-900 mb-4">{selectedPost.title || "(Untitled)"}</h1>
-          {selectedPost.caption && <p className="text-lg text-surface-600 mb-6">{selectedPost.caption}</p>}
-          {selectedPost.content && (
-            <div className="prose prose-surface max-w-none text-surface-700 mb-8 whitespace-pre-wrap">
-              {selectedPost.content}
-            </div>
-          )}
-          {embedUrl && (
-            <div className="aspect-video rounded-xl overflow-hidden mb-8">
-              <iframe src={embedUrl} className="w-full h-full" allowFullScreen title="Video" />
-            </div>
-          )}
-          {selectedPost.photos.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-surface-700 mb-3">Photo Gallery</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {selectedPost.photos.map((url, i) => (
-                  <img key={i} src={url} alt="" className="w-full h-40 object-cover rounded-xl" />
-                ))}
-              </div>
-            </div>
-          )}
-          {selectedPost.tags.length > 0 && (
-            <div className="flex gap-2 flex-wrap">{selectedPost.tags.map(t => <span key={t} className="rounded-full bg-surface-100 px-3 py-1 text-xs text-surface-600">{t}</span>)}</div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Header */}
         <div className="mb-8 text-center">
           <nav className="mb-4"><Link href="/" className="text-sm text-brand-600 hover:underline">← Home</Link></nav>
@@ -127,61 +200,15 @@ export default function VotesForSheltersPage() {
           ))}
         </div>
 
+        {/* Posts feed */}
         {filtered.length === 0 ? (
           <p className="text-center text-surface-400 py-16">No shelter posts yet. Check back soon!</p>
         ) : (
-          <>
-            {/* Hero post */}
-            {hero && (
-              <button onClick={() => setSelectedPost(hero)} className="block w-full mb-10 text-left group">
-                <div className="relative rounded-2xl overflow-hidden">
-                  {hero.featuredImage ? (
-                    <img src={hero.featuredImage} alt={hero.title || ""} className="w-full h-72 sm:h-96 object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-72 sm:h-96 bg-gradient-to-br from-brand-400 to-brand-700" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${typeBadge[hero.type]}`}>{typeLabel[hero.type]}</span>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mt-2">{hero.title || "(Untitled)"}</h2>
-                    {hero.caption && <p className="text-sm text-white/80 mt-1 line-clamp-2">{hero.caption}</p>}
-                    <div className="flex items-center gap-3 mt-2 text-xs text-white/60">
-                      {hero.location && <span>📍 {hero.location}</span>}
-                      <span>{new Date(hero.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            )}
-
-            {/* Grid of remaining posts */}
-            {rest.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {rest.map(p => (
-                  <button key={p.id} onClick={() => setSelectedPost(p)} className="block text-left group">
-                    <div className="rounded-xl overflow-hidden border border-surface-200 bg-white hover:shadow-lg transition-shadow">
-                      {p.featuredImage ? (
-                        <img src={p.featuredImage} alt={p.title || ""} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" />
-                      ) : (
-                        <div className="w-full h-40 bg-gradient-to-br from-surface-100 to-surface-200 flex items-center justify-center">
-                          <span className="text-4xl">🐾</span>
-                        </div>
-                      )}
-                      <div className="p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${typeBadge[p.type]}`}>{typeLabel[p.type]}</span>
-                          <span className="text-[10px] text-surface-400">{new Date(p.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <h3 className="text-sm font-semibold text-surface-900 line-clamp-2">{p.title || "(Untitled)"}</h3>
-                        {p.caption && <p className="text-xs text-surface-500 mt-1 line-clamp-2">{p.caption}</p>}
-                        {p.location && <p className="text-[10px] text-surface-400 mt-2">📍 {p.location}</p>}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
+          <div className="space-y-8">
+            {filtered.map(post => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
         )}
       </div>
     </div>
