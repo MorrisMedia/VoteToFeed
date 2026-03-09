@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { verifyCronSecret } from "@/lib/cron-auth";
+
+export const dynamic = "force-dynamic";
 
 // 50+ comment templates with variables
 const COMMENT_TEMPLATES = [
@@ -66,12 +69,8 @@ function renderTemplate(template: string, vars: { dogname: string; breed: string
 
 // GET /api/cron/auto-engage — Runs every 3 hours via Vercel Cron
 export async function GET(req: NextRequest) {
-  // Verify cron secret
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(req);
+  if (authError) return authError;
 
   try {
     const now = new Date();

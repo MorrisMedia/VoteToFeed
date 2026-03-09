@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Nunito } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
@@ -11,6 +11,7 @@ import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { MetaPixel } from "@/components/providers/MetaPixel";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito", weight: ["900"] });
 
 export const metadata: Metadata = {
   title: "Vote to Feed – Pet Photo Contests & Shelter Support | Powered by iHeartDogs & iHeartCats",
@@ -52,7 +53,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head><MetaPixel /></head>
-      <body className={`${inter.variable} font-sans antialiased min-h-screen flex flex-col`}>
+      <body className={`${inter.variable} ${nunito.variable} font-sans antialiased min-h-screen flex flex-col`}>
         <PostHogProvider>
         <SessionProvider>
           <Nav

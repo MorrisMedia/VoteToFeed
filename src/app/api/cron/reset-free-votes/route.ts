@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId } from "@/lib/utils";
 import { getFreeVotesConfig } from "@/lib/admin-settings";
+import { verifyCronSecret } from "@/lib/cron-auth";
+
+export const dynamic = "force-dynamic";
 
 // Free vote reset endpoint
 // Schedule depends on admin settings (daily/weekly/monthly).
@@ -9,10 +12,8 @@ import { getFreeVotesConfig } from "@/lib/admin-settings";
 // For daily: "59 19 * * *"  |  For monthly: "59 19 1 * *"
 // Secured by CRON_SECRET in production
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(req);
+  if (authError) return authError;
 
   const weekId = getCurrentWeekId();
   const config = await getFreeVotesConfig();
