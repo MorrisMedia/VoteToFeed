@@ -15,12 +15,13 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
 
-    const where: Record<string, unknown> = { isActive: true };
-    if (petType) where.petType = petType;
+    const where: Record<string, unknown> = {};
     if (!includeEnded) {
+      where.isActive = true;
       where.endDate = { gte: now }; // only contests that haven't ended
       where.startDate = { lte: now }; // only contests that have started
     }
+    if (petType) where.petType = petType;
     if (featured === "true") where.isFeatured = true;
 
     const contests = await prisma.contest.findMany({

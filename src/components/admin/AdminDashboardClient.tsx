@@ -1882,8 +1882,59 @@ function ContestManager() {
     setLoading(false);
   }
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, unknown>>({});
+  const [editMsg, setEditMsg] = useState("");
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useState(() => { loadContests(); });
+
+  function startEdit(c: ContestData) {
+    setEditingId(c.id);
+    setEditForm({
+      name: c.name, type: c.type, petType: c.petType, state: c.state || "",
+      startDate: new Date(c.startDate).toISOString().split("T")[0],
+      endDate: new Date(c.endDate).toISOString().split("T")[0],
+      description: c.description || "", rules: c.rules || "",
+      coverImage: c.coverImage || "", prizeDescription: c.prizeDescription || "",
+      sponsorName: c.sponsorName || "", sponsorUrl: c.sponsorUrl || "",
+      isFeatured: c.isFeatured, isActive: c.isActive,
+      entryFee: c.entryFee || 0, maxEntries: c.maxEntries || "",
+    });
+  }
+
+  async function saveEdit(id: string) {
+    setEditMsg("");
+    try {
+      const payload = {
+        ...editForm,
+        startDate: new Date(editForm.startDate as string).toISOString(),
+        endDate: new Date(editForm.endDate as string).toISOString(),
+        entryFee: Number(editForm.entryFee) || 0,
+        maxEntries: editForm.maxEntries ? Number(editForm.maxEntries) : null,
+      };
+      const res = await fetch(`/api/contests/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { setEditingId(null); loadContests(); }
+      else { const d = await res.json(); setEditMsg(d.error || "Save failed"); }
+    } catch { setEditMsg("Error saving"); }
+  }
+
+  async function toggleField(id: string, field: "isActive" | "isFeatured", value: boolean) {
+    await fetch(`/api/contests/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    loadContests();
+  }
+
+  async function deleteContest(id: string, name: string) {
+    if (!confirm(`Delete contest "${name}"? Contests with entries will be deactivated instead.`)) return;
+    await fetch(`/api/contests/${id}`, { method: "DELETE" });
+    loadContests();
+  }
 
   async function createContest(e: React.FormEvent) {
     e.preventDefault();
@@ -2112,27 +2163,115 @@ function ContestManager() {
       ) : (
         <div className="space-y-2">
           {contests.map((c) => (
-            <div key={c.id} className={`card p-4 flex items-center gap-4 ${c.hasEnded ? "opacity-60" : ""}`}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-surface-900">{c.name}</span>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${contestTypeBadge(c.type)}`}>
-                    {contestTypeLabel(c.type)}
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-100 text-surface-500">
-                    {c.petType === "DOG" ? "Dogs" : "Cats"}
-                  </span>
-                  {c.isFeatured && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Featured</span>}
-                  {c.hasEnded && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-600">Ended</span>}
+            <div key={c.id} className={`card p-4 ${c.hasEnded ? "opacity-60" : ""}`}>
+              {editingId === c.id ? (
+                /* ── EDIT FORM ── */
+                <div className="space-y-3">
+                  {editMsg && <p className="text-xs text-red-600">{editMsg}</p>}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Name</label>
+                      <input value={editForm.name as string} onChange={e => setEditForm(f => ({...f, name: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Type</label>
+                      <select value={editForm.type as string} onChange={e => setEditForm(f => ({...f, type: e.target.value}))} className="input-field text-sm">
+                        <option value="NATIONAL">National</option><option value="SEASONAL">Seasonal</option>
+                        <option value="CHARITY">Charity</option><option value="CALENDAR">Calendar</option>
+                        <option value="BREED">Breed</option><option value="STATE">State</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Pet Type</label>
+                      <select value={editForm.petType as string} onChange={e => setEditForm(f => ({...f, petType: e.target.value}))} className="input-field text-sm">
+                        <option value="DOG">Dog</option><option value="CAT">Cat</option><option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Start Date</label>
+                      <input type="date" value={editForm.startDate as string} onChange={e => setEditForm(f => ({...f, startDate: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">End Date</label>
+                      <input type="date" value={editForm.endDate as string} onChange={e => setEditForm(f => ({...f, endDate: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Description</label>
+                    <textarea value={editForm.description as string} onChange={e => setEditForm(f => ({...f, description: e.target.value}))} className="input-field text-sm resize-none" rows={2} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Rules</label>
+                    <textarea value={editForm.rules as string} onChange={e => setEditForm(f => ({...f, rules: e.target.value}))} className="input-field text-sm resize-none" rows={2} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Prize Summary</label>
+                      <input value={editForm.prizeDescription as string} onChange={e => setEditForm(f => ({...f, prizeDescription: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Sponsor</label>
+                      <input value={editForm.sponsorName as string} onChange={e => setEditForm(f => ({...f, sponsorName: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Cover Image URL</label>
+                      <input value={editForm.coverImage as string} onChange={e => setEditForm(f => ({...f, coverImage: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Entry Fee (cents)</label>
+                      <input type="number" value={editForm.entryFee as number} onChange={e => setEditForm(f => ({...f, entryFee: e.target.value}))} className="input-field text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Max Entries (blank=unlimited)</label>
+                      <input type="number" value={editForm.maxEntries as string} onChange={e => setEditForm(f => ({...f, maxEntries: e.target.value}))} className="input-field text-sm" placeholder="Unlimited" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isFeatured as boolean} onChange={e => setEditForm(f => ({...f, isFeatured: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Featured</label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isActive as boolean} onChange={e => setEditForm(f => ({...f, isActive: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Active</label>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => saveEdit(c.id)} className="btn-primary text-xs px-4 py-1.5">Save</button>
+                    <button onClick={() => setEditingId(null)} className="text-xs text-surface-500 hover:text-surface-700 px-3 py-1.5">Cancel</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-surface-500">
-                  <span>{new Date(c.startDate).toLocaleDateString()} — {new Date(c.endDate).toLocaleDateString()}</span>
-                  <span>{c.entryCount} entries</span>
-                  {c.totalPrizeValue > 0 && <span className="text-emerald-600 font-medium">${(c.totalPrizeValue / 100).toLocaleString()} prizes</span>}
-                  {!c.hasEnded && <span>{c.daysLeft}d left</span>}
-                  {c.sponsorName && <span>Sponsor: {c.sponsorName}</span>}
+              ) : (
+                /* ── DISPLAY ROW ── */
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-surface-900">{c.name}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${contestTypeBadge(c.type)}`}>
+                        {contestTypeLabel(c.type)}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-100 text-surface-500">
+                        {c.petType === "DOG" ? "Dogs" : c.petType === "CAT" ? "Cats" : "Other"}
+                      </span>
+                      {c.isFeatured && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Featured</span>}
+                      {!c.isActive && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-200 text-surface-500">Inactive</span>}
+                      {c.hasEnded && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-600">Ended</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-surface-500">
+                      <span>{new Date(c.startDate).toLocaleDateString()} — {new Date(c.endDate).toLocaleDateString()}</span>
+                      <span>{c.entryCount} entries</span>
+                      {c.totalPrizeValue > 0 && <span className="text-emerald-600 font-medium">${(c.totalPrizeValue / 100).toLocaleString()} prizes</span>}
+                      {!c.hasEnded && <span>{c.daysLeft}d left</span>}
+                      {c.sponsorName && <span>Sponsor: {c.sponsorName}</span>}
+                      {c.prizeDescription && <span className="text-emerald-600">{c.prizeDescription}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => toggleField(c.id, "isFeatured", !c.isFeatured)} title={c.isFeatured ? "Unfeature" : "Feature"} className={`p-1.5 rounded-lg text-xs transition ${c.isFeatured ? "bg-yellow-100 text-yellow-700" : "text-surface-400 hover:bg-surface-100"}`}>⭐</button>
+                    <button onClick={() => toggleField(c.id, "isActive", !c.isActive)} title={c.isActive ? "Deactivate" : "Activate"} className={`p-1.5 rounded-lg text-xs transition ${c.isActive ? "bg-green-100 text-green-700" : "bg-surface-100 text-surface-400"}`}>{c.isActive ? "✅" : "⏸"}</button>
+                    <button onClick={() => startEdit(c)} title="Edit" className="p-1.5 rounded-lg text-surface-400 hover:bg-surface-100 hover:text-surface-700 text-xs transition">✏️</button>
+                    <button onClick={() => deleteContest(c.id, c.name)} title="Delete" className="p-1.5 rounded-lg text-surface-400 hover:bg-red-50 hover:text-red-600 text-xs transition">🗑️</button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
