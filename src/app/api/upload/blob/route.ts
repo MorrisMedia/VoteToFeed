@@ -10,6 +10,15 @@ const MAX_SIZE = 10 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
+    // Check for BLOB_READ_WRITE_TOKEN before doing any work
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error("[upload/blob] BLOB_READ_WRITE_TOKEN is not set");
+      return NextResponse.json(
+        { error: "Image upload is not configured. Please contact support." },
+        { status: 503 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,6 +53,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Blob upload error:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+
+    // Surface Vercel Blob token errors explicitly
+    if (error instanceof Error && error.message.includes("token")) {
+      return NextResponse.json(
+        { error: "Upload service misconfigured — BLOB_READ_WRITE_TOKEN is invalid or missing." },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
