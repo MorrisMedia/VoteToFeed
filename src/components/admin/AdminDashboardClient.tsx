@@ -173,6 +173,11 @@ export function AdminDashboardClient({
       label: "Engagement",
       icon: <span>🤖</span>,
     },
+    {
+      id: "shelter" as Tab,
+      label: "Shelter",
+      icon: <span>🏠</span>,
+    },
   ];
 
   return (
@@ -1184,6 +1189,34 @@ function AdminEngagementTab() {
 
 // ─── SHELTER TAB ─────────────────────────────────────────
 
+function PhotoUploadButton({ onUploaded }: { onUploaded: (url: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload/blob", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.url) onUploaded(data.url);
+    } finally {
+      setUploading(false);
+      if (ref.current) ref.current.value = "";
+    }
+  };
+  return (
+    <>
+      <button type="button" onClick={() => ref.current?.click()} disabled={uploading} className="btn-secondary text-xs px-3 whitespace-nowrap">
+        {uploading ? "Uploading..." : "📷 Upload"}
+      </button>
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+    </>
+  );
+}
+
 type ShelterPartnerData = { id: string; name: string; logoUrl: string | null; website: string | null; description: string | null; isActive: boolean; createdAt: string };
 type ShelterPostData = { id: string; title: string | null; featuredImage: string | null; content: string | null; photos: string[]; caption: string | null; videoUrl: string | null; tags: string[]; type: string; location: string | null; isPublished: boolean; createdAt: string; author: { name: string | null }; contest: { id: string; name: string } | null };
 
@@ -1330,8 +1363,9 @@ function AdminShelterTab() {
               <div>
                 <label className="block text-xs font-medium text-surface-500 mb-1">Photo Gallery</label>
                 <div className="flex gap-2 mb-2">
-                  <input value={photoInput} onChange={e => setPhotoInput(e.target.value)} className="input-field flex-1" placeholder="Paste photo URL" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPhoto())} />
-                  <button type="button" onClick={addPhoto} className="btn-secondary text-xs px-3">Add</button>
+                  <input value={photoInput} onChange={e => setPhotoInput(e.target.value)} className="input-field flex-1" placeholder="Paste photo URL or upload" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPhoto())} />
+                  <button type="button" onClick={addPhoto} className="btn-secondary text-xs px-3">Add URL</button>
+                  <PhotoUploadButton onUploaded={(url) => setPf(f => ({...f, photos: [...f.photos, url]}))} />
                 </div>
                 {pf.photos.length > 0 && (
                   <div className="flex gap-2 flex-wrap">
