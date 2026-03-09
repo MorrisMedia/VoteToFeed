@@ -157,7 +157,7 @@ export default async function PetDetailPage({
         {/* Photo column */}
         <div className="lg:col-span-3">
           <div className="relative rounded-2xl overflow-hidden bg-surface-100 aspect-[4/3]">
-            <img src={photo} alt={pet.name} className="w-full h-full object-cover" />
+            <img src={photo} alt={pet.name} className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = pet.type === "CAT" ? "https://placekitten.com/400/400" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"; }} />
             <div className="absolute top-4 left-4 flex gap-2">
               {isNew && <span className="badge-new">New</span>}
               {weeklyRank != null && weeklyRank <= 10 && (
@@ -302,7 +302,7 @@ export default async function PetDetailPage({
           </div>
           <div className="flex gap-3 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory -mx-4 px-4">
             {shuffled.map((p) => {
-              const pPhoto = p.photos[0] || `https://placedog.net/300/300?random=${p.id}`;
+              const pPhoto = p.photos[0] || (p.type === "CAT" ? "https://cataas.com/cat" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg");
               const pVotes = p.weeklyStats[0]?.totalVotes ?? 0;
               const pRank = p.weeklyStats[0]?.rank ?? null;
               return (
@@ -316,6 +316,7 @@ export default async function PetDetailPage({
                       src={pPhoto}
                       alt={p.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = p.type === "CAT" ? "https://placekitten.com/300/300" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"; }}
                     />
                     {pRank != null && pRank <= 10 && (
                       <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-[10px] font-bold text-surface-700 px-1.5 py-0.5 rounded-full shadow-sm">
