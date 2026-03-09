@@ -2520,7 +2520,7 @@ function ContestManager() {
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isFeatured as boolean} onChange={e => setEditForm(f => ({...f, isFeatured: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Featured</label>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isActive as boolean} onChange={e => setEditForm(f => ({...f, isActive: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Active</label>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isRecurring as boolean} onChange={e => setEditForm(f => ({...f, isRecurring: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Recurring</label>
-                    {editForm.isRecurring && (
+                    {Boolean(editForm.isRecurring) && (
                       <select value={editForm.recurringInterval as string} onChange={e => setEditForm(f => ({...f, recurringInterval: e.target.value}))} className="input-field text-xs w-auto py-0.5">
                         <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option>
                       </select>
