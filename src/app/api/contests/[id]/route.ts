@@ -65,6 +65,8 @@ export async function PUT(
   if (body.sponsorName !== undefined) data.sponsorName = body.sponsorName || null;
   if (body.sponsorLogo !== undefined) data.sponsorLogo = body.sponsorLogo || null;
   if (body.sponsorUrl !== undefined) data.sponsorUrl = body.sponsorUrl || null;
+  if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring;
+  if (body.recurringInterval !== undefined) data.recurringInterval = body.recurringInterval || null;
 
   const updated = await prisma.contest.update({
     where: { id },

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 
 type Overview = {
   totalUsers: number;
@@ -1307,11 +1308,7 @@ function AdminShelterTab() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-surface-500 mb-1">Featured Image URL</label>
-                <input value={pf.featuredImage} onChange={e => setPf(f => ({...f, featuredImage: e.target.value}))} className="input-field" placeholder="https://..." />
-                {pf.featuredImage && <img src={pf.featuredImage} alt="Preview" className="mt-2 rounded-lg h-32 object-cover" />}
-              </div>
+              <ImageUpload label="Featured Image" value={pf.featuredImage} onChange={url => setPf(f => ({...f, featuredImage: url}))} />
               <div>
                 <label className="block text-xs font-medium text-surface-500 mb-1">Content (Markdown supported)</label>
                 <textarea value={pf.content} onChange={e => setPf(f => ({...f, content: e.target.value}))} className="input-field resize-none font-mono text-sm" rows={6} placeholder="Write your shelter post content here..." />
@@ -2118,6 +2115,9 @@ type ContestData = {
   sponsorName: string | null;
   sponsorLogo: string | null;
   sponsorUrl: string | null;
+  isRecurring: boolean;
+  recurringInterval: string | null;
+  recurringCounter: number;
   hasEnded: boolean;
 };
 
@@ -2142,6 +2142,8 @@ function ContestManager() {
     prizeDescription: "",
     sponsorName: "",
     isFeatured: false,
+    isRecurring: false,
+    recurringInterval: "biweekly",
   });
 
   async function loadContests() {
@@ -2171,6 +2173,7 @@ function ContestManager() {
       sponsorName: c.sponsorName || "", sponsorUrl: c.sponsorUrl || "",
       isFeatured: c.isFeatured, isActive: c.isActive,
       entryFee: c.entryFee || 0, maxEntries: c.maxEntries || "",
+      isRecurring: c.isRecurring || false, recurringInterval: c.recurringInterval || "biweekly",
     });
   }
 
@@ -2229,7 +2232,7 @@ function ContestManager() {
       if (res.ok) {
         setCreateMsg("Contest created!");
         setShowForm(false);
-        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false });
+        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly" });
         loadContests();
       } else {
         const data = await res.json();
@@ -2381,11 +2384,11 @@ function ContestManager() {
                 setUploadingCover(true);
                 try {
                   const formData = new FormData();
-                  formData.append("photos", file);
-                  const res = await fetch("/api/upload", { method: "POST", body: formData });
+                  formData.append("file", file);
+                  const res = await fetch("/api/upload/blob", { method: "POST", body: formData });
                   const data = await res.json();
-                  if (res.ok && data.urls?.[0]) {
-                    setCf((f) => ({ ...f, coverImage: data.urls[0] }));
+                  if (res.ok && data.url) {
+                    setCf((f) => ({ ...f, coverImage: data.url }));
                   } else {
                     setCreateMsg(data.error || "Upload failed");
                     setTimeout(() => setCreateMsg(""), 3000);
@@ -2416,10 +2419,23 @@ function ContestManager() {
               </details>
             </div>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={cf.isFeatured} onChange={(e) => setCf((f) => ({ ...f, isFeatured: e.target.checked }))} className="w-4 h-4 rounded border-surface-300 text-brand-600" />
-            <span className="text-sm text-surface-700">Featured contest (shown prominently)</span>
-          </label>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={cf.isFeatured} onChange={(e) => setCf((f) => ({ ...f, isFeatured: e.target.checked }))} className="w-4 h-4 rounded border-surface-300 text-brand-600" />
+              <span className="text-sm text-surface-700">Featured</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={cf.isRecurring} onChange={(e) => setCf((f) => ({ ...f, isRecurring: e.target.checked }))} className="w-4 h-4 rounded border-surface-300 text-brand-600" />
+              <span className="text-sm text-surface-700">Recurring</span>
+            </label>
+            {cf.isRecurring && (
+              <select value={cf.recurringInterval} onChange={(e) => setCf((f) => ({ ...f, recurringInterval: e.target.value }))} className="input-field text-sm w-auto">
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            )}
+          </div>
           <button type="submit" disabled={creating} className="btn-primary py-2 px-6 text-sm disabled:opacity-50">
             {creating ? "Creating..." : "Create Contest"}
           </button>
@@ -2487,8 +2503,7 @@ function ContestManager() {
                       <input value={editForm.sponsorName as string} onChange={e => setEditForm(f => ({...f, sponsorName: e.target.value}))} className="input-field text-sm" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Cover Image URL</label>
-                      <input value={editForm.coverImage as string} onChange={e => setEditForm(f => ({...f, coverImage: e.target.value}))} className="input-field text-sm" />
+                      <ImageUpload label="Cover Image" value={editForm.coverImage as string} onChange={url => setEditForm(f => ({...f, coverImage: url}))} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2504,6 +2519,12 @@ function ContestManager() {
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isFeatured as boolean} onChange={e => setEditForm(f => ({...f, isFeatured: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Featured</label>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isActive as boolean} onChange={e => setEditForm(f => ({...f, isActive: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Active</label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isRecurring as boolean} onChange={e => setEditForm(f => ({...f, isRecurring: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Recurring</label>
+                    {editForm.isRecurring && (
+                      <select value={editForm.recurringInterval as string} onChange={e => setEditForm(f => ({...f, recurringInterval: e.target.value}))} className="input-field text-xs w-auto py-0.5">
+                        <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option>
+                      </select>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => saveEdit(c.id)} className="btn-primary text-xs px-4 py-1.5">Save</button>
@@ -2524,6 +2545,7 @@ function ContestManager() {
                       </span>
                       {c.isFeatured && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Featured</span>}
                       {!c.isActive && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-200 text-surface-500">Inactive</span>}
+                      {c.isRecurring && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700">🔄 {c.recurringInterval}</span>}
                       {c.hasEnded && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-600">Ended</span>}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-surface-500">

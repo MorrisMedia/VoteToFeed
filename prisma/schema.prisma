@@ -230,6 +230,9 @@ model Contest {
   sponsorName  String?
   sponsorLogo  String?
   sponsorUrl   String?
+  isRecurring       Boolean  @default(false)
+  recurringInterval String?  // 'weekly', 'biweekly', 'monthly'
+  recurringCounter  Int      @default(0) // incremented each recurrence
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @default(now()) @updatedAt
 
@@ -239,6 +242,7 @@ model Contest {
 
   @@index([isActive, petType])
   @@index([isActive, endDate])
+  @@index([isRecurring, endDate])
   @@index([weekId])
 }
 
