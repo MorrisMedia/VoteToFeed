@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         id: c.id,
         name: c.name,
         type: c.type,
+        typeLabel: c.typeLabel,
         petType: c.petType,
         state: c.state,
         startDate: c.startDate,
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      name, type, petType, state, startDate, endDate, description, rules,
+      name, type, typeLabel, petType, state, startDate, endDate, description, rules,
       coverImage, entryFee, maxEntries, prizeDescription, sponsorName,
       sponsorLogo, sponsorUrl, isFeatured, isRecurring, recurringInterval, prizes,
     } = body;
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         type,
+        typeLabel: typeLabel || null,
         petType,
         state: state || null,
         startDate: new Date(startDate),

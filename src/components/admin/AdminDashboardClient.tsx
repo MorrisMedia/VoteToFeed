@@ -2097,6 +2097,7 @@ type ContestData = {
   id: string;
   name: string;
   type: string;
+  typeLabel: string | null;
   petType: string;
   state: string | null;
   startDate: string;
@@ -2133,6 +2134,7 @@ function ContestManager() {
   const [cf, setCf] = useState({
     name: "",
     type: "SEASONAL",
+    typeLabel: "",
     petType: "DOG",
     startDate: new Date().toISOString().split("T")[0],
     endDate: "",
@@ -2165,7 +2167,7 @@ function ContestManager() {
   function startEdit(c: ContestData) {
     setEditingId(c.id);
     setEditForm({
-      name: c.name, type: c.type, petType: c.petType, state: c.state || "",
+      name: c.name, type: c.type, typeLabel: c.typeLabel || "", petType: c.petType, state: c.state || "",
       startDate: new Date(c.startDate).toISOString().split("T")[0],
       endDate: new Date(c.endDate).toISOString().split("T")[0],
       description: c.description || "", rules: c.rules || "",
@@ -2232,7 +2234,7 @@ function ContestManager() {
       if (res.ok) {
         setCreateMsg("Contest created!");
         setShowForm(false);
-        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly" });
+        setCf({ name: "", type: "SEASONAL", typeLabel: "", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly" });
         loadContests();
       } else {
         const data = await res.json();
@@ -2286,6 +2288,11 @@ function ContestManager() {
                   <option value="BREED">Breed-specific</option>
                   <option value="STATE">Regional/State</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Display Label (badge)</label>
+                <input value={cf.typeLabel} onChange={(e) => setCf((f) => ({ ...f, typeLabel: e.target.value }))} className="input-field" placeholder="e.g. Weekly, Monthly, Seasonal" />
+                <p className="text-[10px] text-surface-400 mt-0.5">Shown as the badge on the contest card. Leave blank to use type name.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-surface-500 mb-1">Pet Type *</label>
@@ -2467,6 +2474,10 @@ function ContestManager() {
                         <option value="CHARITY">Charity</option><option value="CALENDAR">Calendar</option>
                         <option value="BREED">Breed</option><option value="STATE">State</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Display Label (badge)</label>
+                      <input value={editForm.typeLabel as string} onChange={e => setEditForm(f => ({...f, typeLabel: e.target.value}))} className="input-field text-sm" placeholder="e.g. Weekly, Monthly, Seasonal" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Pet Type</label>

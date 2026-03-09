@@ -271,6 +271,7 @@ async function main() {
         data: {
           name: `National ${petType === "DOG" ? "Dog" : "Cat"} Contest`,
           type: "NATIONAL",
+          typeLabel: "Weekly",
           petType,
           state: "",
           weekId,

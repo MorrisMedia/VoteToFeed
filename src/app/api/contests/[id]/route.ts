@@ -50,6 +50,7 @@ export async function PUT(
   // Only update fields that were provided
   if (body.name !== undefined) data.name = body.name;
   if (body.type !== undefined) data.type = body.type;
+  if (body.typeLabel !== undefined) data.typeLabel = body.typeLabel || null;
   if (body.petType !== undefined) data.petType = body.petType;
   if (body.state !== undefined) data.state = body.state || null;
   if (body.startDate !== undefined) data.startDate = new Date(body.startDate);

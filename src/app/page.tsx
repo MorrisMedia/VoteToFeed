@@ -94,6 +94,7 @@ async function getHomeData() {
       id: c.id,
       name: c.name,
       type: c.type,
+      typeLabel: c.typeLabel,
       petType: c.petType,
       description: c.description,
       coverImage: c.coverImage,
@@ -226,7 +227,6 @@ export default async function HomePage() {
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar snap-x snap-mandatory -mx-1 px-1">
               {data.contests.map((contest) => {
-                const typeLabel: Record<string, string> = { NATIONAL: "Weekly", SEASONAL: "Seasonal", CHARITY: "Charity", CALENDAR: "Calendar", BREED: "Breed", STATE: "Regional" };
                 const typeBadge: Record<string, string> = { NATIONAL: "bg-brand-100 text-brand-700", SEASONAL: "bg-amber-100 text-amber-700", CHARITY: "bg-emerald-100 text-emerald-700", CALENDAR: "bg-violet-100 text-violet-700", BREED: "bg-sky-100 text-sky-700", STATE: "bg-orange-100 text-orange-700" };
                 return (
                   <Link
@@ -246,7 +246,7 @@ export default async function HomePage() {
                       {/* Overlay badges */}
                       <div className="absolute top-2 left-2 flex gap-1.5">
                         <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm ${typeBadge[contest.type] || "bg-surface-100 text-surface-600"}`}>
-                          {typeLabel[contest.type] || contest.type}
+                          {contest.typeLabel || contest.type}
                         </span>
                         {contest.isFeatured && (
                           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100/90 text-yellow-700 backdrop-blur-sm">

@@ -234,6 +234,7 @@ model Contest {
   sponsorName  String?
   sponsorLogo  String?
   sponsorUrl   String?
+  typeLabel         String?  // Optional display label e.g. "Weekly", "Monthly", "Seasonal"
   isRecurring       Boolean  @default(false)
   recurringInterval String?  // 'weekly', 'biweekly', 'monthly'
   recurringCounter  Int      @default(0) // incremented each recurrence

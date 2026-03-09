@@ -44,6 +44,7 @@ async function main() {
     data: {
       name: "National Dog Contest",
       type: "NATIONAL",
+      typeLabel: "Weekly",
       petType: "DOG",
       weekId: wid,
       startDate: sundayStart(),
@@ -68,6 +69,7 @@ async function main() {
     data: {
       name: "National Cat Contest",
       type: "NATIONAL",
+      typeLabel: "Weekly",
       petType: "CAT",
       weekId: wid,
       startDate: sundayStart(),

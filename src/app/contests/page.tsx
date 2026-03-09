@@ -23,10 +23,7 @@ export default async function ContestsPage() {
     return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   }
 
-  function typeLabel(type: string) {
-    const map: Record<string, string> = { NATIONAL: "Weekly", SEASONAL: "Seasonal", CHARITY: "Charity", CALENDAR: "Calendar", BREED: "Breed", STATE: "Regional" };
-    return map[type] || type;
-  }
+
   function typeBadge(type: string) {
     const map: Record<string, string> = { NATIONAL: "bg-brand-100 text-brand-700", SEASONAL: "bg-amber-100 text-amber-700", CHARITY: "bg-emerald-100 text-emerald-700", CALENDAR: "bg-violet-100 text-violet-700", BREED: "bg-sky-100 text-sky-700", STATE: "bg-orange-100 text-orange-700" };
     return map[type] || "bg-surface-100 text-surface-600";
@@ -49,7 +46,7 @@ export default async function ContestsPage() {
           )}
           <div className="absolute top-2.5 left-2.5 flex gap-1.5">
             <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm ${typeBadge(contest.type)}`}>
-              {typeLabel(contest.type)}
+              {contest.typeLabel || contest.type}
             </span>
             <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-100/90 text-surface-600 backdrop-blur-sm">
               {contest.petType === "DOG" ? "Dogs" : "Cats"}
