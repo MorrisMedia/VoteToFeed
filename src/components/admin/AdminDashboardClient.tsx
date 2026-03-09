@@ -1837,16 +1837,23 @@ type ContestData = {
   name: string;
   type: string;
   petType: string;
+  state: string | null;
   startDate: string;
   endDate: string;
   isActive: boolean;
   isFeatured: boolean;
   description: string | null;
+  rules: string | null;
+  coverImage: string | null;
+  entryFee: number;
+  maxEntries: number | null;
   entryCount: number;
   daysLeft: number;
   totalPrizeValue: number;
   prizeDescription: string | null;
   sponsorName: string | null;
+  sponsorLogo: string | null;
+  sponsorUrl: string | null;
   hasEnded: boolean;
 };
 
