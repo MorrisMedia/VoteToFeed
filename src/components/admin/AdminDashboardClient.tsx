@@ -90,7 +90,7 @@ type Props = {
   weekId: string;
 };
 
-type Tab = "overview" | "users" | "pets" | "revenue" | "settings";
+type Tab = "overview" | "users" | "pets" | "revenue" | "settings" | "api-keys" | "moderation" | "engagement";
 
 export function AdminDashboardClient({
   settings: initialSettings,
@@ -156,6 +156,21 @@ export function AdminDashboardClient({
       id: "settings",
       label: "Settings",
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+    },
+    {
+      id: "api-keys" as Tab,
+      label: "API Keys",
+      icon: <span>🔑</span>,
+    },
+    {
+      id: "moderation" as Tab,
+      label: "Moderation",
+      icon: <span>🛡️</span>,
+    },
+    {
+      id: "engagement" as Tab,
+      label: "Engagement",
+      icon: <span>🤖</span>,
     },
   ];
 
@@ -867,6 +882,297 @@ export function AdminDashboardClient({
               onSave={saveSetting}
               saving={saving}
             />
+          </div>
+        )}
+
+        {activeTab === "api-keys" && <AdminApiKeysTab />}
+        {activeTab === "moderation" && <AdminModerationTab />}
+        {activeTab === "engagement" && <AdminEngagementTab />}
+      </div>
+    </div>
+  );
+}
+
+// ─── API KEYS TAB ────────────────────────────────────────
+
+type ApiKeyRecord = { id: string; name: string; prefix: string; isActive: boolean; lastUsedAt: string | null; usageCount: number; createdBy: string; createdAt: string; revokedAt: string | null };
+
+function AdminApiKeysTab() {
+  const [keys, setKeys] = useState<ApiKeyRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const fetchKeys = async () => {
+    setLoading(true);
+    const res = await fetch("/api/admin/api-keys");
+    const data = await res.json();
+    setKeys(data.keys || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchKeys(); }, []);
+
+  const createKey = async () => {
+    if (!newKeyName.trim()) return;
+    setCreating(true);
+    const res = await fetch("/api/admin/api-keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newKeyName }) });
+    const data = await res.json();
+    if (data.key) { setRevealedKey(data.key); setNewKeyName(""); fetchKeys(); }
+    setCreating(false);
+  };
+
+  const revokeKey = async (id: string) => {
+    if (!confirm("Revoke this API key?")) return;
+    await fetch("/api/admin/api-keys", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    fetchKeys();
+  };
+
+  const copyKey = () => { if (revealedKey) { navigator.clipboard.writeText(revealedKey); setCopied(true); setTimeout(() => setCopied(false), 2000); } };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-surface-900">API Keys</h2>
+        <div className="flex gap-2">
+          <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="Key name..." className="rounded-lg border border-surface-200 bg-white px-3 py-1.5 text-sm" />
+          <button onClick={createKey} disabled={creating || !newKeyName.trim()} className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">Create Key</button>
+        </div>
+      </div>
+
+      {revealedKey && (
+        <div className="rounded-xl border-2 border-yellow-400 bg-yellow-50 p-4">
+          <p className="text-sm font-semibold text-yellow-800 mb-2">⚠️ Save this key now — it won&apos;t be shown again!</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 rounded bg-white px-3 py-2 text-xs font-mono text-surface-800 border">{revealedKey}</code>
+            <button onClick={copyKey} className="rounded-lg bg-surface-800 px-3 py-2 text-xs text-white">{copied ? "Copied!" : "Copy"}</button>
+          </div>
+          <button onClick={() => setRevealedKey(null)} className="mt-2 text-xs text-yellow-700 hover:underline">Dismiss</button>
+        </div>
+      )}
+
+      {loading ? <p className="text-sm text-surface-500">Loading...</p> : (
+        <div className="overflow-x-auto rounded-xl border border-surface-200">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-50"><tr>
+              <th className="px-4 py-3 text-left font-medium text-surface-600">Name</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600">Key</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600">Usage</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600">Created</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600">Actions</th>
+            </tr></thead>
+            <tbody className="divide-y divide-surface-100">
+              {keys.map(k => (
+                <tr key={k.id} className="hover:bg-surface-50">
+                  <td className="px-4 py-3 font-medium">{k.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-surface-500">{k.prefix}...</td>
+                  <td className="px-4 py-3">{k.isActive ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Active</span> : <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Revoked</span>}</td>
+                  <td className="px-4 py-3 text-surface-500">{k.usageCount} calls</td>
+                  <td className="px-4 py-3 text-xs text-surface-400">{new Date(k.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3">{k.isActive && <button onClick={() => revokeKey(k.id)} className="text-xs text-red-600 hover:text-red-800 font-medium">Revoke</button>}</td>
+                </tr>
+              ))}
+              {keys.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-surface-400">No API keys yet</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MODERATION TAB ──────────────────────────────────────
+
+type FlaggedItem = { id: string; reason: string; matchedWords: string[]; status: string; createdAt: string; comment: { id: string; text: string; user: { id: string; name: string | null; email: string | null; image: string | null }; pet: { id: string; name: string } } };
+type CommentItem = { id: string; text: string; createdAt: string; user: { id: string; name: string | null; email: string | null; image: string | null }; pet: { id: string; name: string } };
+
+function AdminModerationTab() {
+  const [subTab, setSubTab] = useState<"spam" | "comments">("spam");
+  const [items, setItems] = useState<FlaggedItem[] | CommentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchItems = async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ tab: subTab, page: String(page), limit: "25" });
+    if (search && subTab === "comments") params.set("search", search);
+    const res = await fetch(`/api/admin/moderation?${params}`);
+    const data = await res.json();
+    setItems(data.items || []);
+    setTotalPages(data.totalPages || 1);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchItems(); }, [subTab, page]);
+
+  const moderateAction = async (action: string, id: string, userId?: string) => {
+    await fetch("/api/admin/moderation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, id, userId }) });
+    fetchItems();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 border-b border-surface-200 pb-2">
+        {(["spam", "comments"] as const).map(t => (
+          <button key={t} onClick={() => { setSubTab(t); setPage(1); }} className={`rounded-lg px-4 py-2 text-sm font-medium ${subTab === t ? "bg-brand-600 text-white" : "text-surface-600 hover:bg-surface-100"}`}>
+            {t === "spam" ? "🛡️ Spam Queue" : "💬 All Comments"}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "comments" && (
+        <div className="flex gap-2">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search comments..." className="flex-1 rounded-lg border border-surface-200 px-3 py-2 text-sm" />
+          <button onClick={fetchItems} className="rounded-lg bg-surface-200 px-4 py-2 text-sm">Search</button>
+        </div>
+      )}
+
+      {loading ? <p className="text-sm text-surface-500 py-8 text-center">Loading...</p> : (
+        <div className="space-y-2">
+          {(items as (FlaggedItem | CommentItem)[]).map((item) => {
+            if (subTab === "spam") {
+              const f = item as FlaggedItem;
+              return (
+                <div key={f.id} className="rounded-xl border border-surface-200 bg-white p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{f.comment?.user?.name || "Unknown"}</span>
+                        <span className="text-xs text-surface-400">{f.comment?.user?.email}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${f.reason === "profanity" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>{f.reason}</span>
+                      </div>
+                      <p className="text-sm text-surface-700 mb-1">&ldquo;{f.comment?.text}&rdquo;</p>
+                      <p className="text-xs text-surface-400">On: {f.comment?.pet?.name} · Matched: {f.matchedWords?.join(", ")} · {new Date(f.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => moderateAction("approve_comment", f.id)} className="rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200">✅ Approve</button>
+                      <button onClick={() => moderateAction("reject_comment", f.id)} className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200">❌ Reject</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            } else {
+              const c = item as CommentItem;
+              return (
+                <div key={c.id} className="flex items-center justify-between rounded-xl border border-surface-200 bg-white p-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-medium">{c.user?.name || "Unknown"}</span>
+                      <span className="text-xs text-surface-400">on {c.pet?.name}</span>
+                    </div>
+                    <p className="text-sm text-surface-600">{c.text}</p>
+                    <p className="text-xs text-surface-400 mt-0.5">{new Date(c.createdAt).toLocaleString()}</p>
+                  </div>
+                  <button onClick={() => moderateAction("delete_comment", c.id)} className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 shrink-0">Delete</button>
+                </div>
+              );
+            }
+          })}
+          {items.length === 0 && <p className="text-center text-surface-400 py-8">{subTab === "spam" ? "No pending spam — all clear! 🎉" : "No comments found"}</p>}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 pt-2">
+          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="rounded-lg border px-3 py-1 text-sm disabled:opacity-40">← Prev</button>
+          <span className="px-3 py-1 text-sm text-surface-500">Page {page} of {totalPages}</span>
+          <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="rounded-lg border px-3 py-1 text-sm disabled:opacity-40">Next →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ENGAGEMENT TAB ──────────────────────────────────────
+
+type EngagementLogEntry = { id: string; targetUserId: string; seedAccountId: string; petId: string; action: string; commentText: string | null; createdAt: string };
+
+function AdminEngagementTab() {
+  const [logs, setLogs] = useState<EngagementLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<string | null>(null);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    const res = await fetch("/api/admin/engagement-log");
+    const data = await res.json();
+    setLogs(data.logs || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchLogs(); }, []);
+
+  const seedAccounts = async () => {
+    setSeeding(true); setSeedResult(null);
+    const res = await fetch("/api/admin/seed-engagement", { method: "POST" });
+    const data = await res.json();
+    setSeedResult(JSON.stringify(data, null, 2));
+    setSeeding(false);
+  };
+
+  const runEngagement = async () => {
+    setRunning(true); setRunResult(null);
+    const res = await fetch("/api/cron/auto-engage");
+    const data = await res.json();
+    setRunResult(JSON.stringify(data, null, 2));
+    setRunning(false);
+    fetchLogs();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <button onClick={seedAccounts} disabled={seeding} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">{seeding ? "Seeding..." : "🌱 Seed 20 Engagement Accounts"}</button>
+        <button onClick={runEngagement} disabled={running} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{running ? "Running..." : "▶️ Run Engagement Now"}</button>
+      </div>
+
+      {seedResult && (
+        <details className="rounded-xl border border-surface-200 bg-white">
+          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-surface-700">Seed Results</summary>
+          <pre className="px-4 py-2 text-xs text-surface-600 overflow-x-auto max-h-60">{seedResult}</pre>
+        </details>
+      )}
+
+      {runResult && (
+        <details open className="rounded-xl border border-surface-200 bg-white">
+          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-surface-700">Engagement Run Results</summary>
+          <pre className="px-4 py-2 text-xs text-surface-600 overflow-x-auto max-h-60">{runResult}</pre>
+        </details>
+      )}
+
+      <div>
+        <h3 className="text-sm font-semibold text-surface-700 mb-3">Engagement Log ({logs.length} entries)</h3>
+        {loading ? <p className="text-sm text-surface-500">Loading...</p> : (
+          <div className="overflow-x-auto rounded-xl border border-surface-200">
+            <table className="w-full text-xs">
+              <thead className="bg-surface-50"><tr>
+                <th className="px-3 py-2 text-left font-medium text-surface-600">Time</th>
+                <th className="px-3 py-2 text-left font-medium text-surface-600">Target User</th>
+                <th className="px-3 py-2 text-left font-medium text-surface-600">Seed Account</th>
+                <th className="px-3 py-2 text-left font-medium text-surface-600">Action</th>
+                <th className="px-3 py-2 text-left font-medium text-surface-600">Comment</th>
+              </tr></thead>
+              <tbody className="divide-y divide-surface-100">
+                {logs.map(l => (
+                  <tr key={l.id} className="hover:bg-surface-50">
+                    <td className="px-3 py-2 text-surface-500 whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</td>
+                    <td className="px-3 py-2 font-mono text-surface-600">{l.targetUserId.slice(0, 8)}...</td>
+                    <td className="px-3 py-2 font-mono text-surface-600">{l.seedAccountId.slice(0, 8)}...</td>
+                    <td className="px-3 py-2">{l.action === "like" ? "❤️ Like" : "💬 Comment"}</td>
+                    <td className="px-3 py-2 text-surface-500 max-w-xs truncate">{l.commentText || "—"}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-surface-400">No engagement activity yet</td></tr>}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
