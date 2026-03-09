@@ -463,18 +463,33 @@ model Breed {
 // ─── SHELTER IMPACT POSTS (Instagram-style feed) ────
 
 model ShelterPost {
-  id          String   @id @default(cuid())
-  photos      String[] // Array of photo URLs
-  caption     String?  @db.Text
-  location    String?  // Shelter name or location
-  contestId   String?  // Tagged contest
-  contest     Contest? @relation(fields: [contestId], references: [id], onDelete: SetNull)
-  authorId    String   // Admin who posted
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  isPublished Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id            String          @id @default(cuid())
+  title         String?
+  featuredImage String?
+  content       String?         @db.Text
+  photos        String[]        // Gallery photo URLs
+  caption       String?         @db.Text
+  videoUrl      String?
+  tags          String[]
+  type          ShelterPostType @default(UPDATE)
+  location      String?         // Shelter name or location
+  contestId     String?
+  contest       Contest?        @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  authorId      String
+  author        User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  isPublished   Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
 
   @@index([isPublished, createdAt])
+  @@index([type])
+}
+
+enum ShelterPostType {
+  UPDATE
+  STORY
+  ANNOUNCEMENT
+  GALLERY
 }
 
 // ─── API KEYS ────────────────────────────────────────────

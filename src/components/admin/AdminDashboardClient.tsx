@@ -90,7 +90,7 @@ type Props = {
   weekId: string;
 };
 
-type Tab = "overview" | "users" | "pets" | "revenue" | "settings" | "api-keys" | "moderation" | "engagement";
+type Tab = "overview" | "users" | "pets" | "revenue" | "settings" | "api-keys" | "moderation" | "engagement" | "shelter";
 
 export function AdminDashboardClient({
   settings: initialSettings,
@@ -888,6 +888,7 @@ export function AdminDashboardClient({
         {activeTab === "api-keys" && <AdminApiKeysTab />}
         {activeTab === "moderation" && <AdminModerationTab />}
         {activeTab === "engagement" && <AdminEngagementTab />}
+        {activeTab === "shelter" && <AdminShelterTab />}
       </div>
     </div>
   );
@@ -1176,6 +1177,269 @@ function AdminEngagementTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── SHELTER TAB ─────────────────────────────────────────
+
+type ShelterPartnerData = { id: string; name: string; logoUrl: string | null; website: string | null; description: string | null; isActive: boolean; createdAt: string };
+type ShelterPostData = { id: string; title: string | null; featuredImage: string | null; content: string | null; photos: string[]; caption: string | null; videoUrl: string | null; tags: string[]; type: string; location: string | null; isPublished: boolean; createdAt: string; author: { name: string | null }; contest: { id: string; name: string } | null };
+
+function AdminShelterTab() {
+  const [subTab, setSubTab] = useState<"posts" | "partners">("posts");
+  const [posts, setPosts] = useState<ShelterPostData[]>([]);
+  const [partners, setPartners] = useState<ShelterPartnerData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+
+  // Post form state
+  const emptyPost = { title: "", featuredImage: "", content: "", photos: [] as string[], caption: "", videoUrl: "", tags: [] as string[], type: "UPDATE", location: "", contestId: "", isPublished: true };
+  const [pf, setPf] = useState(emptyPost);
+  const [tagInput, setTagInput] = useState("");
+  const [photoInput, setPhotoInput] = useState("");
+
+  // Partner form state
+  const emptyPartner = { name: "", logoUrl: "", website: "", description: "" };
+  const [partnerForm, setPartnerForm] = useState(emptyPartner);
+  const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const res = await fetch("/api/shelter-posts?all=true");
+    const data = await res.json();
+    setPosts(data.posts || []);
+    const pRes = await fetch("/api/admin/shelter-partners");
+    const pData = await pRes.json();
+    setPartners(pData.partners || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  // Post CRUD
+  const savePost = async () => {
+    const url = editingId ? `/api/shelter-posts/${editingId}` : "/api/shelter-posts";
+    const method = editingId ? "PUT" : "POST";
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(pf) });
+    if (res.ok) { setShowForm(false); setEditingId(null); setPf(emptyPost); fetchData(); setMsg(editingId ? "Post updated" : "Post created"); }
+    else { const d = await res.json(); setMsg(d.error || "Failed"); }
+    setTimeout(() => setMsg(""), 3000);
+  };
+
+  const startEditPost = (p: ShelterPostData) => {
+    setEditingId(p.id);
+    setPf({ title: p.title || "", featuredImage: p.featuredImage || "", content: p.content || "", photos: p.photos || [], caption: p.caption || "", videoUrl: p.videoUrl || "", tags: p.tags || [], type: p.type, location: p.location || "", contestId: p.contest?.id || "", isPublished: p.isPublished });
+    setShowForm(true);
+  };
+
+  const deletePost = async (id: string) => {
+    if (!confirm("Delete this shelter post?")) return;
+    await fetch(`/api/shelter-posts/${id}`, { method: "DELETE" });
+    fetchData();
+  };
+
+  const togglePublish = async (id: string, isPublished: boolean) => {
+    await fetch(`/api/shelter-posts/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPublished }) });
+    fetchData();
+  };
+
+  // Partner CRUD
+  const savePartner = async () => {
+    if (editingPartnerId) {
+      await fetch("/api/admin/shelter-partners", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingPartnerId, ...partnerForm }) });
+    } else {
+      await fetch("/api/admin/shelter-partners", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(partnerForm) });
+    }
+    setEditingPartnerId(null); setPartnerForm(emptyPartner); fetchData();
+  };
+
+  const deletePartner = async (id: string) => {
+    if (!confirm("Delete this shelter partner?")) return;
+    await fetch("/api/admin/shelter-partners", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    fetchData();
+  };
+
+  const togglePartner = async (id: string, isActive: boolean) => {
+    await fetch("/api/admin/shelter-partners", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, isActive }) });
+    fetchData();
+  };
+
+  const addTag = () => { if (tagInput.trim() && !pf.tags.includes(tagInput.trim())) { setPf(f => ({ ...f, tags: [...f.tags, tagInput.trim()] })); setTagInput(""); } };
+  const removeTag = (t: string) => setPf(f => ({ ...f, tags: f.tags.filter(x => x !== t) }));
+  const addPhoto = () => { if (photoInput.trim()) { setPf(f => ({ ...f, photos: [...f.photos, photoInput.trim()] })); setPhotoInput(""); } };
+  const removePhoto = (url: string) => setPf(f => ({ ...f, photos: f.photos.filter(x => x !== url) }));
+
+  const typeLabel: Record<string, string> = { UPDATE: "Update", STORY: "Story", ANNOUNCEMENT: "Announcement", GALLERY: "Gallery" };
+  const typeBadge: Record<string, string> = { UPDATE: "bg-blue-100 text-blue-700", STORY: "bg-purple-100 text-purple-700", ANNOUNCEMENT: "bg-red-100 text-red-700", GALLERY: "bg-emerald-100 text-emerald-700" };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-2 border-b border-surface-200 pb-2">
+        <button onClick={() => setSubTab("posts")} className={`rounded-lg px-4 py-2 text-sm font-medium ${subTab === "posts" ? "bg-brand-600 text-white" : "text-surface-600 hover:bg-surface-100"}`}>📝 Shelter Posts ({posts.length})</button>
+        <button onClick={() => setSubTab("partners")} className={`rounded-lg px-4 py-2 text-sm font-medium ${subTab === "partners" ? "bg-brand-600 text-white" : "text-surface-600 hover:bg-surface-100"}`}>🤝 Shelter Partners ({partners.length})</button>
+      </div>
+
+      {msg && <p className={`text-sm ${msg.includes("Failed") || msg.includes("error") ? "text-red-600" : "text-emerald-600"}`}>{msg}</p>}
+
+      {loading ? <p className="text-sm text-surface-500 py-8 text-center">Loading...</p> : subTab === "posts" ? (
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <h2 className="text-lg font-bold text-surface-900">Shelter Posts</h2>
+            <button onClick={() => { setShowForm(!showForm); setEditingId(null); setPf(emptyPost); }} className="btn-primary text-sm px-4 py-2">{showForm ? "Cancel" : "+ New Post"}</button>
+          </div>
+
+          {showForm && (
+            <div className="card p-5 space-y-3">
+              <h3 className="font-semibold text-surface-900">{editingId ? "Edit Post" : "Create New Post"}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-surface-500 mb-1">Title</label>
+                  <input value={pf.title} onChange={e => setPf(f => ({...f, title: e.target.value}))} className="input-field" placeholder="Post title..." />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-surface-500 mb-1">Post Type</label>
+                  <select value={pf.type} onChange={e => setPf(f => ({...f, type: e.target.value}))} className="input-field">
+                    <option value="UPDATE">Update</option><option value="STORY">Story</option>
+                    <option value="ANNOUNCEMENT">Announcement</option><option value="GALLERY">Gallery</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Featured Image URL</label>
+                <input value={pf.featuredImage} onChange={e => setPf(f => ({...f, featuredImage: e.target.value}))} className="input-field" placeholder="https://..." />
+                {pf.featuredImage && <img src={pf.featuredImage} alt="Preview" className="mt-2 rounded-lg h-32 object-cover" />}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Content (Markdown supported)</label>
+                <textarea value={pf.content} onChange={e => setPf(f => ({...f, content: e.target.value}))} className="input-field resize-none font-mono text-sm" rows={6} placeholder="Write your shelter post content here..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Caption (short summary)</label>
+                <textarea value={pf.caption} onChange={e => setPf(f => ({...f, caption: e.target.value}))} className="input-field resize-none" rows={2} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-surface-500 mb-1">Location / Shelter</label>
+                  <input value={pf.location} onChange={e => setPf(f => ({...f, location: e.target.value}))} className="input-field" placeholder="Happy Paws Rescue, Austin TX" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-surface-500 mb-1">Video URL (YouTube/Vimeo)</label>
+                  <input value={pf.videoUrl} onChange={e => setPf(f => ({...f, videoUrl: e.target.value}))} className="input-field" placeholder="https://youtube.com/watch?v=..." />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Photo Gallery</label>
+                <div className="flex gap-2 mb-2">
+                  <input value={photoInput} onChange={e => setPhotoInput(e.target.value)} className="input-field flex-1" placeholder="Paste photo URL" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPhoto())} />
+                  <button type="button" onClick={addPhoto} className="btn-secondary text-xs px-3">Add</button>
+                </div>
+                {pf.photos.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {pf.photos.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <img src={url} alt="" className="h-16 w-16 rounded object-cover border" />
+                        <button onClick={() => removePhoto(url)} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Tags</label>
+                <div className="flex gap-2 mb-2">
+                  <input value={tagInput} onChange={e => setTagInput(e.target.value)} className="input-field flex-1" placeholder="Add tag..." onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())} />
+                  <button type="button" onClick={addTag} className="btn-secondary text-xs px-3">Add</button>
+                </div>
+                {pf.tags.length > 0 && <div className="flex gap-1 flex-wrap">{pf.tags.map(t => <span key={t} className="rounded-full bg-surface-100 px-2 py-0.5 text-xs flex items-center gap-1">{t}<button onClick={() => removeTag(t)} className="text-surface-400 hover:text-red-500">✕</button></span>)}</div>}
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 cursor-pointer text-sm"><input type="checkbox" checked={pf.isPublished} onChange={e => setPf(f => ({...f, isPublished: e.target.checked}))} className="w-4 h-4 rounded" /> Published</label>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={savePost} className="btn-primary text-sm px-6 py-2">{editingId ? "Save Changes" : "Create Post"}</button>
+                <button onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-secondary text-sm px-4 py-2">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {posts.map(p => (
+            <div key={p.id} className="card p-4 flex gap-4 items-start">
+              {p.featuredImage && <img src={p.featuredImage} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-surface-900">{p.title || "(Untitled)"}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${typeBadge[p.type] || "bg-surface-100 text-surface-500"}`}>{typeLabel[p.type] || p.type}</span>
+                  {!p.isPublished && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-200 text-surface-500">Draft</span>}
+                </div>
+                <div className="flex items-center gap-3 mt-1 text-xs text-surface-500">
+                  {p.location && <span>📍 {p.location}</span>}
+                  <span>{new Date(p.createdAt).toLocaleDateString()}</span>
+                  <span>by {p.author?.name || "Admin"}</span>
+                  {p.photos.length > 0 && <span>📷 {p.photos.length} photos</span>}
+                  {p.videoUrl && <span>🎥 Video</span>}
+                  {p.tags.length > 0 && <span>{p.tags.join(", ")}</span>}
+                </div>
+                {p.caption && <p className="text-xs text-surface-600 mt-1 line-clamp-2">{p.caption}</p>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => togglePublish(p.id, !p.isPublished)} title={p.isPublished ? "Unpublish" : "Publish"} className={`p-1.5 rounded-lg text-xs ${p.isPublished ? "bg-green-100 text-green-700" : "bg-surface-100 text-surface-400"}`}>{p.isPublished ? "✅" : "⏸"}</button>
+                <button onClick={() => startEditPost(p)} className="p-1.5 rounded-lg text-xs text-surface-400 hover:bg-surface-100">✏️</button>
+                <button onClick={() => deletePost(p.id)} className="p-1.5 rounded-lg text-xs text-surface-400 hover:bg-red-50 hover:text-red-600">🗑️</button>
+              </div>
+            </div>
+          ))}
+          {posts.length === 0 && <p className="text-center text-surface-400 py-8">No shelter posts yet. Create one above!</p>}
+        </div>
+      ) : (
+        /* Partners sub-tab */
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <h2 className="text-lg font-bold text-surface-900">Shelter Partners</h2>
+            <button onClick={() => { setEditingPartnerId(null); setPartnerForm(emptyPartner); setShowForm(!showForm); }} className="btn-primary text-sm px-4 py-2">{showForm && !editingPartnerId ? "Cancel" : "+ New Partner"}</button>
+          </div>
+
+          {(showForm || editingPartnerId) && (
+            <div className="card p-5 space-y-3">
+              <h3 className="font-semibold text-surface-900">{editingPartnerId ? "Edit Partner" : "Add Shelter Partner"}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-surface-500 mb-1">Name *</label><input value={partnerForm.name} onChange={e => setPartnerForm(f => ({...f, name: e.target.value}))} className="input-field" /></div>
+                <div><label className="block text-xs font-medium text-surface-500 mb-1">Website</label><input value={partnerForm.website} onChange={e => setPartnerForm(f => ({...f, website: e.target.value}))} className="input-field" placeholder="https://..." /></div>
+              </div>
+              <div><label className="block text-xs font-medium text-surface-500 mb-1">Logo URL</label><input value={partnerForm.logoUrl} onChange={e => setPartnerForm(f => ({...f, logoUrl: e.target.value}))} className="input-field" /></div>
+              <div><label className="block text-xs font-medium text-surface-500 mb-1">Description</label><textarea value={partnerForm.description} onChange={e => setPartnerForm(f => ({...f, description: e.target.value}))} className="input-field resize-none" rows={2} /></div>
+              <div className="flex gap-2">
+                <button onClick={savePartner} className="btn-primary text-sm px-6 py-2">Save</button>
+                <button onClick={() => { setEditingPartnerId(null); setShowForm(false); setPartnerForm(emptyPartner); }} className="btn-secondary text-sm px-4 py-2">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {partners.map(p => (
+            <div key={p.id} className="card p-4 flex items-center gap-4">
+              {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-12 h-12 rounded-lg object-contain bg-surface-50 p-1" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-surface-900">{p.name}</span>
+                  {!p.isActive && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-200 text-surface-500">Inactive</span>}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5 text-xs text-surface-500">
+                  {p.website && <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">{p.website}</a>}
+                  {p.description && <span className="truncate max-w-xs">{p.description}</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => togglePartner(p.id, !p.isActive)} className={`p-1.5 rounded-lg text-xs ${p.isActive ? "bg-green-100 text-green-700" : "bg-surface-100 text-surface-400"}`}>{p.isActive ? "✅" : "⏸"}</button>
+                <button onClick={() => { setEditingPartnerId(p.id); setPartnerForm({ name: p.name, logoUrl: p.logoUrl || "", website: p.website || "", description: p.description || "" }); setShowForm(true); }} className="p-1.5 rounded-lg text-xs text-surface-400 hover:bg-surface-100">✏️</button>
+                <button onClick={() => deletePartner(p.id)} className="p-1.5 rounded-lg text-xs text-surface-400 hover:bg-red-50 hover:text-red-600">🗑️</button>
+              </div>
+            </div>
+          ))}
+          {partners.length === 0 && <p className="text-center text-surface-400 py-8">No shelter partners yet</p>}
+        </div>
+      )}
     </div>
   );
 }

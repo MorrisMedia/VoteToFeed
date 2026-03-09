@@ -5,73 +5,66 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/shelter-posts — Public feed of shelter impact posts
+// GET /api/shelter-posts — Public + admin feed
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const cursor = searchParams.get("cursor"); // for pagination
+  const includeUnpublished = req.nextUrl.searchParams.get("all") === "true";
+  const typeFilter = req.nextUrl.searchParams.get("type");
+  const limit = parseInt(req.nextUrl.searchParams.get("limit") || "50");
 
-    const posts = await prisma.shelterPost.findMany({
-      where: { isPublished: true },
-      include: {
-        author: { select: { name: true, image: true } },
-        contest: { select: { id: true, name: true, type: true, petType: true, coverImage: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-    });
+  const where: Record<string, unknown> = {};
+  if (!includeUnpublished) where.isPublished = true;
+  if (typeFilter) where.type = typeFilter;
 
-    return NextResponse.json(posts);
-  } catch (error) {
-    console.error("Error fetching shelter posts:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  const posts = await prisma.shelterPost.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      author: { select: { name: true, image: true } },
+      contest: { select: { id: true, name: true, type: true, petType: true } },
+    },
+  });
+
+  // Also fetch active partners for the public page
+  const partners = await prisma.shelterPartner.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+  });
+
+  return NextResponse.json({ posts, partners });
 }
 
-// POST /api/shelter-posts — Admin creates a new post
+// POST /api/shelter-posts — Create (admin only)
 export async function POST(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const userId = (session.user as { id: string }).id;
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
+  const userId = (session.user as { id: string }).id;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (user?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    if (user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const body = await req.json();
 
-    const body = await req.json();
-    const { photos, caption, location, contestId } = body;
+  const post = await prisma.shelterPost.create({
+    data: {
+      title: body.title || null,
+      featuredImage: body.featuredImage || null,
+      content: body.content || null,
+      photos: body.photos || [],
+      caption: body.caption || null,
+      videoUrl: body.videoUrl || null,
+      tags: body.tags || [],
+      type: body.type || "UPDATE",
+      location: body.location || null,
+      contestId: body.contestId || null,
+      authorId: userId,
+      isPublished: body.isPublished ?? true,
+    },
+    include: {
+      author: { select: { name: true, image: true } },
+      contest: { select: { id: true, name: true, type: true, petType: true } },
+    },
+  });
 
-    if (!photos || !Array.isArray(photos) || photos.length === 0) {
-      return NextResponse.json({ error: "At least one photo is required" }, { status: 400 });
-    }
-
-    const post = await prisma.shelterPost.create({
-      data: {
-        photos,
-        caption: caption || null,
-        location: location || null,
-        contestId: contestId || null,
-        authorId: userId,
-      },
-      include: {
-        author: { select: { name: true, image: true } },
-        contest: { select: { id: true, name: true, type: true, petType: true } },
-      },
-    });
-
-    return NextResponse.json(post, { status: 201 });
-  } catch (error) {
-    console.error("Error creating shelter post:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  return NextResponse.json(post, { status: 201 });
 }
