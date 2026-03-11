@@ -10,23 +10,10 @@ import { CommentForm } from "@/components/pets/CommentForm";
 import { rankSuffix, timeAgo } from "@/lib/utils";
 import { Metadata } from "next";
 import { ShareButtons } from "./ShareButtons";
+import { PetImage } from "./PetImage";
 
 // ── Dynamic OG metadata so shared links show pet photo + "Vote for X to win!" ──
 export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}): Promise<Metadata> {
-  try {
-    return await generateMetadataInner({ params });
-  } catch (e: unknown) {
-    const err = e as Error;
-    console.error("[generateMetadata] CRASH:", err?.message, err?.stack);
-    return { title: `Pet ${params.id}` };
-  }
-}
-
-async function generateMetadataInner({
   params,
 }: {
   params: { id: string };
@@ -91,28 +78,7 @@ export default async function PetDetailPage({
 }: {
   params: { id: string };
 }) {
-  try {
-    return await PetDetailPageInner({ params });
-  } catch (e: unknown) {
-    const err = e as Error;
-    console.error("[PetPage] CRASH:", err?.message, err?.stack);
-    return (
-      <div style={{ padding: 40, fontFamily: "monospace" }}>
-        <h1>Debug Error</h1>
-        <pre>{err?.message}</pre>
-        <pre style={{ fontSize: 11 }}>{err?.stack}</pre>
-      </div>
-    );
-  }
-}
-
-async function PetDetailPageInner({
-  params,
-}: {
-  params: { id: string };
-}) {
-  // Temporarily bypass getServerSession to isolate RSC error
-  const session = null;
+  const session = await getServerSession(authOptions);
   const weekId = getCurrentWeekId();
   const animalType = await getAnimalType();
 
@@ -192,7 +158,7 @@ async function PetDetailPageInner({
         {/* Photo column */}
         <div className="lg:col-span-3">
           <div className="relative rounded-2xl overflow-hidden bg-surface-100 aspect-[4/3]">
-            <img src={photo} alt={pet.name} className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = pet.type === "CAT" ? "https://placekitten.com/400/400" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"; }} />
+            <PetImage src={photo} alt={pet.name} className="w-full h-full object-cover" fallback={pet.type === "CAT" ? "https://placekitten.com/400/400" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"} />
             <div className="absolute top-4 left-4 flex gap-2">
               {isNew && <span className="badge-new">New</span>}
               {weeklyRank != null && weeklyRank <= 10 && (
@@ -347,11 +313,11 @@ async function PetDetailPageInner({
                   className="flex-shrink-0 snap-start w-36 sm:w-44 group"
                 >
                   <div className="relative rounded-xl overflow-hidden bg-surface-100 aspect-square shadow-sm group-hover:shadow-md transition-shadow">
-                    <img
+                    <PetImage
                       src={pPhoto}
                       alt={p.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = p.type === "CAT" ? "https://placekitten.com/300/300" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"; }}
+                      fallback={p.type === "CAT" ? "https://placekitten.com/300/300" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"}
                     />
                     {pRank != null && pRank <= 10 && (
                       <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-[10px] font-bold text-surface-700 px-1.5 py-0.5 rounded-full shadow-sm">
