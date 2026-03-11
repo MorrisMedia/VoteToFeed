@@ -4,11 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  // vote_POSTGRES_PRISMA_URL is the connection pooler URL from the vote-to-feed Neon integration.
-  // vote_DATABASE_URL_UNPOOLED is used for migrations/direct connections (bypasses the pooler).
-  // These come from the Vercel "vote-to-feed" Neon integration (store_V6az1ZTT5eBQJnq4).
-  url       = env("vote_POSTGRES_PRISMA_URL")
-  directUrl = env("vote_DATABASE_URL_UNPOOLED")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── AUTH ────────────────────────────────────────────────
