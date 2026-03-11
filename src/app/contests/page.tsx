@@ -92,8 +92,8 @@ export default async function ContestsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-surface-900 tracking-tight">Contests</h1>
-        <p className="text-sm text-surface-500 mt-1">Browse active contests, enter your pet, and win epic prize packs.</p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-surface-900 tracking-tight">Contests</h1>
+        <p className="text-base text-surface-600 mt-1">Browse active contests, enter your pet, and win epic prize packs.</p>
       </div>
 
       {/* Active */}

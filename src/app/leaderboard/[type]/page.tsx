@@ -55,26 +55,26 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
       <div className="flex items-center gap-2 mb-6">
         <Link
           href="/leaderboard/DOG"
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-            type === "DOG" ? "bg-brand-500 text-white shadow-sm" : "text-surface-500 hover:bg-surface-100"
+          className={`px-4 py-3 rounded-lg text-base font-semibold transition-all ${
+            type === "DOG" ? "bg-brand-500 text-white shadow-sm" : "text-surface-600 hover:bg-surface-100"
           }`}
         >
           Dogs
         </Link>
         <Link
           href="/leaderboard/CAT"
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-            type === "CAT" ? "bg-brand-500 text-white shadow-sm" : "text-surface-500 hover:bg-surface-100"
+          className={`px-4 py-3 rounded-lg text-base font-semibold transition-all ${
+            type === "CAT" ? "bg-brand-500 text-white shadow-sm" : "text-surface-600 hover:bg-surface-100"
           }`}
         >
           Cats
         </Link>
       </div>
 
-      <h1 className="text-xl sm:text-2xl font-bold text-surface-900 mb-1">
+      <h1 className="text-3xl font-extrabold text-surface-900 mb-1">
         {type === "DOG" ? "Dog" : "Cat"} Contest Leaderboard
       </h1>
-      <p className="text-sm text-surface-500 mb-6">
+      <p className="text-base text-surface-600 mb-6">
         Week of {start.toLocaleDateString("en-US")} – {end.toLocaleDateString("en-US")} · {total} contestants
       </p>
 
@@ -109,8 +109,8 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
 
         {entries.length === 0 && (
           <div className="card p-12 text-center">
-            <p className="text-surface-500">No entries yet this week.</p>
-            <Link href="/pets/new" className="btn-primary mt-4 text-sm">Add your pet</Link>
+            <p className="text-surface-600">No entries yet this week.</p>
+            <Link href="/pets/new" className="btn-primary mt-4">Add your pet</Link>
           </div>
         )}
 
@@ -119,18 +119,18 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
             {page > 1 && (
               <Link
                 href={`/leaderboard/${type}?page=${page - 1}${state ? `&state=${state}` : ""}`}
-                className="btn-secondary text-sm"
+                className="btn-secondary"
               >
                 Previous
               </Link>
             )}
-            <span className="px-4 py-2 text-sm text-surface-500">
+            <span className="px-4 py-3 text-sm text-surface-600">
               Page {page} of {Math.ceil(total / limit)}
             </span>
             {page < Math.ceil(total / limit) && (
               <Link
                 href={`/leaderboard/${type}?page=${page + 1}${state ? `&state=${state}` : ""}`}
-                className="btn-secondary text-sm"
+                className="btn-secondary"
               >
                 Next
               </Link>

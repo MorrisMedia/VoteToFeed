@@ -126,20 +126,20 @@ export default async function HomePage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse-subtle" />
                 Every vote helps shelter pets
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-surface-900 tracking-tight leading-[1.1]">
+              <h1 className="text-4xl sm:text-5xl font-black text-surface-900 tracking-tight leading-[1.1]">
                 Vote for adorable pets.
                 <br />
                 <span className="text-brand-500">Feed shelter pets.</span>
               </h1>
-              <p className="mt-4 text-base sm:text-lg text-surface-500 leading-relaxed max-w-lg">
+              <p className="mt-4 text-lg sm:text-xl text-surface-500 leading-relaxed max-w-lg">
                 Free photo contests with prize packs worth up to $2,000. Every vote helps feed shelter pets in need.
               </p>
               <p className="mt-2 text-sm text-surface-400">Powered by <span className="font-semibold text-surface-600">iHeartDogs</span> &amp; <span className="font-semibold text-surface-600">iHeartCats</span></p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/pets/new" className="btn-primary text-sm sm:text-base px-5 sm:px-6 py-2.5 sm:py-3">
+                <Link href="/pets/new" className="btn-primary">
                   Add your pet — free
                 </Link>
-                <Link href="/contests" className="btn-secondary text-sm sm:text-base px-5 sm:px-6 py-2.5 sm:py-3">
+                <Link href="/contests" className="btn-secondary">
                   View contests
                 </Link>
               </div>
@@ -216,7 +216,7 @@ export default async function HomePage() {
         <section className="bg-surface-50/70 border-b border-surface-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-surface-900 uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-lg font-bold text-surface-900 uppercase tracking-wider flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-brand-500"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
                 Active Contests
               </h2>
@@ -263,7 +263,7 @@ export default async function HomePage() {
                     </div>
                     {/* Contest info */}
                     <div className="p-3.5">
-                      <h3 className="font-semibold text-surface-900 text-sm leading-snug truncate">{contest.name}</h3>
+                      <h3 className="font-bold text-surface-900 text-lg leading-snug truncate">{contest.name}</h3>
                       {contest.description && (
                         <p className="text-xs text-surface-500 mt-1 line-clamp-2 leading-relaxed">{contest.description}</p>
                       )}
