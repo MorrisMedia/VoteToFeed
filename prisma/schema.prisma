@@ -116,7 +116,7 @@ model Pet {
   state       String?
   zipCode     String?
   country     String?  @default("US")
-  photos      String[] // Array of photo URLs
+  photos      String[] @default(["https://via.placeholder.com/150", "https://via.placeholder.com/300", "https://via.placeholder.com/450"]) // Array of photo URLs
   tags        String[]
   isActive    Boolean  @default(true)
   optInDesigns Boolean @default(true)
