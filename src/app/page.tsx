@@ -122,8 +122,8 @@ export default async function HomePage() {
           <div className="flex items-center gap-10 lg:gap-16">
             {/* Left: Text */}
             <div className="flex-1 min-w-0">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent-50 border border-accent-200/60 text-xs font-medium text-accent-700 mb-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse-subtle" />
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-50 border border-accent-200/60 text-sm font-bold text-accent-700 mb-4">
+                <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse-subtle" />
                 Every vote helps shelter pets
               </div>
               <h1 className="text-4xl sm:text-5xl font-black text-surface-900 tracking-tight leading-[1.1]">

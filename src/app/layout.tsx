@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Vote to Feed – Pet Photo Contests & Shelter Support | Powered by iHeartDogs & iHeartCats",
   description:
     "Vote for cute pets, win epic prize packs, and help feed shelter pets. Free weekly vote for everyone.",
+  openGraph: {
+    title: "Vote to Feed – Pet Photo Contests & Shelter Support",
+    description: "Vote for adorable pets. Feed shelter pets in need.",
+    image: "/og-image.png",
+    url: "https://votetofeed.com",
+    type: "website",
+  },
 };
 
 export const dynamic = "force-dynamic";
