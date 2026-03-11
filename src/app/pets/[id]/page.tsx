@@ -17,6 +17,20 @@ export async function generateMetadata({
 }: {
   params: { id: string };
 }): Promise<Metadata> {
+  try {
+    return await generateMetadataInner({ params });
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.error("[generateMetadata] CRASH:", err?.message, err?.stack);
+    return { title: `Pet ${params.id}` };
+  }
+}
+
+async function generateMetadataInner({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
   const weekId = getCurrentWeekId();
   const pet = await prisma.pet.findUnique({
     where: { id: params.id },
