@@ -13,7 +13,7 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
