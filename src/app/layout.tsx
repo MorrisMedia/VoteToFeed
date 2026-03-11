@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     url: "https://votetofeed.com",
     type: "website",
   },
+  other: {
+    'fb:app_id': '949563544407594',
+  },
 };
 
 export const dynamic = "force-dynamic";
