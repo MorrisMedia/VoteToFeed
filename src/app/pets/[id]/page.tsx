@@ -144,7 +144,7 @@ export default async function PetDetailPage({
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb */}
-      <nav className="mb-6">
+      <nav className="mb-6 hidden sm:flex">
         <ol className="flex items-center gap-2 text-sm text-surface-400">
           <li><Link href="/" className="hover:text-surface-600 transition-colors">Home</Link></li>
           <li><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg></li>
@@ -156,8 +156,8 @@ export default async function PetDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Photo column */}
-        <div className="lg:col-span-3">
-          <div className="relative rounded-2xl overflow-hidden bg-surface-100 aspect-[4/3]">
+        <div className="lg:col-span-3 -mx-4 sm:mx-0">
+          <div className="relative rounded-none lg:rounded-2xl overflow-hidden bg-surface-100 aspect-square lg:aspect-[4/3]">
             <PetImage src={photo} alt={pet.name} className="w-full h-full object-cover" fallback={pet.type === "CAT" ? "https://placekitten.com/400/400" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"} />
             <div className="absolute top-4 left-4 flex gap-2">
               {isNew && <span className="badge-new">New</span>}
@@ -176,17 +176,17 @@ export default async function PetDetailPage({
         </div>
 
         {/* Info column */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5 px-4 sm:px-0">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-surface-900 tracking-tight">{pet.name}</h1>
+            <h1 className="text-4xl font-extrabold text-surface-900 tracking-tight lg:text-3xl">{pet.name}</h1>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-sm text-surface-500">{pet.type === "DOG" ? "Dog" : pet.type === "CAT" ? "Cat" : "Pet"}</span>
-              {pet.breed && <><span className="text-surface-300">·</span><span className="text-sm text-surface-500">{pet.breed}</span></>}
+              <span className="text-base text-surface-500 lg:text-sm">{pet.type === "DOG" ? "Dog" : pet.type === "CAT" ? "Cat" : "Pet"}</span>
+              {pet.breed && <><span className="text-surface-300">·</span><span className="text-base text-surface-500 lg:text-sm">{pet.breed}</span></>}
             </div>
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-sm text-surface-400">by {pet.ownerName}</span>
+              <span className="text-base text-surface-400 lg:text-sm">by {pet.ownerName}</span>
               {(pet.city || pet.state) && (
-                <span className="text-sm text-surface-400">· {[pet.city, pet.state].filter(Boolean).join(", ")}</span>
+                <span className="text-base text-surface-400 lg:text-sm">· {[pet.city, pet.state].filter(Boolean).join(", ")}</span>
               )}
             </div>
           </div>
@@ -217,9 +217,9 @@ export default async function PetDetailPage({
               <div className="flex -space-x-2">
                 {pet.votes.map((v) => (
                   v.user.image ? (
-                    <img key={v.id} src={v.user.image} alt={v.user.name || ""} title={`${v.user.name} · ${timeAgo(new Date(v.createdAt))}`} className="w-8 h-8 rounded-full object-cover ring-2 ring-white" />
+                    <img key={v.id} src={v.user.image} alt={v.user.name || ""} title={`${v.user.name} · ${timeAgo(new Date(v.createdAt))}`} className="w-10 h-10 lg:w-8 lg:h-8 rounded-full object-cover ring-2 ring-white" />
                   ) : (
-                    <div key={v.id} title={`${v.user.name} · ${timeAgo(new Date(v.createdAt))}`} className="w-8 h-8 rounded-full bg-brand-100 ring-2 ring-white flex items-center justify-center text-[10px] font-bold text-brand-600">
+                    <div key={v.id} title={`${v.user.name} · ${timeAgo(new Date(v.createdAt))}`} className="w-10 h-10 lg:w-8 lg:h-8 rounded-full bg-brand-100 ring-2 ring-white flex items-center justify-center text-[10px] font-bold text-brand-600">
                       {(v.user.name || "?")[0].toUpperCase()}
                     </div>
                   )
@@ -232,7 +232,7 @@ export default async function PetDetailPage({
           {pet.bio && (
             <div>
               <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">About</h3>
-              <p className="text-sm text-surface-600 leading-relaxed">{pet.bio}</p>
+              <p className="text-base lg:text-sm text-surface-600 leading-relaxed">{pet.bio}</p>
             </div>
           )}
         </div>
@@ -257,18 +257,18 @@ export default async function PetDetailPage({
             <li key={c.id} className="py-4">
               <div className="flex gap-3">
                 {c.user.image ? (
-                  <img src={c.user.image} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  <img src={c.user.image} alt="" className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-surface-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-surface-500">
+                  <div className="w-11 h-11 rounded-full bg-surface-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-surface-500">
                     {(c.user.name || "?")[0].toUpperCase()}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-surface-900">{c.user.name || "Anonymous"}</p>
+                    <p className="text-base font-semibold text-surface-900">{c.user.name || "Anonymous"}</p>
                     <p className="text-xs text-surface-400">{timeAgo(new Date(c.createdAt))}</p>
                   </div>
-                  <p className="text-sm text-surface-600 mt-1">{c.text}</p>
+                  <p className="text-base text-surface-600 mt-1">{c.text}</p>
                   {c.replies.length > 0 && (
                     <ul className="mt-3 ml-3 space-y-2 border-l-2 border-surface-100 pl-3">
                       {c.replies.map((r) => (
@@ -310,7 +310,7 @@ export default async function PetDetailPage({
                 <Link
                   key={p.id}
                   href={`/pets/${p.id}`}
-                  className="flex-shrink-0 snap-start w-36 sm:w-44 group"
+                  className="flex-shrink-0 snap-start w-44 sm:w-44 group"
                 >
                   <div className="relative rounded-xl overflow-hidden bg-surface-100 aspect-square shadow-sm group-hover:shadow-md transition-shadow">
                     <PetImage
@@ -325,7 +325,7 @@ export default async function PetDetailPage({
                       </span>
                     )}
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent p-3 pt-8">
-                      <p className="text-white text-sm font-semibold truncate">{p.name}</p>
+                      <p className="text-white text-sm font-bold truncate">{p.name}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-[10px] text-white/80">🐾</span>
                         <span className="text-[11px] text-white/90 font-medium">{pVotes} votes</span>

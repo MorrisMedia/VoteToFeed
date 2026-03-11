@@ -86,7 +86,7 @@ export function VoteButton({
         <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={false} />
         <Link
           href={`/auth/signin?callbackUrl=/pets/${petId}`}
-          className="flex items-center justify-center gap-2.5 w-full py-3.5 bg-brand-500 text-white rounded-xl font-semibold hover:bg-brand-600 transition-all shadow-sm hover:shadow-md"
+          className="flex items-center justify-center gap-2.5 w-full min-h-[64px] bg-brand-500 text-white rounded-2xl text-xl font-bold hover:bg-brand-600 transition-all shadow-sm hover:shadow-md"
         >
           <HeartIcon />
           Sign in to vote
@@ -116,7 +116,7 @@ export function VoteButton({
       <button
         onClick={handleVote}
         disabled={loading}
-        className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl font-semibold transition-all shadow-sm hover:shadow-md disabled:opacity-60 bg-brand-500 text-white hover:bg-brand-600 active:scale-[0.98]"
+        className="flex items-center justify-center gap-2.5 w-full min-h-[64px] rounded-2xl text-xl font-bold transition-all shadow-sm hover:shadow-md disabled:opacity-60 bg-brand-500 text-white hover:bg-brand-600 active:scale-[0.98]"
       >
         {loading ? (
           <>
@@ -204,12 +204,12 @@ function VoteStats({
   return (
     <div className="card p-5">
       <p className="text-xs font-medium text-surface-400 uppercase tracking-wider">This week</p>
-      <p className={`text-3xl font-bold text-surface-900 mt-1 tabular-nums transition-transform ${animating ? "scale-110 text-brand-600" : ""}`}>
+      <p className={`text-5xl font-black text-surface-900 mt-1 tabular-nums transition-transform ${animating ? "scale-110 text-brand-600" : ""}`}>
         {voteCount.toLocaleString()}
         <span className="text-lg font-semibold text-surface-500 ml-1.5">votes</span>
       </p>
       {weeklyRank != null && weeklyRank > 0 && (
-        <p className="text-sm text-surface-500 mt-1">
+        <p className="text-lg font-semibold text-surface-500 mt-1">
           {rankSuffix(weeklyRank)} in National {petType === "DOG" ? "Dog" : "Cat"} Contest
         </p>
       )}
