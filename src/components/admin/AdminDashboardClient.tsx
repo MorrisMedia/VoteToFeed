@@ -2618,6 +2618,7 @@ function ContestManager() {
                   <div>
                     <label className="block text-[10px] font-medium text-surface-500 mb-1">Prize Tiers</label>
                     <div className="space-y-1.5">
+<<<<<<< HEAD
                       {Array.isArray(editForm.prizes) && (editForm.prizes as any[]).map((prize: any, idx: number) => (
                         <div key={prize.placement} className="grid grid-cols-1 sm:grid-cols-4 gap-1.5 p-1.5 bg-surface-50 rounded">
                           <div>

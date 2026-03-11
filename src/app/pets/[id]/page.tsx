@@ -163,9 +163,9 @@ export default async function PetDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Photo column */}
-        <div className="lg:col-span-3 -mx-4 sm:mx-0">
-          <div className="relative rounded-none lg:rounded-2xl overflow-hidden bg-surface-100 aspect-square lg:aspect-[4/3]">
-            <PetImage src={photo} alt={pet.name} className="w-full h-full object-cover" fallback={pet.type === "CAT" ? "https://placekitten.com/400/400" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"} />
+        <div className="lg:col-span-3">
+          <div className="relative rounded-2xl overflow-hidden bg-surface-100 aspect-[4/3]">
+            <PetImage src={photo} alt={pet.name} className="w-full h-full object-cover" petId={pet.id} petType={pet.type} />
             <div className="absolute top-4 left-4 flex gap-2">
               {isNew && <span className="badge-new">New</span>}
               {weeklyRank != null && weeklyRank <= 10 && (

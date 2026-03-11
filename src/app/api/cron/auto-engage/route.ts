@@ -4,6 +4,21 @@ import { verifyCronSecret } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * ⚠️ CRITICAL: This cron job MUST NEVER:
+ * - Modify pet photos or images
+ * - Upload images to pet profiles
+ * - Create or update pet.photos array
+ * - Perform any image-related operations
+ *
+ * ALLOWED ACTIONS ONLY:
+ * - Create votes on pets
+ * - Create comments on pets
+ * - Create engagement logs
+ *
+ * Any attempt to modify images must be immediately removed.
+ */
+
 // 50+ comment templates with variables
 const COMMENT_TEMPLATES = [
   "What a beautiful {breed}! 😍 Welcome to VoteToFeed!",
@@ -84,7 +99,17 @@ export async function GET(req: NextRequest) {
         email: { not: { contains: "@iheartdogs.com" } }, // exclude seed accounts
       },
       include: {
-        pets: { where: { isActive: true }, take: 1 },
+        // Only select necessary fields, NEVER touch photos field
+        pets: { 
+          where: { isActive: true }, 
+          take: 1,
+          select: { 
+            id: true, 
+            name: true, 
+            breed: true, 
+            // NEVER SELECT photos field here
+          }
+        },
       },
     });
 
