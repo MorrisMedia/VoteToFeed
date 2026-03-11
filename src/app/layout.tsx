@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Vote to Feed – Pet Photo Contests & Shelter Support",
     description: "Vote for adorable pets. Feed shelter pets in need.",
-    image: "/og-image.png",
+    images: ["/og-image.png"],
     url: "https://votetofeed.com",
     type: "website",
   },
