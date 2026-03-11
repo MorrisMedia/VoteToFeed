@@ -39,16 +39,14 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
-  // Verify request with CRON_SECRET or allow for initial setup
-  const providedSecret = req.query.secret || "";
-  const cronSecret = process.env.CRON_SECRET || "";
-  
-  // Allow if secret matches OR if no secret is configured yet (first run)
-  if (providedSecret !== cronSecret && cronSecret !== "") {
+  // Simple authentication - check for seed token
+  // For production, this should be replaced with proper auth
+  const token = req.headers["x-seed-token"] || req.query.token;
+  if (token !== "seed-pets-2024") {
     return res.status(401).json({
       success: false,
       error: "Unauthorized",
-      message: "Invalid CRON_SECRET",
+      message: "Invalid or missing authentication token",
     });
   }
 
