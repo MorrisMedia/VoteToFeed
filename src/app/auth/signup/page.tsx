@@ -61,8 +61,8 @@ function SignUpForm() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             </div>
           </Link>
-          <h1 className="text-2xl font-bold text-surface-900 mt-4 tracking-tight">Create your free account</h1>
-          <p className="text-sm text-surface-500 mt-1">Vote, support shelter pets, or enter your own pet</p>
+          <h1 className="text-3xl font-extrabold text-surface-900 mt-4 tracking-tight">Create your free account</h1>
+          <p className="text-base text-surface-600 mt-1">Vote, support shelter pets, or enter your own pet</p>
         </div>
 
         {/* Social login */}
@@ -84,7 +84,7 @@ function SignUpForm() {
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className="input-field" />
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="input-field" required />
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password (min 8 characters)" className="input-field" required minLength={8} />
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-base text-red-500">{error}</p>}
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-2.5 disabled:opacity-60">
             {loading ? "Creating account..." : "Create free account"}
           </button>
@@ -92,8 +92,8 @@ function SignUpForm() {
 
         {/* Benefits callout */}
         <div className="mt-5 rounded-xl bg-accent-50/60 border border-accent-200/40 p-3.5">
-          <p className="text-xs font-semibold text-accent-700 mb-2">What you get for free:</p>
-          <ul className="space-y-1.5 text-xs text-surface-600">
+          <p className="text-sm font-bold text-accent-700 mb-2">What you get for free:</p>
+          <ul className="space-y-1.5 text-base text-surface-700">
             <li className="flex items-center gap-2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
               5 free votes every week
@@ -113,8 +113,8 @@ function SignUpForm() {
           </ul>
         </div>
 
-        <p className="mt-5 text-center text-sm text-surface-400">
-          Already have an account? <Link href="/auth/signin" className="text-brand-600 font-medium hover:underline">Log in</Link>
+        <p className="mt-5 text-center text-base text-surface-600">
+          Already have an account? <Link href="/auth/signin" className="text-brand-600 font-bold hover:underline">Log in</Link>
         </p>
       </div>
     </div>

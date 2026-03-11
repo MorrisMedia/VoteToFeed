@@ -68,7 +68,7 @@ export function Nav({
             <path d="M18 16 C18 16 14 12.5 14 10.5 C14 9 15.2 8 16.5 8 C17.2 8 17.8 8.4 18 8.9 C18.2 8.4 18.8 8 19.5 8 C20.8 8 22 9 22 10.5 C22 12.5 18 16 18 16Z" fill="#E8453C"/>
           </svg>
           <div className="flex flex-col">
-            <span className="text-lg leading-tight font-black text-surface-900 tracking-tight" style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 900 }}>VoteToFeed</span>
+            <span className="text-xl leading-tight font-extrabold text-surface-900 tracking-tight" style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 900 }}>VoteToFeed</span>
             <span className="text-[9px] text-surface-400 leading-tight hidden sm:block">Every vote helps shelter pets</span>
           </div>
         </Link>
@@ -277,7 +277,7 @@ export function Nav({
                   <Link
                     key={c.id}
                     href={`/contests/${c.id}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-50"
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-surface-50"
                     onClick={() => setMobileOpen(false)}
                   >
                     {c.coverImage ? (
@@ -288,7 +288,7 @@ export function Nav({
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-surface-800 truncate">{c.name}</p>
+                      <p className="text-base font-semibold text-surface-800 truncate">{c.name}</p>
                       <div className="flex items-center gap-2 text-[11px] text-surface-500">
                         <span className={`font-bold uppercase tracking-wider px-1 py-0.5 rounded text-[8px] ${contestTypeBadgeColor(c.type)}`}>
                           {contestTypeLabel(c.type)}
@@ -304,25 +304,25 @@ export function Nav({
             {/* Leaderboard section */}
             <div className="pb-2 mb-2 border-b border-surface-100">
               <p className="px-3 py-1.5 text-[10px] font-bold text-surface-400 uppercase tracking-wider">Leaderboard</p>
-              <Link href="/leaderboard/DOG" className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
+              <Link href="/leaderboard/DOG" className="flex items-center gap-2.5 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
                 <span>🐶</span> Dog Leaderboard
               </Link>
-              <Link href="/leaderboard/CAT" className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
+              <Link href="/leaderboard/CAT" className="flex items-center gap-2.5 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
                 <span>🐱</span> Cat Leaderboard
               </Link>
-              <Link href="/winners" className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
+              <Link href="/winners" className="flex items-center gap-2.5 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
                 <span>🏆</span> Winners
               </Link>
             </div>
 
-            <Link href="/votesforshelters" className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
+            <Link href="/votesforshelters" className="flex items-center gap-2 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
               <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse-subtle" />
               Shelters
             </Link>
             {session && (
-              <Link href="/dashboard" className="block px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>My Pets</Link>
+              <Link href="/dashboard" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>My Pets</Link>
             )}
-            <Link href="/pets/new" className="block px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>+ Add Pet</Link>
+            <Link href="/pets/new" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>+ Add Pet</Link>
 
             {/* Flashing Buy Votes CTA - mobile */}
             <Link
@@ -337,7 +337,7 @@ export function Nav({
             </Link>
 
             {!session && (
-              <Link href="/auth/signin" className="block px-3 py-2.5 text-sm font-medium text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>Log in</Link>
+              <Link href="/auth/signin" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>Log in</Link>
             )}
           </div>
         </div>
