@@ -4,6 +4,14 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+/**
+ * ⚠️ CRITICAL: Seed accounts can ONLY create their own pets.
+ * Seed accounts MUST NEVER:
+ * - Modify real user pets
+ * - Upload images to other users' pets
+ * - Access or modify pet.photos for non-seed-account pets
+ */
+
 const SEED_ACCOUNTS = [
   { email: "vote@iheartdogs.com", name: "Max the Golden", breed: "Golden Retriever", photo: "https://images.dog.ceo/breeds/retriever-golden/n02099601_1722.jpg" },
   { email: "vote+1@iheartdogs.com", name: "Luna Belle", breed: "Siberian Husky", photo: "https://images.dog.ceo/breeds/husky/n02110185_10047.jpg" },
