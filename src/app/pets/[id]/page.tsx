@@ -111,13 +111,8 @@ async function PetDetailPageInner({
 }: {
   params: { id: string };
 }) {
-  let session;
-  try {
-    session = await getServerSession(authOptions);
-  } catch (e) {
-    console.error("[PetPage] getServerSession error:", e);
-    session = null;
-  }
+  // Temporarily bypass getServerSession to isolate RSC error
+  const session = null;
   const weekId = getCurrentWeekId();
   const animalType = await getAnimalType();
 
