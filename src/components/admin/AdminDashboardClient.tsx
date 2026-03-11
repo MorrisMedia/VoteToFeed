@@ -2144,6 +2144,11 @@ function ContestManager() {
     isFeatured: false,
     isRecurring: false,
     recurringInterval: "biweekly",
+    prizes: [
+      { placement: 1, title: "1st Place", value: "", items: "" },
+      { placement: 2, title: "2nd Place", value: "", items: "" },
+      { placement: 3, title: "3rd Place", value: "", items: "" },
+    ],
   });
 
   async function loadContests() {
@@ -2164,6 +2169,28 @@ function ContestManager() {
 
   function startEdit(c: ContestData) {
     setEditingId(c.id);
+    
+    // Load prizes and convert from cents to dollars for display
+    const prizes = [
+      { placement: 1, title: "1st Place", value: "", items: "" },
+      { placement: 2, title: "2nd Place", value: "", items: "" },
+      { placement: 3, title: "3rd Place", value: "", items: "" },
+    ];
+    
+    if (c.prizes && Array.isArray(c.prizes)) {
+      c.prizes.forEach((p: any) => {
+        const idx = prizes.findIndex(pr => pr.placement === p.placement);
+        if (idx !== -1) {
+          prizes[idx] = {
+            placement: p.placement,
+            title: p.title || `${p.placement === 1 ? '1st' : p.placement === 2 ? '2nd' : '3rd'} Place`,
+            value: (p.value / 100).toString(), // Convert cents to dollars
+            items: Array.isArray(p.items) ? p.items.join(", ") : (p.items || ""),
+          };
+        }
+      });
+    }
+    
     setEditForm({
       name: c.name, type: c.type, petType: c.petType, state: c.state || "",
       startDate: new Date(c.startDate).toISOString().split("T")[0],
@@ -2174,18 +2201,30 @@ function ContestManager() {
       isFeatured: c.isFeatured, isActive: c.isActive,
       entryFee: c.entryFee || 0, maxEntries: c.maxEntries || "",
       isRecurring: c.isRecurring || false, recurringInterval: c.recurringInterval || "biweekly",
+      prizes: prizes,
     });
   }
 
   async function saveEdit(id: string) {
     setEditMsg("");
     try {
+      // Transform prizes: convert value to cents, split items into array, filter out empty tiers
+      const transformedPrizes = (editForm.prizes as any[])
+        .filter((p: any) => p.value && parseFloat(p.value) > 0)
+        .map((p: any) => ({
+          placement: p.placement,
+          title: p.title,
+          value: Math.round(parseFloat(p.value) * 100), // Convert dollars to cents
+          items: p.items ? p.items.split(",").map((item: string) => item.trim()).filter((item: string) => item) : [],
+        }));
+
       const payload = {
         ...editForm,
         startDate: new Date(editForm.startDate as string).toISOString(),
         endDate: new Date(editForm.endDate as string).toISOString(),
         entryFee: Number(editForm.entryFee) || 0,
         maxEntries: editForm.maxEntries ? Number(editForm.maxEntries) : null,
+        prizes: transformedPrizes,
       };
       const res = await fetch(`/api/contests/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
@@ -2215,6 +2254,16 @@ function ContestManager() {
     setCreating(true);
     setCreateMsg("");
     try {
+      // Transform prizes: convert value to cents, split items into array, filter out empty tiers
+      const transformedPrizes = cf.prizes
+        .filter((p: { placement: number; title: string; value: string; items: string }) => p.value && parseFloat(p.value) > 0)
+        .map((p: { placement: number; title: string; value: string; items: string }) => ({
+          placement: p.placement,
+          title: p.title,
+          value: Math.round(parseFloat(p.value) * 100), // Convert dollars to cents
+          items: p.items ? p.items.split(",").map((item: string) => item.trim()).filter((item: string) => item) : [],
+        }));
+
       const res = await fetch("/api/contests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2227,12 +2276,17 @@ function ContestManager() {
           coverImage: cf.coverImage || undefined,
           prizeDescription: cf.prizeDescription || undefined,
           sponsorName: cf.sponsorName || undefined,
+          prizes: transformedPrizes,
         }),
       });
       if (res.ok) {
         setCreateMsg("Contest created!");
         setShowForm(false);
-        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly" });
+        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly", prizes: [
+          { placement: 1, title: "1st Place", value: "", items: "" },
+          { placement: 2, title: "2nd Place", value: "", items: "" },
+          { placement: 3, title: "3rd Place", value: "", items: "" },
+        ] });
         loadContests();
       } else {
         const data = await res.json();
@@ -2322,6 +2376,58 @@ function ContestManager() {
             <div>
               <label className="block text-xs font-medium text-surface-500 mb-1">Sponsor Name</label>
               <input value={cf.sponsorName} onChange={(e) => setCf((f) => ({ ...f, sponsorName: e.target.value }))} className="input-field" placeholder="e.g. BarkBox" />
+            </div>
+          </div>
+
+          {/* Prize Tiers */}
+          <div>
+            <label className="block text-xs font-medium text-surface-500 mb-2">Prize Tiers</label>
+            <div className="space-y-2">
+              {cf.prizes && cf.prizes.map((prize: { placement: number; title: string; value: string; items: string }, idx: number) => (
+                <div key={prize.placement} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-2 bg-surface-50 rounded-lg">
+                  <div>
+                    <label className="block text-[10px] font-medium text-surface-500 mb-0.5">{prize.title}</label>
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={prize.title}
+                      onChange={(e) => setCf((f) => ({
+                        ...f,
+                        prizes: f.prizes.map((p, i) => i === idx ? { ...p, title: e.target.value } : p)
+                      }))}
+                      className="input-field text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Value ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={prize.value}
+                      onChange={(e) => setCf((f) => ({
+                        ...f,
+                        prizes: f.prizes.map((p, i) => i === idx ? { ...p, value: e.target.value } : p)
+                      }))}
+                      className="input-field text-xs"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-medium text-surface-500 mb-0.5">Items (comma-separated)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Gift Card, Premium Treats"
+                      value={prize.items}
+                      onChange={(e) => setCf((f) => ({
+                        ...f,
+                        prizes: f.prizes.map((p, i) => i === idx ? { ...p, items: e.target.value } : p)
+                      }))}
+                      className="input-field text-xs"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
           <div>
@@ -2504,6 +2610,58 @@ function ContestManager() {
                     </div>
                     <div>
                       <ImageUpload label="Cover Image" value={editForm.coverImage as string} onChange={url => setEditForm(f => ({...f, coverImage: url}))} />
+                    </div>
+                  </div>
+
+                  {/* Prize Tiers */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-surface-500 mb-1">Prize Tiers</label>
+                    <div className="space-y-1.5">
+                      {editForm.prizes && (editForm.prizes as any[]).map((prize: any, idx: number) => (
+                        <div key={prize.placement} className="grid grid-cols-1 sm:grid-cols-4 gap-1.5 p-1.5 bg-surface-50 rounded">
+                          <div>
+                            <label className="block text-[9px] font-medium text-surface-500 mb-0.5">{prize.title}</label>
+                            <input
+                              type="text"
+                              placeholder="Title"
+                              value={prize.title}
+                              onChange={(e) => setEditForm((f) => ({
+                                ...f,
+                                prizes: (f.prizes as any[]).map((p, i) => i === idx ? { ...p, title: e.target.value } : p)
+                              }))}
+                              className="input-field text-xs py-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-medium text-surface-500 mb-0.5">Value ($)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={prize.value}
+                              onChange={(e) => setEditForm((f) => ({
+                                ...f,
+                                prizes: (f.prizes as any[]).map((p, i) => i === idx ? { ...p, value: e.target.value } : p)
+                              }))}
+                              className="input-field text-xs py-1"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] font-medium text-surface-500 mb-0.5">Items (comma-separated)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Gift Card, Premium Treats"
+                              value={prize.items}
+                              onChange={(e) => setEditForm((f) => ({
+                                ...f,
+                                prizes: (f.prizes as any[]).map((p, i) => i === idx ? { ...p, items: e.target.value } : p)
+                              }))}
+                              className="input-field text-xs py-1"
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
