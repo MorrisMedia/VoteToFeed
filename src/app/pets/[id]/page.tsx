@@ -77,7 +77,13 @@ export default async function PetDetailPage({
 }: {
   params: { id: string };
 }) {
-  const session = await getServerSession(authOptions);
+  let session;
+  try {
+    session = await getServerSession(authOptions);
+  } catch (e) {
+    console.error("[PetPage] getServerSession error:", e);
+    session = null;
+  }
   const weekId = getCurrentWeekId();
   const animalType = await getAnimalType();
 
