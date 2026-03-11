@@ -161,7 +161,7 @@ export function VoteButton({
         )}
       </div>
 
-      <p className="text-center text-xs text-surface-400">
+      <p className="text-center text-sm font-bold text-brand-600">
         Every vote helps feed shelter pets in need
       </p>
 
