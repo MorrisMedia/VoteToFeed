@@ -68,6 +68,26 @@ export async function PUT(
   if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring;
   if (body.recurringInterval !== undefined) data.recurringInterval = body.recurringInterval || null;
 
+  // Handle prize updates
+  if (body.prizes !== undefined) {
+    // Delete existing prizes for this contest
+    await prisma.prize.deleteMany({ where: { contestId: id } });
+    
+    // Create new prizes if any were provided
+    if (body.prizes && body.prizes.length > 0) {
+      await prisma.prize.createMany({
+        data: body.prizes.map((p: { placement: number; title: string; description?: string; value: number; items?: string[] }) => ({
+          contestId: id,
+          placement: p.placement,
+          title: p.title,
+          description: p.description || null,
+          value: p.value,
+          items: p.items || [],
+        })),
+      });
+    }
+  }
+
   const updated = await prisma.contest.update({
     where: { id },
     data,
