@@ -144,7 +144,7 @@ export default async function PetDetailPage({
   const photo = pet.photos && pet.photos.length > 0 
     ? pet.photos[0] 
     : (pet.type === "CAT" 
-        ? "https://placekitten.com/600/600" 
+        ? "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=600&fit=crop" 
         : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg");
   const isNew = Date.now() - new Date(pet.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
 
@@ -311,7 +311,7 @@ export default async function PetDetailPage({
           </div>
           <div className="flex gap-3 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory -mx-4 px-4">
             {shuffled.map((p) => {
-              const pPhoto = p.photos[0] || (p.type === "CAT" ? "https://cataas.com/cat" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg");
+              const pPhoto = p.photos[0] || (p.type === "CAT" ? "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=600&fit=crop" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg");
               const pVotes = p.weeklyStats[0]?.totalVotes ?? 0;
               const pRank = p.weeklyStats[0]?.rank ?? null;
               return (
@@ -325,7 +325,7 @@ export default async function PetDetailPage({
                       src={pPhoto}
                       alt={p.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      fallback={p.type === "CAT" ? "https://placekitten.com/300/300" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"}
+                      fallback={p.type === "CAT" ? "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=600&fit=crop" : "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg"}
                     />
                     {pRank != null && pRank <= 10 && (
                       <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-[10px] font-bold text-surface-700 px-1.5 py-0.5 rounded-full shadow-sm">
