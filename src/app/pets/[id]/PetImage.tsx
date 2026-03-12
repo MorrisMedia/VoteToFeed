@@ -23,41 +23,21 @@ function getPetPlaceholderColor(petId: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
+// Reliable fallback images (placekitten/placedog are unreliable/dead)
+const RELIABLE_FALLBACKS = {
+  DOG: "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg",
+  CAT: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=600&fit=crop",
+  DEFAULT: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&h=600&fit=crop",
+};
+
 /**
- * Generate a deterministic but pseudo-random fallback image URL based on pet ID
- * This ensures the same pet always gets the same fallback, but different pets get variety
+ * Generate a deterministic fallback image URL based on pet type.
+ * Uses reliable sources instead of placekitten/placedog which are often down.
  */
-function generateFallbackImage(petId: string, petType: string): string {
-  // Create a simple hash from petId to get a number between 0-1
-  let hash = 0;
-  for (let i = 0; i < petId.length; i++) {
-    const char = petId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  
-  const randomSeed = Math.abs(hash) % 100; // Get number 0-99
-  
-  if (petType === "DOG") {
-    // Use different dog breeds based on hash
-    const dogBreeds = [
-      "labrador",
-      "golden-retriever",
-      "german-shepherd",
-      "bulldog",
-      "poodle",
-      "rottweiler",
-      "beagle",
-      "dachshund",
-      "husky",
-      "boxer"
-    ];
-    const breed = dogBreeds[randomSeed % dogBreeds.length];
-    return `https://placedog.net/600/600?${petId}`;
-  } else {
-    // Use random kitten for cats
-    return `https://placekitten.com/600/600?${petId}`;
-  }
+function generateFallbackImage(petType: string): string {
+  if (petType === "DOG") return RELIABLE_FALLBACKS.DOG;
+  if (petType === "CAT") return RELIABLE_FALLBACKS.CAT;
+  return RELIABLE_FALLBACKS.DEFAULT;
 }
 
 export function PetImage({
@@ -81,10 +61,10 @@ export function PetImage({
   // Check if source is empty or missing
   const hasValidSource = src && src.trim().length > 0;
   
-  // Use generated fallback if petId and petType are provided, otherwise use provided fallback
+  // Use generated fallback if petType is provided, otherwise use provided fallback
   const actualFallback = fallback || 
-    (petId && petType ? generateFallbackImage(petId, petType) : undefined) ||
-    "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&h=600&fit=crop";
+    (petType ? generateFallbackImage(petType) : undefined) ||
+    RELIABLE_FALLBACKS.DEFAULT;
 
   if (!hasValidSource && petId && petType) {
     // Show placeholder for missing photo

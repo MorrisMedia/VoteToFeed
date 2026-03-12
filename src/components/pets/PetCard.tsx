@@ -17,6 +17,19 @@ type PetCardProps = {
   animalType?: string;
 };
 
+// Reliable fallback images (placekitten/placedog are unreliable)
+const FALLBACK_IMAGES = {
+  DOG: "https://images.dog.ceo/breeds/labrador/n02099712_365.jpg",
+  CAT: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=600&fit=crop",
+  DEFAULT: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&h=600&fit=crop",
+};
+
+function getFallbackImage(type: string): string {
+  if (type === "DOG") return FALLBACK_IMAGES.DOG;
+  if (type === "CAT") return FALLBACK_IMAGES.CAT;
+  return FALLBACK_IMAGES.DEFAULT;
+}
+
 // Generate a consistent color for a pet based on its ID
 function getPetPlaceholderColor(petId: string): string {
   const colors = [
@@ -55,31 +68,46 @@ export function PetCard({
   ownerName,
   state,
   photos,
+  type,
   weeklyVotes,
   weeklyRank,
   isNew,
 }: PetCardProps) {
   const [imgError, setImgError] = useState(false);
+  const [fallbackError, setFallbackError] = useState(false);
 
   const photo = photos[0];
   const hasPhoto = photo && photo.trim().length > 0;
-  const showPlaceholder = !hasPhoto || imgError;
+  // Only show placeholder if no photo AND fallback also failed
+  const showPlaceholder = (!hasPhoto && fallbackError) || (imgError && fallbackError);
   const placeholderColor = getPetPlaceholderColor(id);
   const initials = getInitials(name);
+  const fallbackSrc = getFallbackImage(type);
+
+  // Determine what image src to use
+  const imageSrc = hasPhoto && !imgError ? photo : (!fallbackError ? fallbackSrc : null);
 
   return (
     <Link href={`/pets/${id}`} className="card card-hover group block overflow-hidden">
       <div className="aspect-[4/5] relative bg-surface-100 overflow-hidden">
-        {hasPhoto && !imgError ? (
+        {imageSrc ? (
           <img
-            src={photo}
+            src={imageSrc}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-            onError={() => setImgError(true)}
+            onError={() => {
+              if (hasPhoto && !imgError) {
+                // Original photo failed — try fallback
+                setImgError(true);
+              } else {
+                // Fallback also failed — show placeholder
+                setFallbackError(true);
+              }
+            }}
           />
         ) : null}
 
-        {/* Placeholder for missing or broken photo */}
+        {/* Placeholder for missing or broken photo (only when fallback also fails) */}
         {showPlaceholder && (
           <div
             className={cn(

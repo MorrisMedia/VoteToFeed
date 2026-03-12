@@ -173,6 +173,11 @@ export function AdminDashboardClient({
       label: "Engagement",
       icon: <span>🤖</span>,
     },
+    {
+      id: "shelter" as Tab,
+      label: "Shelter Stories",
+      icon: <span>🏠</span>,
+    },
   ];
 
   return (
@@ -1122,7 +1127,7 @@ function AdminEngagementTab() {
 
   const runEngagement = async () => {
     setRunning(true); setRunResult(null);
-    const res = await fetch("/api/cron/auto-engage");
+    const res = await fetch("/api/admin/run-engagement", { method: "POST" });
     const data = await res.json();
     setRunResult(JSON.stringify(data, null, 2));
     setRunning(false);
