@@ -14,18 +14,33 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito", weight: ["900"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://votetofeed.com"),
   title: "Vote to Feed – Pet Photo Contests & Shelter Support | Powered by iHeartDogs & iHeartCats",
   description:
-    "Vote for cute pets, win epic prize packs, and help feed shelter pets. Free weekly vote for everyone.",
+    "Vote for adorable pets, win prize packs, and help feed shelter pets in need. Free weekly voting for everyone.",
   openGraph: {
     title: "Vote to Feed – Pet Photo Contests & Shelter Support",
     description: "Vote for adorable pets. Feed shelter pets in need.",
-    images: ["/og-image.png"],
     url: "https://votetofeed.com",
     type: "website",
+    siteName: "VoteToFeed",
+    images: [
+      {
+        url: "/og-image",
+        width: 1200,
+        height: 630,
+        alt: "VoteToFeed — Vote for adorable pets. Feed shelter pets.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vote to Feed – Pet Photo Contests & Shelter Support",
+    description: "Vote for adorable pets. Feed shelter pets in need.",
+    images: ["/og-image"],
   },
   other: {
-    'fb:app_id': '949563544407594',
+    "fb:app_id": "949563544407594",
   },
 };
 
