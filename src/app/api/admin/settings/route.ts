@@ -101,9 +101,9 @@ export async function PUT(req: NextRequest) {
     }
 
     // Stripe keys — validate format loosely
-    if (key === "stripe_secret_key" && value && !value.startsWith("sk_")) {
+    if (key === "stripe_secret_key" && value && !value.startsWith("sk_") && !value.startsWith("rk_")) {
       return NextResponse.json(
-        { error: "Stripe secret key should start with sk_" },
+        { error: "Stripe secret key should start with sk_ or rk_" },
         { status: 400 }
       );
     }

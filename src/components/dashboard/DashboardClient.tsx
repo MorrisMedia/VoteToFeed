@@ -31,6 +31,8 @@ type Props = {
   recentPurchases: Purchase[];
   recentVotes: VoteHistoryItem[];
   totalVotesCast: number;
+  purchaseStatus?: "success" | "cancelled" | null;
+  purchaseTier?: string | null;
 };
 
 type Tab = "overview" | "pets" | "votes" | "purchases" | "impact";
@@ -49,6 +51,8 @@ export function DashboardClient({
   recentPurchases,
   recentVotes,
   totalVotesCast,
+  purchaseStatus,
+  purchaseTier,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [buyingTier, setBuyingTier] = useState<string | null>(null);
@@ -135,6 +139,18 @@ export function DashboardClient({
             Add New Pet
           </Link>
         </div>
+
+        {purchaseStatus && (
+          <div className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
+            purchaseStatus === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}>
+            {purchaseStatus === "success"
+              ? `Payment received${purchaseTier ? ` for the ${purchaseTier.toLowerCase()} package` : ""}. Your votes were added to your balance.`
+              : `Checkout cancelled${purchaseTier ? ` for the ${purchaseTier.toLowerCase()} package` : ""}. No charge was made.`}
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-8 overflow-x-auto pb-1 hide-scrollbar">

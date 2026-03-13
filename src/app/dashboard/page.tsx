@@ -1,12 +1,19 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+
+type DashboardPageProps = {
+  searchParams?: {
+    purchase?: string;
+    tier?: string;
+  };
+};
 import { authOptions } from "@/lib/auth";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId } from "@/lib/utils";
 import { getMealRate, getAnimalType } from "@/lib/admin-settings";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/auth/signin?callbackUrl=/dashboard");
 
@@ -96,6 +103,10 @@ export default async function DashboardPage() {
         quantity: v.quantity,
         createdAt: v.createdAt.toISOString(),
       }))}
+      purchaseStatus={searchParams?.purchase === "success" || searchParams?.purchase === "cancelled"
+        ? searchParams.purchase
+        : null}
+      purchaseTier={searchParams?.tier ?? null}
     />
   );
 }
