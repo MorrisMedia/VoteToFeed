@@ -10,6 +10,8 @@ const VTF_BRAND = "votetofeed";
 const VTF_SITE = "votetofeed.com";
 
 export async function POST(req: NextRequest) {
+  let purchaseId: string | null = null;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -24,6 +26,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Invalid package tier" },
         { status: 400 }
+      );
+    }
+
+    // Validate Stripe configuration before creating a pending purchase.
+    let stripe;
+    try {
+      stripe = await getStripeAsync();
+    } catch (error) {
+      console.error("Stripe is not configured for checkout:", error);
+      return NextResponse.json(
+        { error: "Vote purchases are temporarily unavailable. Please try again shortly." },
+        { status: 503 }
       );
     }
 
@@ -43,6 +57,7 @@ export async function POST(req: NextRequest) {
         mealRateAtPurchase: mealRate,
       },
     });
+    purchaseId = purchase.id;
 
     const metadata = {
       brand: VTF_BRAND,
@@ -56,8 +71,6 @@ export async function POST(req: NextRequest) {
       meals: meals.toString(),
     };
 
-    // Create Stripe checkout session (uses DB key if set, else env)
-    const stripe = await getStripeAsync();
     const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       client_reference_id: purchase.id,
@@ -97,9 +110,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
+    if (purchaseId) {
+      await prisma.purchase.delete({ where: { id: purchaseId } }).catch((cleanupError) => {
+        console.error("Failed to clean up pending purchase after checkout error:", cleanupError);
+      });
+    }
+
     console.error("Checkout error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Unable to start checkout right now. Please try again shortly." },
       { status: 500 }
     );
   }
