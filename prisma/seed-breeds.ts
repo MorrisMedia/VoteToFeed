@@ -81,6 +81,7 @@ const DOG_BREEDS = [
   "Dogue de Bordeaux",
   // E
   "English Cocker Spaniel",
+  "English Bulldog",
   "English Foxhound",
   "English Setter",
   "English Springer Spaniel",
