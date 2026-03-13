@@ -1102,10 +1102,8 @@ type EngagementLogEntry = { id: string; targetUserId: string; seedAccountId: str
 function AdminEngagementTab() {
   const [logs, setLogs] = useState<EngagementLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [seedResult, setSeedResult] = useState<string | null>(null);
-  const [runResult, setRunResult] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -1117,41 +1115,25 @@ function AdminEngagementTab() {
 
   useEffect(() => { fetchLogs(); }, []);
 
-  const seedAccounts = async () => {
-    setSeeding(true); setSeedResult(null);
+  const seedEngagements = async () => {
+    setProcessing(true); setResult(null);
     const res = await fetch("/api/admin/seed-engagement", { method: "POST" });
     const data = await res.json();
-    setSeedResult(JSON.stringify(data, null, 2));
-    setSeeding(false);
-  };
-
-  const runEngagement = async () => {
-    setRunning(true); setRunResult(null);
-    const res = await fetch("/api/admin/run-engagement", { method: "POST" });
-    const data = await res.json();
-    setRunResult(JSON.stringify(data, null, 2));
-    setRunning(false);
+    setResult(JSON.stringify(data, null, 2));
+    setProcessing(false);
     fetchLogs();
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={seedAccounts} disabled={seeding} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">{seeding ? "Seeding..." : "🌱 Seed 20 Engagement Accounts"}</button>
-        <button onClick={runEngagement} disabled={running} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{running ? "Running..." : "▶️ Run Engagement Now"}</button>
+        <button onClick={seedEngagements} disabled={processing} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">{processing ? "Seeding..." : "🌱 Seed Engagements"}</button>
       </div>
 
-      {seedResult && (
-        <details className="rounded-xl border border-surface-200 bg-white">
-          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-surface-700">Seed Results</summary>
-          <pre className="px-4 py-2 text-xs text-surface-600 overflow-x-auto max-h-60">{seedResult}</pre>
-        </details>
-      )}
-
-      {runResult && (
+      {result && (
         <details open className="rounded-xl border border-surface-200 bg-white">
-          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-surface-700">Engagement Run Results</summary>
-          <pre className="px-4 py-2 text-xs text-surface-600 overflow-x-auto max-h-60">{runResult}</pre>
+          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-surface-700">Seed Engagement Results</summary>
+          <pre className="px-4 py-2 text-xs text-surface-600 overflow-x-auto max-h-60">{result}</pre>
         </details>
       )}
 

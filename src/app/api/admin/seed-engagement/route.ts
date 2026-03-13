@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { runAutoEngagement } from "@/lib/engagement";
+import { getCurrentWeekId } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
 /**
@@ -11,15 +13,6 @@ import bcrypt from "bcryptjs";
  * - Upload images to other users' pets
  * - Access or modify pet.photos for non-seed-account pets
  */
-
-function getCurrentWeekId(): string {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const diff = now.getTime() - start.getTime();
-  const oneWeek = 604800000;
-  const weekNum = Math.ceil((diff / oneWeek + start.getDay() + 1) / 7);
-  return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
-}
 
 const STABLE_DOG_PHOTOS = [
   "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?auto=format&fit=crop&w=1200&q=80",
@@ -324,8 +317,14 @@ export async function POST() {
     }
   }
 
+  const seededCount = results.filter((r) => r.status === "ok").length;
+  const runResult = await runAutoEngagement({ manual: true });
+
   return NextResponse.json({
-    message: `Seed complete. ${results.filter(r => r.status === "ok").length}/${SEED_ACCOUNTS.length} accounts processed.`,
+    message: `Seeded ${seededCount}/${SEED_ACCOUNTS.length} engagement accounts and ran engagement.`,
+    seededCount,
+    totalSeedAccounts: SEED_ACCOUNTS.length,
     results,
+    runResult,
   });
 }
