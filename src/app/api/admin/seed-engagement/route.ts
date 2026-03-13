@@ -21,6 +21,42 @@ function getCurrentWeekId(): string {
   return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
+const STABLE_DOG_PHOTOS = [
+  "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1525253086316-d0c936c814f8?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1200&q=80",
+];
+
+const STABLE_CAT_PHOTOS = [
+  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1519052537078-e6302a4968d4?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1574158622682-e40e69881006?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1513245543132-31f507417b26?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=1200&q=80",
+];
+
+function stablePhotoFor(type: "DOG" | "CAT", key: string) {
+  const list = type === "DOG" ? STABLE_DOG_PHOTOS : STABLE_CAT_PHOTOS;
+  const hash = Array.from(key).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return list[hash % list.length];
+}
+
+function normalizeSeedPhoto(photoUrl: string, type: "DOG" | "CAT", key: string) {
+  try {
+    const hostname = new URL(photoUrl).hostname;
+    if (["images.dog.ceo", "cdn.pixabay.com", "cataas.com"].includes(hostname)) {
+      return stablePhotoFor(type, key);
+    }
+  } catch {
+    return stablePhotoFor(type, key);
+  }
+  return photoUrl;
+}
+
 const SEED_ACCOUNTS = [
   {
     email: "vote@iheartdogs.com",
@@ -157,6 +193,9 @@ export async function POST() {
 
   for (const account of SEED_ACCOUNTS) {
     try {
+      const dogPhoto = normalizeSeedPhoto(account.dog.photo, "DOG", `${account.email}-dog-${account.dog.name}`);
+      const catPhoto = normalizeSeedPhoto(account.cat.photo, "CAT", `${account.email}-cat-${account.cat.name}`);
+
       // Create or find user
       let user = await prisma.user.findUnique({ where: { email: account.email } });
 
@@ -167,10 +206,15 @@ export async function POST() {
             name: account.name,
             password,
             role: "USER",
-            image: account.dog.photo,
+            image: dogPhoto,
             freeVotesRemaining: 999,
             paidVoteBalance: 999,
           },
+        });
+      } else if (user.image !== dogPhoto) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { image: dogPhoto },
         });
       }
 
@@ -187,7 +231,7 @@ export async function POST() {
             breed: account.dog.breed,
             bio: account.dog.bio,
             ownerName: account.name,
-            photos: [account.dog.photo],
+            photos: [dogPhoto],
             tags: [account.dog.breed.toLowerCase(), "good-dog", "engagement"],
             isActive: true,
             userId: user.id,
@@ -212,11 +256,11 @@ export async function POST() {
           create: { petId: dogPet.id, weekId },
         });
       } else {
-        // Update existing dog pet photo if it's a placeholder
-        if (!dogPet.photos || dogPet.photos.length === 0) {
+        // Update existing dog pet photo if it's missing or using an unreliable hotlinked source
+        if (!dogPet.photos || dogPet.photos.length === 0 || dogPet.photos[0] !== dogPhoto) {
           await prisma.pet.update({
             where: { id: dogPet.id },
-            data: { photos: [account.dog.photo] },
+            data: { photos: [dogPhoto] },
           });
         }
       }
@@ -234,7 +278,7 @@ export async function POST() {
             breed: account.cat.breed,
             bio: account.cat.bio,
             ownerName: account.name,
-            photos: [account.cat.photo],
+            photos: [catPhoto],
             tags: [account.cat.breed.toLowerCase(), "good-cat", "engagement"],
             isActive: true,
             userId: user.id,
@@ -259,11 +303,11 @@ export async function POST() {
           create: { petId: catPet.id, weekId },
         });
       } else {
-        // Update existing cat pet photo if it's a placeholder
-        if (!catPet.photos || catPet.photos.length === 0) {
+        // Update existing cat pet photo if it's missing or using an unreliable hotlinked source
+        if (!catPet.photos || catPet.photos.length === 0 || catPet.photos[0] !== catPhoto) {
           await prisma.pet.update({
             where: { id: catPet.id },
-            data: { photos: [account.cat.photo] },
+            data: { photos: [catPhoto] },
           });
         }
       }

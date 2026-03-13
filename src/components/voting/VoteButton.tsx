@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { trackMetaPixel } from "@/lib/meta-pixel";
 
 type Props = {
   petId: string;
@@ -57,6 +58,11 @@ export function VoteButton({
         setFreeVotes(data.user.freeVotesRemaining);
         setPaidVotes(data.user.paidVoteBalance);
         setLastVoteType(data.vote.type === "FREE" ? "free" : "paid");
+        trackMetaPixel("VoteToFeedVote", {
+          petId,
+          voteType: data.vote.type,
+          weeklyVotes: data.pet.weeklyVotes,
+        });
 
         // Trigger pop animation
         setAnimating(true);

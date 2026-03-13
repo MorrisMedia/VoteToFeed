@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { trackMetaPixel } from "@/lib/meta-pixel";
 import { US_STATES } from "@/lib/utils";
 
 type BreedOption = { id: string; name: string; petType: string; slug: string };
@@ -188,6 +189,12 @@ export default function NewPetPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to add pet"); setLoading(false); return; }
+      trackMetaPixel("VoteToFeedEntry", {
+        petId: data.id,
+        petName: form.name,
+        petType: form.type,
+        contestCount: selectedContests.size,
+      });
       router.push(`/pets/${data.id}`);
     } catch {
       setError("Something went wrong");

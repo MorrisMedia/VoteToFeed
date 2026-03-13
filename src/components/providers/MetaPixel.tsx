@@ -1,9 +1,9 @@
 "use client";
 import Script from "next/script";
+import { META_PIXEL_ID } from "@/lib/meta-pixel";
 
 export function MetaPixel() {
-  const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
-  if (!pixelId) return null;
+  const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || META_PIXEL_ID;
 
   return (
     <>
