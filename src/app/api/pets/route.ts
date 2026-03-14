@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { schedulePetWelcomeComments } from "@/lib/scheduled-comments";
 import { getCurrentWeekId } from "@/lib/utils";
 
 // GET /api/pets - List pets with filtering
@@ -187,6 +188,18 @@ export async function POST(req: NextRequest) {
     await prisma.petWeeklyStats.create({
       data: { petId: pet.id, weekId },
     });
+
+    try {
+      await schedulePetWelcomeComments({
+        petId: pet.id,
+        petName: pet.name,
+        petBreed: pet.breed,
+        targetUserId: userId,
+        count: 5,
+      });
+    } catch (scheduleError) {
+      console.error("Failed to schedule welcome comments:", scheduleError);
+    }
 
     return NextResponse.json(pet, { status: 201 });
   } catch (error) {

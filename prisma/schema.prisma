@@ -76,6 +76,7 @@ model User {
   pets           Pet[]
   votes          Vote[]
   comments       Comment[]
+  scheduledComments ScheduledComment[] @relation("ScheduledCommentEngagementAccount")
   purchases      Purchase[]
   productOrders  ProductOrder[]
   notifications  UserNotificationPrefs?
@@ -129,6 +130,7 @@ model Pet {
   votes          Vote[]
   anonymousVotes AnonymousVote[]
   comments       Comment[]
+  scheduledComments ScheduledComment[]
   contestEntries ContestEntry[]
   productDesigns ProductDesign[]
   weeklyStats    PetWeeklyStats[]
@@ -349,6 +351,33 @@ model Comment {
   flags    FlaggedComment[]
 
   @@index([petId, createdAt])
+}
+
+model ScheduledComment {
+  id                  String                 @id @default(cuid())
+  petId               String
+  engagementAccountId String
+  scheduledFor        DateTime
+  commentText         String                 @db.VarChar(255)
+  status              ScheduledCommentStatus @default(PENDING)
+  processedAt         DateTime?
+  errorMessage        String?                @db.VarChar(500)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  pet               Pet  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  engagementAccount User @relation("ScheduledCommentEngagementAccount", fields: [engagementAccountId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledFor, status])
+  @@index([petId])
+  @@index([engagementAccountId])
+}
+
+enum ScheduledCommentStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
 }
 
 // ─── AI PRODUCT DESIGNS ──────────────────────────────────
