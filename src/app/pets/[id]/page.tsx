@@ -15,6 +15,18 @@ import { PetPhotoGallery } from "./PetPhotoGallery";
 
 export const dynamic = "force-dynamic";
 
+function abbreviateName(name?: string | null) {
+  if (!name) return "Anonymous";
+
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return parts[0] || "Anonymous";
+
+  const firstName = parts[0];
+  const lastInitial = parts[parts.length - 1][0]?.toUpperCase();
+
+  return lastInitial ? `${firstName} ${lastInitial}.` : firstName;
+}
+
 // ── Dynamic OG metadata so shared links show pet photo + "Vote for X to win!" ──
 export async function generateMetadata({
   params,
@@ -187,7 +199,7 @@ export default async function PetDetailPage({
               {pet.breed && <><span className="text-surface-300">·</span><span className="text-base text-surface-500 lg:text-sm">{pet.breed}</span></>}
             </div>
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-base text-surface-400 lg:text-sm">by {pet.ownerName}</span>
+              <span className="text-base text-surface-400 lg:text-sm">by {abbreviateName(pet.ownerName)}</span>
               {(pet.city || pet.state) && (
                 <span className="text-base text-surface-400 lg:text-sm">· {[pet.city, pet.state].filter(Boolean).join(", ")}</span>
               )}
@@ -269,7 +281,7 @@ export default async function PetDetailPage({
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold text-surface-900">{c.user.name || "Anonymous"}</p>
+                    <p className="text-base font-semibold text-surface-900">{abbreviateName(c.user.name)}</p>
                     <p className="text-xs text-surface-600 font-medium">{timeAgo(new Date(c.createdAt))}</p>
                   </div>
                   <p className="text-base text-surface-800 font-medium mt-1">{c.text}</p>
@@ -277,7 +289,7 @@ export default async function PetDetailPage({
                     <ul className="mt-3 ml-3 space-y-2 border-l-2 border-surface-100 pl-3">
                       {c.replies.map((r) => (
                         <li key={r.id}>
-                          <p className="text-xs font-medium text-surface-700">{r.user.name}</p>
+                          <p className="text-xs font-medium text-surface-700">{abbreviateName(r.user.name)}</p>
                           <p className="text-sm text-surface-700 font-medium">{r.text}</p>
                         </li>
                       ))}
