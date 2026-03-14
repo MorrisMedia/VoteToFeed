@@ -2109,12 +2109,34 @@ type ContestData = {
   prizes?: { placement: number; title: string; value: number; items: string[] }[];
 };
 
+type ContestWinnerRecord = {
+  id: string;
+  contestId: string;
+  contestName: string;
+  contestEndedAt: string;
+  placement: number;
+  title: string;
+  winnerPetId: string | null;
+  winnerPetName: string;
+  ownerUserName: string;
+  ownerAddress: string;
+  prizeSent: boolean;
+  fulfilledAt: string | null;
+  awardedAt: string | null;
+  status: string;
+  value: number;
+};
+
 function ContestManager() {
   const [contests, setContests] = useState<ContestData[]>([]);
+  const [winners, setWinners] = useState<ContestWinnerRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [winnersLoading, setWinnersLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState("");
+  const [winnerMsg, setWinnerMsg] = useState("");
+  const [togglingPrizeId, setTogglingPrizeId] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverFileRef = React.useRef<HTMLInputElement>(null);
 
@@ -2148,12 +2170,27 @@ function ContestManager() {
     setLoading(false);
   }
 
+  async function loadWinners() {
+    setWinnersLoading(true);
+    try {
+      const res = await fetch("/api/admin/contest-winners");
+      const data = await res.json();
+      setWinners(Array.isArray(data.winners) ? data.winners : []);
+    } catch {
+      setWinners([]);
+    } finally {
+      setWinnersLoading(false);
+    }
+  }
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
   const [editMsg, setEditMsg] = useState("");
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useState(() => { loadContests(); });
+  useEffect(() => {
+    loadContests();
+    loadWinners();
+  }, []);
 
   function startEdit(c: ContestData) {
     setEditingId(c.id);
@@ -2218,7 +2255,7 @@ function ContestManager() {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (res.ok) { setEditingId(null); loadContests(); }
+      if (res.ok) { setEditingId(null); loadContests(); loadWinners(); }
       else { const d = await res.json(); setEditMsg(d.error || "Save failed"); }
     } catch { setEditMsg("Error saving"); }
   }
@@ -2229,12 +2266,14 @@ function ContestManager() {
       body: JSON.stringify({ [field]: value }),
     });
     loadContests();
+    loadWinners();
   }
 
   async function deleteContest(id: string, name: string) {
     if (!confirm(`Delete contest "${name}"? Contests with entries will be deactivated instead.`)) return;
     await fetch(`/api/contests/${id}`, { method: "DELETE" });
     loadContests();
+    loadWinners();
   }
 
   async function createContest(e: React.FormEvent) {
@@ -2276,6 +2315,7 @@ function ContestManager() {
           { placement: 3, title: "3rd Place", value: "", items: "" },
         ] });
         loadContests();
+        loadWinners();
       } else {
         const data = await res.json();
         setCreateMsg(data.error || "Failed to create");
@@ -2296,6 +2336,37 @@ function ContestManager() {
     const map: Record<string, string> = { NATIONAL: "bg-brand-100 text-brand-700", SEASONAL: "bg-amber-100 text-amber-700", CHARITY: "bg-emerald-100 text-emerald-700", CALENDAR: "bg-violet-100 text-violet-700", BREED: "bg-sky-100 text-sky-700", STATE: "bg-orange-100 text-orange-700" };
     return map[type] || "bg-surface-100 text-surface-600";
   }
+
+  async function togglePrizeSent(prizeId: string, prizeSent: boolean) {
+    setTogglingPrizeId(prizeId);
+    setWinnerMsg("");
+    try {
+      const res = await fetch("/api/admin/contest-winners", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prizeId, prizeSent }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWinnerMsg(data.error || "Failed to update prize status");
+      } else {
+        setWinners((current) => current.map((winner) => winner.id === prizeId ? {
+          ...winner,
+          prizeSent: data.prizeSent,
+          fulfilledAt: data.fulfilledAt,
+          status: data.status,
+        } : winner));
+        setWinnerMsg(data.prizeSent ? "Prize marked as sent" : "Prize marked as not sent");
+      }
+    } catch {
+      setWinnerMsg("Failed to update prize status");
+    } finally {
+      setTogglingPrizeId(null);
+      setTimeout(() => setWinnerMsg(""), 3000);
+    }
+  }
+
+  const endedContests = contests.filter((contest) => contest.hasEnded);
 
   return (
     <div>
@@ -2715,6 +2786,80 @@ function ContestManager() {
           ))}
         </div>
       )}
+
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-surface-900">Winners</h3>
+            <p className="text-sm text-surface-500 mt-1">Closed contest winners and fulfillment tracking.</p>
+          </div>
+          <span className="text-xs font-medium text-surface-400">{endedContests.length} ended contests</span>
+        </div>
+
+        {winnerMsg && (
+          <div className={`mb-3 rounded-lg border px-4 py-2.5 text-sm font-medium ${winnerMsg.includes("Failed") ? "border-red-200 bg-red-50 text-red-700" : "border-accent-200 bg-accent-50 text-accent-700"}`}>
+            {winnerMsg}
+          </div>
+        )}
+
+        {winnersLoading ? (
+          <div className="card p-5 text-sm text-surface-400">Loading winners...</div>
+        ) : winners.length === 0 ? (
+          <div className="card p-5 text-sm text-surface-500">
+            {endedContests.length === 0
+              ? "No ended contests yet. Winners will appear here once contests close."
+              : "No prizes or winners have been assigned for ended contests yet."}
+          </div>
+        ) : (
+          <div className="card p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-surface-100 bg-surface-50">
+                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Contest</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Winner Pet</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Owner Username</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Owner Address</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-surface-400">Prize / Product Sent</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-50">
+                  {winners.map((winner) => (
+                    <tr key={winner.id} className="hover:bg-surface-50/50 align-top">
+                      <td className="px-4 py-3">
+                        <div className="min-w-[220px]">
+                          <p className="font-medium text-surface-800">{winner.contestName}</p>
+                          <p className="mt-0.5 text-[11px] text-surface-400">{winner.placement}{winner.placement === 1 ? "st" : winner.placement === 2 ? "nd" : winner.placement === 3 ? "rd" : "th"} place · {new Date(winner.contestEndedAt).toLocaleDateString()}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="font-semibold text-surface-900">{winner.winnerPetName}</p>
+                          <p className="text-[11px] text-surface-400">{winner.title}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-surface-700">{winner.ownerUserName}</td>
+                      <td className="px-4 py-3 text-surface-700 max-w-xs">{winner.ownerAddress}</td>
+                      <td className="px-4 py-3 text-center">
+                        <label className="inline-flex items-center justify-center gap-2 rounded-lg border border-surface-200 px-3 py-2 text-xs font-medium text-surface-700">
+                          <input
+                            type="checkbox"
+                            checked={winner.prizeSent}
+                            disabled={togglingPrizeId === winner.id}
+                            onChange={(e) => togglePrizeSent(winner.id, e.target.checked)}
+                            className="h-4 w-4 rounded border-surface-300 text-brand-600"
+                          />
+                          {togglingPrizeId === winner.id ? "Saving..." : winner.prizeSent ? "Sent" : "Not sent"}
+                        </label>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
