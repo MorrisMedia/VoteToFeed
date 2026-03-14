@@ -124,18 +124,13 @@ export async function getAdminContestWinners() {
           id: true,
           name: true,
           ownerName: true,
+          ownerFirstName: true,
+          ownerLastName: true,
           address: true,
           city: true,
           state: true,
           zipCode: true,
-          user: {
-            select: {
-              name: true,
-              city: true,
-              state: true,
-              zipCode: true,
-            },
-          },
+          user: true,
         },
       })
     : [];
@@ -145,11 +140,18 @@ export async function getAdminContestWinners() {
       pet.id,
       {
         petName: pet.name,
-        ownerUserName: pet.user.name || pet.ownerName,
+        ownerUserName:
+          buildAddress([pet.ownerFirstName, pet.ownerLastName]) ||
+          pet.user.name?.trim() ||
+          pet.ownerName ||
+          "—",
         ownerAddress:
-          buildAddress([pet.address]) ||
-          buildAddress([pet.city, pet.state, pet.zipCode]) ||
-          buildAddress([pet.user.city, pet.user.state, pet.user.zipCode]) ||
+          buildAddress([
+            pet.address,
+            pet.city || pet.user.city,
+            pet.state || pet.user.state,
+            pet.zipCode || pet.user.zipCode,
+          ]) ||
           "—",
       },
     ])

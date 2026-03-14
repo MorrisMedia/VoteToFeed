@@ -2818,8 +2818,8 @@ function ContestManager() {
                   <tr className="border-b border-surface-100 bg-surface-50">
                     <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Contest</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Winner Pet</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Owner Username</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Owner Address</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Owner Name</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-surface-400">Shipping Address</th>
                     <th className="px-4 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-surface-400">Prize / Product Sent</th>
                   </tr>
                 </thead>
@@ -2839,7 +2839,7 @@ function ContestManager() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-surface-700">{winner.ownerUserName}</td>
-                      <td className="px-4 py-3 text-surface-700 max-w-xs">{winner.ownerAddress}</td>
+                      <td className="px-4 py-3 text-surface-700 max-w-xs whitespace-normal">{winner.ownerAddress}</td>
                       <td className="px-4 py-3 text-center">
                         <label className="inline-flex items-center justify-center gap-2 rounded-lg border border-surface-200 px-3 py-2 text-xs font-medium text-surface-700">
                           <input

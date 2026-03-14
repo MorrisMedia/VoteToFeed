@@ -2,9 +2,9 @@ import prisma from "@/lib/prisma";
 import { COMMENT_TEMPLATES } from "@/lib/scheduled-comments";
 import { getCurrentWeekId } from "@/lib/utils";
 
-const MAX_ENGAGEMENT_ACTIONS_PER_USER = 6;
-const MIN_SEEDS_PER_USER = 1;
-const MAX_SEEDS_PER_USER = 3;
+const MAX_ENGAGEMENT_ACTIONS_PER_PET = 6;
+const MIN_SEEDS_PER_PET = 1;
+const MAX_SEEDS_PER_PET = 3;
 
 type EngagementLogSummary = { user: string; action: string; seed: string };
 
@@ -123,22 +123,25 @@ export async function runAutoEngagement(options: RunAutoEngagementOptions = {}):
   const manual = options.manual === true;
   const weekId = getCurrentWeekId();
 
-  const candidateUsers = await prisma.user.findMany({
+  const candidatePets = await prisma.pet.findMany({
     where: {
-      role: "USER",
-      email: { not: { contains: "@iheartdogs.com" } },
+      isActive: true,
+      user: {
+        email: { not: { contains: "@iheartdogs.com" } },
+      },
       ...(manual ? {} : { createdAt: { gte: fortyEightHoursAgo } }),
     },
     orderBy: { createdAt: "desc" },
     take: manual ? 50 : undefined,
-    include: {
-      pets: {
-        where: { isActive: true },
-        take: 1,
+    select: {
+      id: true,
+      name: true,
+      breed: true,
+      userId: true,
+      user: {
         select: {
           id: true,
-          name: true,
-          breed: true,
+          email: true,
         },
       },
     },
@@ -152,7 +155,7 @@ export async function runAutoEngagement(options: RunAutoEngagementOptions = {}):
   if (seedAccounts.length === 0) {
     return {
       message: "No seed accounts found. Run /api/admin/seed-engagement first.",
-      newUsersFound: candidateUsers.length,
+      newUsersFound: candidatePets.length,
       seedAccountsAvailable: 0,
       totalEngagements: 0,
       logs: [],
@@ -163,19 +166,16 @@ export async function runAutoEngagement(options: RunAutoEngagementOptions = {}):
   const logs: EngagementLogSummary[] = [];
   let statsChanged = false;
 
-  for (const user of candidateUsers) {
-    const pet = user.pets[0];
-    if (!pet) continue;
-
+  for (const pet of candidatePets) {
     const existingEngagements = await prisma.engagementLog.count({
-      where: { targetUserId: user.id },
+      where: { petId: pet.id },
     });
 
-    if (existingEngagements >= MAX_ENGAGEMENT_ACTIONS_PER_USER) continue;
+    if (existingEngagements >= MAX_ENGAGEMENT_ACTIONS_PER_PET) continue;
 
     const usedSeedIds = (
       await prisma.engagementLog.findMany({
-        where: { targetUserId: user.id },
+        where: { petId: pet.id },
         select: { seedAccountId: true },
         distinct: ["seedAccountId"],
       })
@@ -184,34 +184,34 @@ export async function runAutoEngagement(options: RunAutoEngagementOptions = {}):
     const availableSeeds = seedAccounts.filter((seed) => !usedSeedIds.includes(seed.id));
     if (availableSeeds.length === 0) continue;
 
-    const actionsRemaining = MAX_ENGAGEMENT_ACTIONS_PER_USER - existingEngagements;
+    const actionsRemaining = MAX_ENGAGEMENT_ACTIONS_PER_PET - existingEngagements;
     const maxSeedsByCapacity = Math.max(1, Math.floor(actionsRemaining / 2));
     const seedsToUse = Math.min(
       availableSeeds.length,
       maxSeedsByCapacity,
-      Math.max(MIN_SEEDS_PER_USER, Math.floor(Math.random() * MAX_SEEDS_PER_USER) + 1),
+      Math.max(MIN_SEEDS_PER_PET, Math.floor(Math.random() * MAX_SEEDS_PER_PET) + 1),
     );
 
     const selectedSeeds = pickRandom(availableSeeds, seedsToUse);
-    let actionsForUser = existingEngagements;
+    let actionsForPet = existingEngagements;
 
     for (const seed of selectedSeeds) {
       try {
-        if (actionsForUser >= MAX_ENGAGEMENT_ACTIONS_PER_USER) break;
+        if (actionsForPet >= MAX_ENGAGEMENT_ACTIONS_PER_PET) break;
 
-        const voteCreated = await createVoteIfNeeded(seed.id, user.id, pet, weekId, logs);
+        const voteCreated = await createVoteIfNeeded(seed.id, pet.userId, pet, weekId, logs);
         if (voteCreated) {
           totalEngagements++;
-          actionsForUser++;
+          actionsForPet++;
           statsChanged = true;
         }
 
-        if (actionsForUser >= MAX_ENGAGEMENT_ACTIONS_PER_USER) break;
+        if (actionsForPet >= MAX_ENGAGEMENT_ACTIONS_PER_PET) break;
 
-        const commentCreated = await createComment(seed.id, user.id, pet, logs);
+        const commentCreated = await createComment(seed.id, pet.userId, pet, logs);
         if (commentCreated) {
           totalEngagements++;
-          actionsForUser++;
+          actionsForPet++;
         }
       } catch (error) {
         console.error("Engagement error:", error);
@@ -223,12 +223,12 @@ export async function runAutoEngagement(options: RunAutoEngagementOptions = {}):
     await recalculateWeeklyRanks(weekId);
   }
 
-  const userIdToEmail = new Map(candidateUsers.map((user) => [user.id, user.email || user.id]));
+  const userIdToEmail = new Map(candidatePets.map((pet) => [pet.user.id, pet.user.email || pet.user.id]));
   const seedIdToEmail = new Map(seedAccounts.map((seed) => [seed.id, seed.email || seed.id]));
 
   return {
     message: `${manual ? "Manual" : "Auto"} engagement complete. ${totalEngagements} actions performed.`,
-    newUsersFound: candidateUsers.length,
+    newUsersFound: candidatePets.length,
     seedAccountsAvailable: seedAccounts.length,
     totalEngagements,
     logs: logs.map((entry) => ({
