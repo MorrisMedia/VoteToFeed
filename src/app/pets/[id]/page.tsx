@@ -11,6 +11,7 @@ import { rankSuffix, timeAgo } from "@/lib/utils";
 import { Metadata } from "next";
 import { ShareButtons } from "./ShareButtons";
 import { PetImage } from "./PetImage";
+import { PetPhotoGallery } from "./PetPhotoGallery";
 
 export const dynamic = "force-dynamic";
 
@@ -166,22 +167,15 @@ export default async function PetDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Photo column */}
         <div className="lg:col-span-3">
-          <div className="relative rounded-2xl overflow-hidden bg-surface-100 aspect-[4/3]">
-            <PetImage src={photo} alt={pet.name} className="w-full h-full object-cover" petId={pet.id} petType={pet.type} />
-            <div className="absolute top-4 left-4 flex gap-2">
-              {isNew && <span className="badge-new">New</span>}
-              {weeklyRank != null && weeklyRank <= 10 && (
-                <span className="badge-rank">{rankSuffix(weeklyRank)} this week</span>
-              )}
-            </div>
-          </div>
-          {pet.photos.length > 1 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
-              {pet.photos.map((url, i) => (
-                <img key={i} src={url} alt="" className="w-20 h-20 rounded-xl object-cover flex-shrink-0 border-2 border-white shadow-sm" />
-              ))}
-            </div>
-          )}
+          <PetPhotoGallery
+            photos={pet.photos}
+            petId={pet.id}
+            petName={pet.name}
+            petType={pet.type}
+            isNew={isNew}
+            weeklyRank={weeklyRank}
+            rankLabel={weeklyRank != null && weeklyRank <= 10 ? `${rankSuffix(weeklyRank)} this week` : undefined}
+          />
         </div>
 
         {/* Info column */}
