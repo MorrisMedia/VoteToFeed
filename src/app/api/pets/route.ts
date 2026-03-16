@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { schedulePetWelcomeComments } from "@/lib/scheduled-comments";
 import { getCurrentWeekId } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/pets - List pets with filtering
 export async function GET(req: NextRequest) {
   try {
@@ -135,58 +137,63 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pet = await prisma.pet.create({
-      data: {
-        name,
-        type,
-        breed: breed || null,
-        bio: bio || null,
-        ownerName: finalOwnerName,
-        ownerFirstName: ownerFirstName || null,
-        ownerLastName: ownerLastName || null,
-        address: address || null,
-        city: city || null,
-        state: state || null,
-        zipCode: zipCode || null,
-        photos: photos || [],
-        tags: tags || [],
-        userId,
-      },
-    });
-
-    // Enter into selected contests (from form) or auto-enter national
     const weekId = getCurrentWeekId();
-    if (contestIds && Array.isArray(contestIds) && contestIds.length > 0) {
-      // User selected specific contests
-      const validContests = await prisma.contest.findMany({
-        where: {
-          id: { in: contestIds },
-          isActive: true,
-          petType: type,
-          endDate: { gte: new Date() },
-        },
-        select: { id: true },
-      });
-      for (const contest of validContests) {
-        await prisma.contestEntry.create({
-          data: { contestId: contest.id, petId: pet.id },
-        }).catch(() => {});
-      }
-    } else {
-      // Fallback: auto-enter national contests
-      const nationalContests = await prisma.contest.findMany({
-        where: { isActive: true, weekId, petType: type, type: "NATIONAL" },
-      });
-      for (const contest of nationalContests) {
-        await prisma.contestEntry.create({
-          data: { contestId: contest.id, petId: pet.id },
-        }).catch(() => {});
-      }
-    }
 
-    // Create initial weekly stats
-    await prisma.petWeeklyStats.create({
-      data: { petId: pet.id, weekId },
+    const pet = await prisma.$transaction(async (tx) => {
+      const createdPet = await tx.pet.create({
+        data: {
+          name,
+          type,
+          breed: breed || null,
+          bio: bio || null,
+          ownerName: finalOwnerName,
+          ownerFirstName: ownerFirstName || null,
+          ownerLastName: ownerLastName || null,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zipCode: zipCode || null,
+          photos: photos || [],
+          tags: tags || [],
+          userId,
+        },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          breed: true,
+          photos: true,
+          createdAt: true,
+        },
+      });
+
+      const selectedContestIds = contestIds && Array.isArray(contestIds) && contestIds.length > 0
+        ? await tx.contest.findMany({
+            where: {
+              id: { in: contestIds },
+              isActive: true,
+              petType: type,
+              endDate: { gte: new Date() },
+            },
+            select: { id: true },
+          }).then((contests) => contests.map((contest) => contest.id))
+        : await tx.contest.findMany({
+            where: { isActive: true, weekId, petType: type, type: "NATIONAL" },
+            select: { id: true },
+          }).then((contests) => contests.map((contest) => contest.id));
+
+      if (selectedContestIds.length > 0) {
+        await tx.contestEntry.createMany({
+          data: selectedContestIds.map((contestId) => ({ contestId, petId: createdPet.id })),
+          skipDuplicates: true,
+        });
+      }
+
+      await tx.petWeeklyStats.create({
+        data: { petId: createdPet.id, weekId },
+      });
+
+      return createdPet;
     });
 
     try {

@@ -224,6 +224,26 @@ export default function NewPetPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to add pet"); setLoading(false); return; }
+      if (!data?.id) {
+        setError("Pet created, but the site did not return a valid listing ID. Please check My Pets.");
+        setLoading(false);
+        return;
+      }
+
+      const verifyRes = await fetch(`/api/pets/${data.id}`, { cache: "no-store" });
+      if (!verifyRes.ok) {
+        setError("Pet created, but we could not verify the new listing yet. Please check My Pets.");
+        setLoading(false);
+        return;
+      }
+
+      const verifiedPet = await verifyRes.json();
+      if (verifiedPet?.name !== form.name || verifiedPet?.type !== form.type) {
+        setError("The site returned the wrong listing after submit. Please open My Pets while we finish fixing this.");
+        setLoading(false);
+        return;
+      }
+
       trackMetaPixel("VoteToFeedEntry", {
         petId: data.id,
         petName: form.name,

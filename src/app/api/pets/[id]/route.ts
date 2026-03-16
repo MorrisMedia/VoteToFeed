@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/pets/[id] - Get pet details
 export async function GET(
   req: NextRequest,
