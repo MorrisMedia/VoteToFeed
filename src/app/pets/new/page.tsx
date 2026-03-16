@@ -351,7 +351,7 @@ export default function NewPetPage() {
 
         {/* Breed Dropdown */}
         {form.type !== "OTHER" && (
-          <div className="relative" ref={breedDropdownRef} onMouseLeave={closeBreedDropdown}>
+          <div className="relative" ref={breedDropdownRef}>
             <label className="block text-sm font-medium text-surface-700 mb-1.5">Breed *</label>
             <div className="relative">
               <input
@@ -377,7 +377,8 @@ export default function NewPetPage() {
                     <li key={b.id}>
                       <button
                         type="button"
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           setForm((f) => ({ ...f, breed: b.name }));
                           setBreedSearch(b.name);
                           closeBreedDropdown();
