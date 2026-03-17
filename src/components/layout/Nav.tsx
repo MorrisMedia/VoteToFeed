@@ -25,7 +25,7 @@ function useDropdownAutoClose(
   useEffect(() => {
     if (!isOpen) return;
 
-    function handlePointerOrFocus(event: PointerEvent | FocusEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (!ref.current?.contains(event.target as Node)) {
         onClose();
       }
@@ -35,13 +35,11 @@ function useDropdownAutoClose(
       if (event.key === "Escape") onClose();
     }
 
-    document.addEventListener("pointerdown", handlePointerOrFocus);
-    document.addEventListener("focusin", handlePointerOrFocus);
+    document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener("pointerdown", handlePointerOrFocus);
-      document.removeEventListener("focusin", handlePointerOrFocus);
+      document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen, onClose, ref]);
@@ -115,7 +113,7 @@ export function Nav({
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
           {/* Contests dropdown */}
-          <div className="relative" ref={contestRef} onMouseLeave={closeContests}>
+          <div className="relative" ref={contestRef}>
             <button
               onClick={() => setContestsOpen(!contestsOpen)}
               className="btn-ghost text-surface-800 flex items-center gap-1"
@@ -181,7 +179,7 @@ export function Nav({
           </div>
 
           {/* Leaderboard dropdown with Winners underneath */}
-          <div className="relative" ref={leaderboardRef} onMouseLeave={closeLeaderboard}>
+          <div className="relative" ref={leaderboardRef}>
             <button
               onClick={() => setLeaderboardOpen(!leaderboardOpen)}
               className="btn-ghost text-surface-800 flex items-center gap-1"
@@ -238,7 +236,7 @@ export function Nav({
           {status === "loading" ? (
             <div className="w-9 h-9 rounded-full bg-surface-100 animate-pulse" />
           ) : session ? (
-            <div className="relative" ref={menuRef} onMouseLeave={closeMenu}>
+            <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-2 rounded-full p-1 pr-3 border border-surface-200 hover:border-surface-300 hover:bg-surface-50 transition-all min-h-[44px]"

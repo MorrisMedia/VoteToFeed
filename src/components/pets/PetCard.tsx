@@ -95,6 +95,16 @@ export function PetCard({
             src={imageSrc}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                if (hasPhoto && !imgError) {
+                  setImgError(true);
+                } else {
+                  setFallbackError(true);
+                }
+              }
+            }}
             onError={() => {
               if (hasPhoto && !imgError) {
                 // Original photo failed — try fallback

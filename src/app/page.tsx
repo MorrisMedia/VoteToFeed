@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PetCard } from "@/components/pets/PetCard";
+import { PetImage } from "@/app/pets/[id]/PetImage";
 import { ShelterBanner } from "@/components/layout/ShelterBanner";
 import { VoteFeed } from "@/components/voting/VoteFeed";
 import { getAnimalType, getWeeklyVoteGoal, getFreeVotesConfig } from "@/lib/admin-settings";
@@ -211,10 +212,12 @@ export default async function HomePage() {
                 <div className="relative">
                   {/* Main featured image */}
                   <Link href={`/pets/${pets[0].id}`} className="block relative rounded-2xl overflow-hidden shadow-card-hover aspect-[4/5] bg-surface-100 group">
-                    <img
-                      src={pets[0].photos[0] || `https://placedog.net/400/500?random=hero1`}
+                    <PetImage
+                      src={pets[0].photos[0] || ""}
                       alt={pets[0].name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      petId={pets[0].id}
+                      petType={pets[0].type}
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pt-16 pb-4 px-4">
                       <div className="flex items-end justify-between">
@@ -239,17 +242,21 @@ export default async function HomePage() {
                   {/* Two smaller overlapping images */}
                   <div className="absolute -bottom-4 -left-4 flex gap-2">
                     <Link href={`/pets/${pets[1].id}`} className="block w-20 h-20 lg:w-24 lg:h-24 rounded-xl overflow-hidden shadow-lg border-2 border-white bg-surface-100 group">
-                      <img
-                        src={pets[1].photos[0] || `https://placedog.net/200/200?random=hero2`}
+                      <PetImage
+                        src={pets[1].photos[0] || ""}
                         alt={pets[1].name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        petId={pets[1].id}
+                        petType={pets[1].type}
                       />
                     </Link>
                     <Link href={`/pets/${pets[2].id}`} className="block w-20 h-20 lg:w-24 lg:h-24 rounded-xl overflow-hidden shadow-lg border-2 border-white bg-surface-100 group">
-                      <img
-                        src={pets[2].photos[0] || `https://placedog.net/200/200?random=hero3`}
+                      <PetImage
+                        src={pets[2].photos[0] || ""}
                         alt={pets[2].name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        petId={pets[2].id}
+                        petType={pets[2].type}
                       />
                     </Link>
                   </div>
@@ -276,10 +283,12 @@ export default async function HomePage() {
                 style={{scrollSnapAlign: "start"}}
               >
                 <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-surface-200 bg-surface-100">
-                  <img
-                    src={pet.photos[0] || (pet.type === "CAT" ? "https://placekitten.com/200/200" : `https://placedog.net/200/200?id=${pet.id}`)}
+                  <PetImage
+                    src={pet.photos[0] || ""}
                     alt={pet.name}
                     className="w-full h-full object-cover"
+                    petId={pet.id}
+                    petType={pet.type}
                   />
                   {pet.weeklyRank && pet.weeklyRank <= 3 && (
                     <div className="absolute top-1 left-1 w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-black flex items-center justify-center shadow">
