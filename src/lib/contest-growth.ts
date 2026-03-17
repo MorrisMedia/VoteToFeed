@@ -225,16 +225,7 @@ Return ONLY the contest name, nothing else. Max 8 words.`
 
 export function getNextContestWindow(now = new Date()) {
   const startDate = new Date(now);
-  const day = startDate.getUTCDay();
-  const hour = startDate.getUTCHours();
-
-  if (day === 1 && hour < 12) {
-    startDate.setUTCMinutes(0, 0, 0);
-  } else {
-    const daysUntilNextMonday = ((8 - day) % 7) || 7;
-    startDate.setUTCDate(startDate.getUTCDate() + daysUntilNextMonday);
-    startDate.setUTCHours(0, 0, 0, 0);
-  }
+  startDate.setUTCHours(0, 0, 0, 0);
 
   const endDate = new Date(startDate);
   endDate.setUTCDate(endDate.getUTCDate() + 14);
