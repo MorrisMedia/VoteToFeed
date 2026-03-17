@@ -192,6 +192,10 @@ export function AdminDashboardClient({
             </div>
             <p className="text-sm text-surface-500 mt-1">Platform management and analytics — {weekId}</p>
           </div>
+          <Link href="/admin/guide" className="flex items-center gap-1.5 text-sm font-medium text-surface-600 hover:text-brand-600 px-3 py-2 rounded-lg hover:bg-brand-50 transition-colors border border-surface-200">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            Admin Guide
+          </Link>
         </div>
 
         {/* Tab Navigation */}
