@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import React from "react";
 
 export default async function AdminGuidePage() {
   const session = await getServerSession(authOptions);
