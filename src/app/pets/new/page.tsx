@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, type RefObject } from "react"
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { trackMetaPixel } from "@/lib/meta-pixel";
+import { getCreativeSource, trackMetaPixel, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 import { US_STATES } from "@/lib/utils";
 
 type BreedOption = { id: string; name: string; petType: string; slug: string };
@@ -174,6 +174,12 @@ export default function NewPetPage() {
         url, name: selectedFiles[i]?.name || `Photo ${photos.length + i + 1}`,
       }));
       setPhotos((prev) => [...prev, ...newPhotos]);
+      trackVoteToFeedEvent("Lead", {
+        content_name: "VoteToFeed_PhotoUpload",
+        content_category: "VoteToFeed",
+        source: getCreativeSource(form.breed || form.type),
+        value: 1.0,
+      });
     } catch {
       setError("Upload failed. Please try again.");
     } finally {

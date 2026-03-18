@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatVotes, rankSuffix, daysRemainingInWeek, VOTE_PACKAGES, calculateMeals } from "@/lib/utils";
+import { trackStripePurchaseEvent } from "@/lib/meta-pixel";
 
 type Pet = {
   id: string;
@@ -66,6 +67,15 @@ export function DashboardClient({
       setActiveTab(hash);
     }
   }, []);
+
+  useEffect(() => {
+    if (purchaseStatus !== "success" || recentPurchases.length === 0) return;
+    const latestPurchase = recentPurchases[0];
+    trackStripePurchaseEvent({
+      amountDollars: latestPurchase.amount / 100,
+      voteQuantity: latestPurchase.votes,
+    });
+  }, [purchaseStatus, recentPurchases]);
 
   async function handleBuyVotes(tier: string) {
     setBuyingTier(tier);

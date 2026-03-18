@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { getCreativeSource, trackEmailSignupEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 
 function SignUpForm() {
   const [name, setName] = useState("");
@@ -30,6 +31,14 @@ function SignUpForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Sign up failed"); setLoading(false); return; }
+
+      trackVoteToFeedEvent("CompleteRegistration", {
+        content_name: "VoteToFeed_AccountSignup",
+        content_category: "VoteToFeed_Account",
+        source: getCreativeSource(),
+        value: 0.10,
+      });
+      trackEmailSignupEvent();
 
       // Step 2: Automatically log them in
       const loginRes = await signIn("credentials", {

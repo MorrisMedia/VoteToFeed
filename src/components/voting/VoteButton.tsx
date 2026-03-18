@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { trackMetaPixel } from "@/lib/meta-pixel";
+import { getCreativeSource, trackMetaPixel, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 
 type Props = {
   petId: string;
@@ -94,6 +94,14 @@ export function VoteButton({
           weeklyVotes: data.pet.weeklyVotes,
           isAnonymous: data.vote.isAnonymous || false,
         });
+        if (data.vote.type === "FREE") {
+          trackVoteToFeedEvent("AddToCart", {
+            content_name: "VoteToFeed_FreeVote",
+            content_category: "VoteToFeed_Engagement",
+            source: getCreativeSource(petType),
+            value: 0.10,
+          });
+        }
 
         setAnimating(true);
         setTimeout(() => setAnimating(false), 600);
