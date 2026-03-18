@@ -19,7 +19,7 @@ async function getHomeData() {
 
   const [stats, weeklyMealsAgg, recentPets, popularPets, totalPets, activeContests] = await Promise.all([
     prisma.petWeeklyStats.aggregate({
-      where: { weekId },
+      where: { weekId, pet: { isActive: true } },
       _sum: { totalVotes: true, paidVotes: true },
     }),
     // Use stored mealsProvided from actual purchases — not recalculated with current rate
@@ -37,7 +37,7 @@ async function getHomeData() {
       take: 12,
     }),
     prisma.petWeeklyStats.findMany({
-      where: { weekId },
+      where: { weekId, pet: { isActive: true } },
       include: {
         pet: {
           include: { user: { select: { name: true } } },

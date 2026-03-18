@@ -42,7 +42,7 @@ async function incrementWeeklyVoteStats(petId: string, weekId: string) {
 
 async function recalculateWeeklyRanks(weekId: string) {
   const stats = await prisma.petWeeklyStats.findMany({
-    where: { weekId },
+    where: { weekId, pet: { isActive: true } },
     orderBy: [{ totalVotes: "desc" }, { updatedAt: "asc" }, { petId: "asc" }],
     select: { id: true },
   });

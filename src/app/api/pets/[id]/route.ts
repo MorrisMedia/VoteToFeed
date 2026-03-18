@@ -160,6 +160,22 @@ export async function DELETE(
       data: { isActive: false },
     });
 
+    const weekId = getCurrentWeekId();
+    const activeStats = await prisma.petWeeklyStats.findMany({
+      where: { weekId, pet: { isActive: true } },
+      orderBy: [{ totalVotes: "desc" }, { updatedAt: "asc" }, { petId: "asc" }],
+      select: { id: true },
+    });
+
+    await prisma.$transaction(
+      activeStats.map((stat, index) =>
+        prisma.petWeeklyStats.update({
+          where: { id: stat.id },
+          data: { rank: index + 1 },
+        })
+      )
+    );
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting pet:", error);
