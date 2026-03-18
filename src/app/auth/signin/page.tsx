@@ -75,6 +75,12 @@ function SignInForm() {
         <p className="mt-6 text-center text-base text-surface-800">
           No account? <Link href="/auth/signup" className="text-brand-600 font-bold hover:underline">Sign up</Link>
         </p>
+
+        <p className="mt-4 text-center text-xs text-surface-500">
+          <Link href="/privacy" className="underline hover:text-surface-700">Privacy Policy</Link>
+          {" · "}
+          <Link href="/terms" className="underline hover:text-surface-700">Terms of Service</Link>
+        </p>
       </div>
     </div>
   );

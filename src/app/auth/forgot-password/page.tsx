@@ -68,6 +68,12 @@ export default function ForgotPasswordPage() {
             </form>
           )}
         </div>
+
+        <p className="mt-4 text-center text-xs text-surface-500">
+          <Link href="/privacy" className="underline hover:text-surface-700">Privacy Policy</Link>
+          {" · "}
+          <Link href="/terms" className="underline hover:text-surface-700">Terms of Service</Link>
+        </p>
       </div>
     </div>
   );

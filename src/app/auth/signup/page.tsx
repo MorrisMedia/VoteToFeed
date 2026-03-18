@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -13,6 +13,7 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(4);
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
 
@@ -46,13 +47,22 @@ function SignUpForm() {
 
       if (loginRes?.url) {
         setSuccess(true);
-        setTimeout(() => { window.location.href = loginRes.url!; }, 4000);
+        setCountdown(4);
+        const target = loginRes.url!;
+        setTimeout(() => { window.location.href = target; }, 4000);
       }
     } catch {
       setError("Something went wrong.");
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!success) return;
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [success, countdown]);
 
   if (success) {
     return (
@@ -62,7 +72,8 @@ function SignUpForm() {
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           </div>
           <h2 className="text-2xl font-extrabold text-surface-900 mb-2">You're in! 🎉</h2>
-          <p className="text-surface-700 mb-6">Your account is ready. Taking you to your dashboard in a moment…</p>
+          <p className="text-surface-700 mb-2">Your account is ready.</p>
+          <p className="text-sm text-surface-500 mb-6">Redirecting to your dashboard in {countdown}s…</p>
           <div className="rounded-2xl bg-brand-50 border border-brand-100 p-5 text-left space-y-3">
             <p className="font-bold text-brand-700 text-sm flex items-center gap-2">
               <span className="text-lg">📧</span> Check your email inbox now
@@ -133,19 +144,19 @@ function SignUpForm() {
           <p className="text-sm font-bold text-accent-700 mb-2">What you get for free:</p>
           <ul className="space-y-1.5 text-base text-surface-700">
             <li className="flex items-center gap-2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
               5 free votes every week
             </li>
             <li className="flex items-center gap-2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
               Vote for any pet you love
             </li>
             <li className="flex items-center gap-2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
               Every vote helps feed shelter pets
             </li>
             <li className="flex items-center gap-2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent-500 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
               Enter your own pet to win prizes (optional)
             </li>
           </ul>
@@ -153,6 +164,13 @@ function SignUpForm() {
 
         <p className="mt-5 text-center text-base text-surface-800">
           Already have an account? <Link href="/auth/signin" className="text-brand-600 font-bold hover:underline">Log in</Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-surface-500">
+          By signing up you agree to our{" "}
+          <Link href="/terms" className="underline hover:text-surface-700">Terms</Link>
+          {" "}and{" "}
+          <Link href="/privacy" className="underline hover:text-surface-700">Privacy Policy</Link>
         </p>
       </div>
     </div>
