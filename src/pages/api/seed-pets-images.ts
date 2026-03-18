@@ -20,27 +20,65 @@ type ResponseData = {
 };
 
 const DOG_PHOTOS = [
-  "https://images.dog.ceo/breeds/retriever-golden/n02099601_1003.jpg",
-  "https://images.dog.ceo/breeds/retriever-golden/n02099601_1004.jpg",
-  "https://images.dog.ceo/breeds/labrador/n02099712_1003.jpg",
-  "https://images.dog.ceo/breeds/labrador/n02099712_1004.jpg",
-  "https://images.dog.ceo/breeds/husky/n02110185_11721.jpg",
+  "https://images.dog.ceo/breeds/retriever-golden/n02099601_1722.jpg",
+  "https://images.dog.ceo/breeds/husky/n02110185_10047.jpg",
+  "https://images.dog.ceo/breeds/labrador/n02099712_4323.jpg",
+  "https://images.dog.ceo/breeds/corgi-cardigan/n02113186_10475.jpg",
+  "https://images.dog.ceo/breeds/germanshepherd/n02106662_20841.jpg",
+  "https://images.dog.ceo/breeds/poodle-standard/n02113799_2506.jpg",
+  "https://images.dog.ceo/breeds/beagle/n02088364_11136.jpg",
+  "https://images.dog.ceo/breeds/bulldog-english/jager-2.jpg",
+  "https://images.dog.ceo/breeds/australian-shepherd/pepper.jpg",
+  "https://images.dog.ceo/breeds/rottweiler/n02106550_10174.jpg",
+  "https://images.dog.ceo/breeds/dachshund/dachshund-2.jpg",
+  "https://images.dog.ceo/breeds/boxer/n02108089_14898.jpg",
+  "https://images.dog.ceo/breeds/shihtzu/n02086240_7832.jpg",
+  "https://images.dog.ceo/breeds/collie-border/n02106166_3437.jpg",
+  "https://images.dog.ceo/breeds/pomeranian/n02112018_10129.jpg",
+  "https://images.dog.ceo/breeds/mountain-bernese/n02107683_5425.jpg",
+  "https://images.dog.ceo/breeds/bulldog-french/n02108915_5482.jpg",
+  "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_5765.jpg",
+  "https://images.dog.ceo/breeds/dalmatian/cooper2.jpg",
+  "https://images.dog.ceo/breeds/samoyed/n02111889_10032.jpg",
 ];
 
 const CAT_PHOTOS = [
-  "https://cataas.com/cat/5e71343450d82d0011a669ba",
-  "https://cataas.com/cat/5e6fbfae050d82000e8c456c",
-  "https://cataas.com/cat/5e63c34350d82d00118c4e6d",
+  "https://cdn.pixabay.com/photo/2017/02/20/18/03/cat-2083492_640.jpg",
+  "https://cdn.pixabay.com/photo/2018/01/28/12/37/cat-3113513_640.jpg",
+  "https://cdn.pixabay.com/photo/2019/11/08/11/36/cat-4611189_640.jpg",
+  "https://cdn.pixabay.com/photo/2017/07/25/01/22/cat-2536662_640.jpg",
+  "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg",
+  "https://cdn.pixabay.com/photo/2020/10/05/10/51/cat-5628953_640.jpg",
+  "https://cdn.pixabay.com/photo/2017/11/14/13/06/kitty-2948404_640.jpg",
+  "https://cdn.pixabay.com/photo/2019/02/06/15/18/cat-3979126_640.jpg",
+  "https://cdn.pixabay.com/photo/2018/10/01/09/21/pets-3715733_640.jpg",
+  "https://cdn.pixabay.com/photo/2016/12/30/17/27/cat-1941089_640.jpg",
+  "https://cdn.pixabay.com/photo/2019/11/08/11/36/kitten-4611189_640.jpg",
+  "https://cdn.pixabay.com/photo/2014/04/13/20/49/cat-323262_640.jpg",
+  "https://cdn.pixabay.com/photo/2015/11/16/14/43/cat-1045782_640.jpg",
+  "https://cdn.pixabay.com/photo/2017/12/21/12/26/glare-3031956_640.jpg",
+  "https://cdn.pixabay.com/photo/2019/03/22/17/05/cat-4073717_640.jpg",
+  "https://cdn.pixabay.com/photo/2016/01/20/13/05/cat-1151519_640.jpg",
+  "https://cdn.pixabay.com/photo/2018/04/20/17/18/cat-3336579_640.jpg",
+  "https://cdn.pixabay.com/photo/2021/10/19/10/56/cat-6723256_640.jpg",
+  "https://cdn.pixabay.com/photo/2017/09/25/13/12/cat-2785241_640.jpg",
+  "https://cdn.pixabay.com/photo/2018/11/30/05/17/kitten-3847422_640.jpg",
 ];
 
 const getRandomPhoto = (list: string[]) => list[Math.floor(Math.random() * list.length)];
+
+function stableIndex(key: string, length: number) {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return hash % length;
+}
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
-  // Simple authentication - check for seed token
-  // For production, this should be replaced with proper auth
   const token = req.headers["x-seed-token"] || req.query.token;
   if (token !== "seed-pets-2024") {
     return res.status(401).json({
@@ -59,42 +97,87 @@ export default async function handler(
 
   try {
     const prisma = new PrismaClient();
-
-    // Find pets with no photos
-    const petsNeedingPhotos = await prisma.pet.findMany({
-      where: {
-        isActive: true,
-        photos: { equals: [] },
-      },
-    });
-
-    console.log(`Found ${petsNeedingPhotos.length} pets needing photos`);
-
+    const reseedDummyAccounts = req.query.mode === "dummy" || req.query.dummy === "1";
+    const seededPets: Array<{ name: string; type: string; photo?: string }> = [];
     let seededCount = 0;
-    const seededPets = [];
+    let petCount = 0;
 
-    for (const pet of petsNeedingPhotos) {
-      try {
-        const photoUrl =
-          pet.type === PetType.DOG
-            ? getRandomPhoto(DOG_PHOTOS)
-            : pet.type === PetType.CAT
-            ? getRandomPhoto(CAT_PHOTOS)
-            : "https://source.unsplash.com/400x400/?pet";
+    if (reseedDummyAccounts) {
+      const seedPets = await prisma.pet.findMany({
+        where: {
+          isActive: true,
+          user: { email: { contains: "@iheartdogs.com" } },
+          type: { in: [PetType.DOG, PetType.CAT] },
+        },
+        include: {
+          user: { select: { email: true } },
+        },
+        orderBy: [{ user: { email: "asc" } }, { type: "asc" }, { createdAt: "asc" }],
+      });
 
-        await prisma.pet.update({
-          where: { id: pet.id },
-          data: { photos: [photoUrl] },
-        });
+      petCount = seedPets.length;
 
-        seededPets.push({
-          name: pet.name,
-          type: pet.type,
-          photo: photoUrl,
-        });
-        seededCount++;
-      } catch (error) {
-        console.error(`Failed to update ${pet.name}:`, error);
+      const usedDog = new Set<number>();
+      const usedCat = new Set<number>();
+
+      for (const pet of seedPets) {
+        try {
+          const pool = pet.type === PetType.DOG ? DOG_PHOTOS : CAT_PHOTOS;
+          const used = pet.type === PetType.DOG ? usedDog : usedCat;
+          const baseKey = `${pet.user.email}-${pet.type}-${pet.name}`;
+          let index = stableIndex(baseKey, pool.length);
+          while (used.has(index)) index = (index + 1) % pool.length;
+          used.add(index);
+          const photoUrl = pool[index];
+
+          await prisma.pet.update({
+            where: { id: pet.id },
+            data: { photos: [photoUrl] },
+          });
+
+          if (pet.type === PetType.DOG) {
+            await prisma.user.update({
+              where: { id: pet.userId },
+              data: { image: photoUrl },
+            }).catch(() => {});
+          }
+
+          seededPets.push({ name: pet.name, type: pet.type, photo: photoUrl });
+          seededCount++;
+        } catch (error) {
+          console.error(`Failed to update ${pet.name}:`, error);
+        }
+      }
+    } else {
+      const petsNeedingPhotos = await prisma.pet.findMany({
+        where: {
+          isActive: true,
+          photos: { equals: [] },
+        },
+      });
+
+      petCount = petsNeedingPhotos.length;
+      console.log(`Found ${petsNeedingPhotos.length} pets needing photos`);
+
+      for (const pet of petsNeedingPhotos) {
+        try {
+          const photoUrl =
+            pet.type === PetType.DOG
+              ? getRandomPhoto(DOG_PHOTOS)
+              : pet.type === PetType.CAT
+              ? getRandomPhoto(CAT_PHOTOS)
+              : "https://source.unsplash.com/400x400/?pet";
+
+          await prisma.pet.update({
+            where: { id: pet.id },
+            data: { photos: [photoUrl] },
+          });
+
+          seededPets.push({ name: pet.name, type: pet.type, photo: photoUrl });
+          seededCount++;
+        } catch (error) {
+          console.error(`Failed to update ${pet.name}:`, error);
+        }
       }
     }
 
@@ -102,11 +185,13 @@ export default async function handler(
 
     return res.status(200).json({
       success: true,
-      message: `Successfully seeded ${seededCount} of ${petsNeedingPhotos.length} pets`,
+      message: reseedDummyAccounts
+        ? `Successfully reseeded ${seededCount} of ${petCount} dummy pets with unique photos`
+        : `Successfully seeded ${seededCount} of ${petCount} pets`,
       details: {
-        petCount: petsNeedingPhotos.length,
+        petCount,
         seededCount,
-        failedCount: petsNeedingPhotos.length - seededCount,
+        failedCount: petCount - seededCount,
         pets: seededPets,
       },
     });
