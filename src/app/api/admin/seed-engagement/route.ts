@@ -40,17 +40,17 @@ function stablePhotoFor(type: "DOG" | "CAT", key: string) {
 
 function normalizeSeedPhoto(photoUrl: string, type: "DOG" | "CAT", key: string) {
   try {
-    const hostname = new URL(photoUrl).hostname;
-    if (["images.dog.ceo", "cdn.pixabay.com", "cataas.com"].includes(hostname)) {
-      return stablePhotoFor(type, key);
+    const parsed = new URL(photoUrl);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return photoUrl;
     }
   } catch {
     return stablePhotoFor(type, key);
   }
-  return photoUrl;
+  return stablePhotoFor(type, key);
 }
 
-const SEED_ACCOUNTS = [
+export const SEED_ACCOUNTS = [
   {
     email: "vote@iheartdogs.com",
     name: "Max the Golden",
