@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getCreativeSource, trackMetaPixel, trackVoteToFeedEvent } from "@/lib/meta-pixel";
+import { trackPostHogEvent } from "@/lib/analytics";
 
 type Props = {
   petId: string;
@@ -66,6 +67,14 @@ export function VoteButton({
 
   const handleVote = useCallback(async () => {
     if (!hasVotes) {
+      trackPostHogEvent("vote_paywall_shown", {
+        pet_id: petId,
+        pet_type: petType,
+        auth_status: status,
+        free_votes_remaining: freeVotes,
+        paid_votes_remaining: paidVotes,
+      });
+
       if (status === "authenticated") {
         setShowPurchase(true);
       } else {
@@ -94,6 +103,15 @@ export function VoteButton({
           weeklyVotes: data.pet.weeklyVotes,
           isAnonymous: data.vote.isAnonymous || false,
         });
+        trackPostHogEvent("vote_cast", {
+          pet_id: petId,
+          pet_type: petType,
+          vote_type: data.vote.type,
+          weekly_votes: data.pet.weeklyVotes,
+          free_votes_remaining: data.user.freeVotesRemaining,
+          paid_votes_remaining: data.user.paidVoteBalance,
+          is_anonymous: data.vote.isAnonymous || false,
+        });
         if (data.vote.type === "FREE") {
           trackVoteToFeedEvent("AddToCart", {
             content_name: "VoteToFeed_FreeVote",
@@ -107,11 +125,29 @@ export function VoteButton({
         setTimeout(() => setAnimating(false), 600);
 
         if (data.user.freeVotesRemaining === 0 && data.user.paidVoteBalance === 0 && status === "authenticated") {
-          setTimeout(() => setShowPurchase(true), 1500);
+          setTimeout(() => {
+            trackPostHogEvent("vote_paywall_shown", {
+              pet_id: petId,
+              pet_type: petType,
+              auth_status: status,
+              free_votes_remaining: 0,
+              paid_votes_remaining: 0,
+              trigger: "post_vote_exhaustion",
+            });
+            setShowPurchase(true);
+          }, 1500);
         }
       } else if (data.error === "No votes available") {
         setFreeVotes(0);
         setPaidVotes(data.paidVoteBalance || 0);
+        trackPostHogEvent("vote_paywall_shown", {
+          pet_id: petId,
+          pet_type: petType,
+          auth_status: status,
+          free_votes_remaining: 0,
+          paid_votes_remaining: data.paidVoteBalance || 0,
+          trigger: "api_no_votes_available",
+        });
         setShowPurchase(true);
       } else {
         if (typeof data.remainingAnonymousVotes === "number") {
@@ -125,7 +161,7 @@ export function VoteButton({
     } finally {
       setLoading(false);
     }
-  }, [hasVotes, petId, status]);
+  }, [freeVotes, hasVotes, paidVotes, petId, petType, status]);
 
   if (isOwner) {
     return (
