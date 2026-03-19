@@ -18,7 +18,7 @@ export default function PrivacyPage() {
             </ol>
           </nav>
           <h1 className="text-3xl sm:text-4xl font-bold text-surface-900 tracking-tight">Privacy Policy</h1>
-          <p className="mt-3 text-surface-500 text-sm">Last updated: March 9, 2026</p>
+          <p className="mt-3 text-surface-500 text-sm">Last updated: March 19, 2026</p>
         </div>
 
         <div className="prose prose-surface max-w-none text-surface-700 space-y-6 text-[15px] leading-relaxed">
@@ -47,8 +47,9 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-6 space-y-2">
             <li><strong>Usage Data:</strong> Pages visited, features used, voting activity, time spent on pages</li>
             <li><strong>Device Information:</strong> Browser type, operating system, device type, screen resolution</li>
-            <li><strong>IP Address:</strong> Used for security, fraud prevention, and approximate geographic location</li>
+            <li><strong>IP Address:</strong> Used for security, fraud prevention, analytics, and approximate geographic location</li>
             <li><strong>Cookies and Tracking:</strong> See Section 6 below</li>
+            <li><strong>Session Replay and Interaction Data:</strong> With analytics tools described below, we may collect click, scroll, navigation, and session replay data to understand site performance and improve the Service</li>
           </ul>
 
           <h2 className="text-xl font-bold text-surface-900 mt-8">2. How We Use Your Information</h2>
@@ -60,6 +61,7 @@ export default function PrivacyPage() {
             <li>Send contest updates, winner announcements, and service notifications</li>
             <li>Improve the Service and develop new features</li>
             <li>Prevent fraud, vote manipulation, and abuse</li>
+            <li>Measure traffic sources, campaign performance, and on-site conversion behavior</li>
             <li>Enforce our Terms of Service</li>
             <li>Respond to your inquiries and support requests</li>
             <li>Send promotional communications (with your consent, which you can withdraw at any time)</li>
@@ -71,8 +73,11 @@ export default function PrivacyPage() {
             <li><strong>Stripe</strong> — Payment processing. Stripe&apos;s privacy policy: <a href="https://stripe.com/privacy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">stripe.com/privacy</a></li>
             <li><strong>Google OAuth</strong> — Authentication. Google&apos;s privacy policy: <a href="https://policies.google.com/privacy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">policies.google.com/privacy</a></li>
             <li><strong>Facebook/Meta OAuth</strong> — Authentication. Meta&apos;s privacy policy: <a href="https://www.facebook.com/privacy/policy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">facebook.com/privacy/policy</a></li>
-            <li><strong>PostHog</strong> — Product analytics. Used to understand how users interact with the Service, track feature usage, and improve user experience. PostHog&apos;s privacy policy: <a href="https://posthog.com/privacy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">posthog.com/privacy</a></li>
-            <li><strong>SendGrid</strong> — Email delivery for account notifications, contest updates, and transactional emails. SendGrid&apos;s privacy policy: <a href="https://sendgrid.com/policies/privacy/" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">sendgrid.com/policies/privacy</a></li>
+            <li><strong>Microsoft Clarity</strong> — Session replay and behavioral analytics used to understand user journeys, clicks, scrolling, and navigation patterns. Clarity&apos;s privacy policy: <a href="https://privacy.microsoft.com/privacystatement" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">privacy.microsoft.com/privacystatement</a></li>
+            <li><strong>PostHog</strong> — Product analytics and session recording used to understand how users interact with the Service, track feature usage, and improve user experience. PostHog&apos;s privacy policy: <a href="https://posthog.com/privacy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">posthog.com/privacy</a></li>
+            <li><strong>Meta Pixel</strong> — Advertising attribution and conversion measurement used to understand campaign performance and audience behavior. Meta&apos;s privacy policy: <a href="https://www.facebook.com/privacy/policy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">facebook.com/privacy/policy</a></li>
+            <li><strong>Cloudflare Web Analytics</strong> — Privacy-focused site performance and traffic analytics. Cloudflare&apos;s privacy policy: <a href="https://www.cloudflare.com/privacypolicy/" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a></li>
+            <li><strong>SendGrid</strong> — Email delivery for account notifications, contest updates, and transactional emails. SendGrid&apos;s privacy policy: <a href="https://sendgrid.com/policies/privacy/" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">sendgrid.com/policies/privacy/</a></li>
             <li><strong>Vercel</strong> — Hosting and infrastructure. Vercel&apos;s privacy policy: <a href="https://vercel.com/legal/privacy-policy" className="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">vercel.com/legal/privacy-policy</a></li>
             <li><strong>Neon</strong> — Database hosting. Data is stored securely in Neon&apos;s cloud PostgreSQL infrastructure.</li>
           </ul>
@@ -98,10 +103,11 @@ export default function PrivacyPage() {
           <p>However, no method of transmission or storage is 100% secure. We cannot guarantee absolute security of your data.</p>
 
           <h2 className="text-xl font-bold text-surface-900 mt-8">6. Cookies &amp; Tracking Technologies</h2>
-          <p>We use the following types of cookies:</p>
+          <p>We use the following types of cookies and browser-based tracking technologies:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li><strong>Essential Cookies:</strong> Required for authentication, session management, and core functionality</li>
-            <li><strong>Analytics Cookies:</strong> PostHog analytics to understand usage patterns and improve the Service</li>
+            <li><strong>Analytics Cookies and Scripts:</strong> Microsoft Clarity, PostHog, and Cloudflare analytics to understand usage patterns, performance, navigation, and improve the Service</li>
+            <li><strong>Advertising / Attribution Cookies and Scripts:</strong> Meta Pixel to measure campaign performance, referrals, and conversions</li>
             <li><strong>Preference Cookies:</strong> To remember your settings and preferences</li>
           </ul>
           <p>You can control cookies through your browser settings. Disabling essential cookies may prevent you from using certain features of the Service.</p>
