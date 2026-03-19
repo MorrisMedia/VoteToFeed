@@ -24,11 +24,26 @@ type AttributionData = {
 
 const ATTRIBUTION_KEY = "vtf_first_touch_attribution";
 const ATTRIBUTION_CAPTURED_KEY = "vtf_first_touch_attribution_captured";
+const SESSION_ID_KEY = "vtf_analytics_session_id";
 
 function clean(value?: string | null) {
   if (!value) return undefined;
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function getAnalyticsSessionId() {
+  if (typeof window === "undefined") return undefined;
+
+  const existing = window.localStorage.getItem(SESSION_ID_KEY);
+  if (existing) return existing;
+
+  const next = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `vtf-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  window.localStorage.setItem(SESSION_ID_KEY, next);
+  return next;
 }
 
 function getCurrentAttribution(): AttributionData {
@@ -99,13 +114,41 @@ export function getAnalyticsContext(extra: Record<string, unknown> = {}) {
   const attribution = ensureAttribution();
 
   return {
-    ...attribution,
-    current_path: window.location.pathname,
-    current_search: window.location.search || undefined,
-    current_url: window.location.href,
-    current_referrer: clean(document.referrer),
+    sessionId: getAnalyticsSessionId(),
+    initialReferrer: attribution.initial_referrer,
+    initialReferringDomain: attribution.initial_referring_domain,
+    utmSource: attribution.utm_source,
+    utmMedium: attribution.utm_medium,
+    utmCampaign: attribution.utm_campaign,
+    utmContent: attribution.utm_content,
+    utmTerm: attribution.utm_term,
+    creativeSource: attribution.creative_source,
+    currentPath: window.location.pathname,
+    currentUrl: window.location.href,
+    currentReferrer: clean(document.referrer),
     ...extra,
   };
+}
+
+function sendInternalAnalyticsEvent(eventName: string, properties: Record<string, unknown> = {}) {
+  if (typeof window === "undefined") return;
+
+  const payload = {
+    eventName,
+    ...getAnalyticsContext(properties),
+    properties,
+  };
+
+  try {
+    fetch("/api/analytics/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Ignore analytics transport errors.
+  }
 }
 
 export function registerAnalyticsContext() {
@@ -131,10 +174,12 @@ export function captureLandingAttribution() {
   if (window.sessionStorage.getItem(ATTRIBUTION_CAPTURED_KEY) === "1") return;
 
   posthog.capture("landing_attribution_captured", getAnalyticsContext());
+  sendInternalAnalyticsEvent("landing_attribution_captured");
   window.sessionStorage.setItem(ATTRIBUTION_CAPTURED_KEY, "1");
 }
 
 export function trackPostHogEvent(eventName: string, properties: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
   posthog.capture(eventName, getAnalyticsContext(properties));
+  sendInternalAnalyticsEvent(eventName, properties);
 }
