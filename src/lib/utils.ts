@@ -36,13 +36,11 @@ export function formatCurrency(cents: number): string {
 // Get current contest week ID (ISO week format: "2026-W02")
 export function getCurrentWeekId(): string {
   const now = new Date();
-  // Find the most recent Sunday
   const day = now.getUTCDay();
   const sunday = new Date(now);
   sunday.setUTCDate(now.getUTCDate() - day);
   sunday.setUTCHours(0, 0, 0, 0);
 
-  // Get ISO week number
   const startOfYear = new Date(Date.UTC(sunday.getUTCFullYear(), 0, 1));
   const weekNumber = Math.ceil(
     ((sunday.getTime() - startOfYear.getTime()) / 86400000 + 1) / 7
@@ -51,7 +49,6 @@ export function getCurrentWeekId(): string {
   return `${sunday.getUTCFullYear()}-W${String(weekNumber).padStart(2, "0")}`;
 }
 
-// Get contest week date range
 export function getWeekDateRange(weekId?: string): {
   start: Date;
   end: Date;
@@ -68,17 +65,14 @@ export function getWeekDateRange(weekId?: string): {
   return { start, end };
 }
 
-// Days remaining until next vote reset (Sunday 11:59 AM PST = 19:59 UTC)
 export function daysRemainingInWeek(): number {
   const now = new Date();
-  // Next Sunday at 19:59 UTC (11:59 AM PST)
   const nextReset = new Date(now);
   const dayOfWeek = now.getUTCDay();
   const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
   nextReset.setUTCDate(now.getUTCDate() + daysUntilSunday);
   nextReset.setUTCHours(19, 59, 0, 0);
 
-  // If we're past the reset time this Sunday, next reset is next week
   if (now >= nextReset) {
     nextReset.setUTCDate(nextReset.getUTCDate() + 7);
   }
@@ -87,16 +81,13 @@ export function daysRemainingInWeek(): number {
   return Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
 }
 
-// Default free votes per reset period (fallback — actual value comes from admin settings)
 export const FREE_VOTES_PER_WEEK = 5;
 
-// Calculate meals from price using admin meal rate
 export function calculateMeals(priceInCents: number, mealRate: number): number {
   const priceInDollars = priceInCents / 100;
   return Math.round(priceInDollars * mealRate);
 }
 
-// Time ago helper
 export function timeAgo(date: Date): string {
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -111,7 +102,6 @@ export function timeAgo(date: Date): string {
   return date.toLocaleDateString();
 }
 
-// Rank suffix (1st, 2nd, 3rd, etc.)
 export function rankSuffix(rank: number): string {
   const j = rank % 10;
   const k = rank % 100;
@@ -121,7 +111,6 @@ export function rankSuffix(rank: number): string {
   return `${rank}th`;
 }
 
-// State abbreviation to full name
 export const US_STATES: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas",
   CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware",
@@ -138,12 +127,11 @@ export const US_STATES: Record<string, string> = {
   WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
 };
 
-// Vote package definitions
 export const VOTE_PACKAGES = [
-  { tier: "STARTER", votes: 10, price: 99, label: "Starter" },
-  { tier: "FRIEND", votes: 60, price: 499, label: "Friend" },
-  { tier: "SUPPORTER", votes: 120, price: 999, label: "Supporter" },
-  { tier: "CHAMPION", votes: 300, price: 2499, label: "Champion" },
-  { tier: "HERO", votes: 600, price: 4999, label: "Hero" },
-  { tier: "LEGEND", votes: 1200, price: 9999, label: "Legend" },
+  { tier: "STARTER", votes: 5, price: 99, label: "Starter" },
+  { tier: "FRIEND", votes: 30, price: 499, label: "Friend" },
+  { tier: "SUPPORTER", votes: 60, price: 999, label: "Supporter" },
+  { tier: "CHAMPION", votes: 150, price: 2499, label: "Champion" },
+  { tier: "HERO", votes: 300, price: 4999, label: "Hero" },
+  { tier: "LEGEND", votes: 600, price: 9999, label: "Legend" },
 ] as const;
