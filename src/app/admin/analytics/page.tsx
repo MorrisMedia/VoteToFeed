@@ -5,6 +5,24 @@ import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
 import { AnalyticsHealthClient } from "@/components/admin/AnalyticsHealthClient";
 import { getInternalAnalyticsDashboardData } from "@/lib/internal-analytics";
 
+function formatReportingStart(value: string | null) {
+  if (!value) return null;
+
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "UTC",
+      timeZoneName: "short",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
 export default async function AdminAnalyticsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/auth/signin");
@@ -12,6 +30,7 @@ export default async function AdminAnalyticsPage() {
   if (role !== "ADMIN") redirect("/dashboard");
 
   const analytics = await getInternalAnalyticsDashboardData();
+  const reportingStartLabel = formatReportingStart(analytics.reportingStartAt);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -21,6 +40,13 @@ export default async function AdminAnalyticsPage() {
         <h1 className="text-2xl font-bold text-surface-900 tracking-tight">Analytics</h1>
         <p className="text-sm text-surface-500 mt-1">First-party traffic + paid reporting from VoteToFeed’s own stack.</p>
       </div>
+
+      {reportingStartLabel ? (
+        <div className="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-surface-800">
+          <span className="font-bold text-surface-900">Reporting baseline:</span>{" "}
+          showing analytics captured since {reportingStartLabel}.
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <MetricCard label="Landings (14d)" value={analytics.overview.landings14d} />

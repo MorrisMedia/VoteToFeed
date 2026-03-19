@@ -46,6 +46,31 @@ function numberOrNull(value: unknown) {
   return Number.isFinite(num) ? num : null;
 }
 
+function getReportingStartAt() {
+  const raw = clean(process.env.INTERNAL_ANALYTICS_REPORTING_START_AT || process.env.ANALYTICS_REPORTING_START_AT);
+  if (!raw) return null;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed;
+}
+
+function toSqlTimestamp(date: Date) {
+  return date.toISOString().replace("T", " ").replace("Z", "+00:00");
+}
+
+function buildWindowClause(column: string, interval: string, reportingStartAt: Date | null) {
+  const rollingWindow = `${column} >= NOW() - INTERVAL '${interval}'`;
+  if (!reportingStartAt) return rollingWindow;
+  return `${column} >= GREATEST(NOW() - INTERVAL '${interval}', TIMESTAMPTZ '${toSqlTimestamp(reportingStartAt)}')`;
+}
+
+function buildSinceClause(column: string, reportingStartAt: Date | null) {
+  if (!reportingStartAt) return "TRUE";
+  return `${column} >= TIMESTAMPTZ '${toSqlTimestamp(reportingStartAt)}'`;
+}
+
 export async function ensureAnalyticsTable() {
   if (ensured) return;
 
@@ -146,6 +171,17 @@ export async function recordAnalyticsEvent(input: AnalyticsEventInput) {
 export async function getInternalAnalyticsDashboardData() {
   await ensureAnalyticsTable();
 
+  const reportingStartAt = getReportingStartAt();
+  const trafficWindow = buildWindowClause("created_at", "14 days", reportingStartAt);
+  const funnelWindow = buildWindowClause("created_at", "7 days", reportingStartAt);
+  const purchasesWindow = buildWindowClause("created_at", "14 days", reportingStartAt);
+  const eventsWindow = buildWindowClause("created_at", "3 days", reportingStartAt);
+  const userWindow = buildWindowClause('"createdAt"', "7 days", reportingStartAt);
+  const petWindow = buildWindowClause('"createdAt"', "7 days", reportingStartAt);
+  const voteWindow = buildWindowClause('"createdAt"', "7 days", reportingStartAt);
+  const purchaseWindow = buildWindowClause('"createdAt"', "7 days", reportingStartAt);
+  const landingSince = buildSinceClause("created_at", reportingStartAt);
+
   const [trafficSummary, funnelSummary, recentPurchases, recentEvents, overviewRows] = await Promise.all([
     prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
       SELECT
@@ -159,7 +195,7 @@ export async function getInternalAnalyticsDashboardData() {
         COUNT(*) FILTER (WHERE event_name = 'checkout_started') AS checkouts,
         COUNT(*) FILTER (WHERE event_name = 'checkout_completed') AS purchases
       FROM site_analytics_events
-      WHERE created_at >= NOW() - INTERVAL '14 days'
+      WHERE ${trafficWindow}
       GROUP BY 1,2,3
       ORDER BY purchases DESC, signups DESC, landings DESC
       LIMIT 50
@@ -170,7 +206,7 @@ export async function getInternalAnalyticsDashboardData() {
         COUNT(*) AS total_events,
         COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), NULLIF(session_id, ''))) AS unique_people
       FROM site_analytics_events
-      WHERE created_at >= NOW() - INTERVAL '7 days'
+      WHERE ${funnelWindow}
       GROUP BY 1
       ORDER BY total_events DESC
     `),
@@ -184,7 +220,7 @@ export async function getInternalAnalyticsDashboardData() {
         votes,
         meals
       FROM site_analytics_events
-      WHERE created_at >= NOW() - INTERVAL '14 days'
+      WHERE ${purchasesWindow}
         AND event_name = 'checkout_completed'
       ORDER BY created_at DESC
       LIMIT 50
@@ -198,18 +234,18 @@ export async function getInternalAnalyticsDashboardData() {
         COALESCE(NULLIF(package_tier, ''), '') AS package_tier,
         COALESCE(NULLIF(vote_type, ''), NULLIF(pet_type, ''), '') AS event_type
       FROM site_analytics_events
-      WHERE created_at >= NOW() - INTERVAL '3 days'
+      WHERE ${eventsWindow}
       ORDER BY created_at DESC
       LIMIT 100
     `),
     prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
       SELECT
-        (SELECT COUNT(*) FROM site_analytics_events WHERE event_name = 'landing_attribution_captured' AND created_at >= NOW() - INTERVAL '14 days') AS landings_14d,
-        (SELECT COUNT(*) FROM "User" WHERE "createdAt" >= NOW() - INTERVAL '7 days') AS signups_7d,
-        (SELECT COUNT(*) FROM "Pet" WHERE "createdAt" >= NOW() - INTERVAL '7 days') AS entries_7d,
-        (SELECT COUNT(*) FROM "Vote" WHERE "createdAt" >= NOW() - INTERVAL '7 days') AS votes_7d,
-        (SELECT COUNT(*) FROM "Purchase" WHERE "status" = 'COMPLETED' AND "createdAt" >= NOW() - INTERVAL '7 days') AS purchases_7d,
-        (SELECT COALESCE(SUM("amount"), 0) / 100.0 FROM "Purchase" WHERE "status" = 'COMPLETED' AND "createdAt" >= NOW() - INTERVAL '7 days') AS revenue_7d
+        (SELECT COUNT(*) FROM site_analytics_events WHERE event_name = 'landing_attribution_captured' AND ${landingSince}) AS landings_14d,
+        (SELECT COUNT(*) FROM "User" WHERE ${userWindow}) AS signups_7d,
+        (SELECT COUNT(*) FROM "Pet" WHERE ${petWindow}) AS entries_7d,
+        (SELECT COUNT(*) FROM "Vote" WHERE ${voteWindow}) AS votes_7d,
+        (SELECT COUNT(*) FROM "Purchase" WHERE "status" = 'COMPLETED' AND ${purchaseWindow}) AS purchases_7d,
+        (SELECT COALESCE(SUM("amount"), 0) / 100.0 FROM "Purchase" WHERE "status" = 'COMPLETED' AND ${purchaseWindow}) AS revenue_7d
     `),
   ]);
 
@@ -220,6 +256,7 @@ export async function getInternalAnalyticsDashboardData() {
     funnelSummary,
     recentPurchases,
     recentEvents,
+    reportingStartAt: reportingStartAt?.toISOString() || null,
     overview: {
       landings14d: Number(overview.landings_14d || 0),
       signups7d: Number(overview.signups_7d || 0),
