@@ -18,6 +18,7 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://votetofeed.com";
 const siteTitle = "VoteToFeed – Pet Photo Contests & Shelter Support";
 const siteDescription =
   "Vote for cute pets, win prize packs worth up to $2,000, and help feed shelter pets with every vote.";
+const clarityProjectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -93,28 +94,30 @@ export default async function RootLayout({
     <html lang="en">
       <head>
         <MetaPixel />
-        <Script id="microsoft-clarity" strategy="afterInteractive">
-          {`
-            (function(c,l,a,r,i,t,y){
-              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-            })(window, document, "clarity", "script", "vww12jf0yr");
-          `}
-        </Script>
+        {clarityProjectId ? (
+          <Script id="microsoft-clarity" strategy="afterInteractive">
+            {`
+              (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "${clarityProjectId}");
+            `}
+          </Script>
+        ) : null}
       </head>
       <body className={`${inter.variable} ${nunito.variable} font-sans antialiased min-h-screen flex flex-col`}>
-        <PostHogProvider>
         <SessionProvider>
-          <Nav
-            shelterCount={stats.count}
-            animalType={stats.animalType}
-            mealsHelped={stats.meals}
-          />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <PostHogProvider>
+            <Nav
+              shelterCount={stats.count}
+              animalType={stats.animalType}
+              mealsHelped={stats.meals}
+            />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </PostHogProvider>
         </SessionProvider>
-        </PostHogProvider>
       </body>
     </html>
   );
