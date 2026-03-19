@@ -2,14 +2,13 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Inter, Nunito } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
-import { Nav } from "@/components/layout/Nav";
-import { Footer } from "@/components/layout/Footer";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId, getWeekDateRange } from "@/lib/utils";
 import { getAnimalType } from "@/lib/admin-settings";
 import "./globals.css";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { MetaPixel } from "@/components/providers/MetaPixel";
+import { AppChrome } from "@/components/layout/AppChrome";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito", weight: ["900"] });
@@ -70,7 +69,6 @@ async function getShelterStats() {
         where: { weekId },
         _sum: { totalVotes: true, paidVotes: true },
       }),
-      // Use stored mealsProvided from actual purchases — not recalculated
       prisma.purchase.aggregate({
         where: { status: "COMPLETED", createdAt: { gte: start, lt: end } },
         _sum: { mealsProvided: true },
@@ -109,13 +107,13 @@ export default async function RootLayout({
       <body className={`${inter.variable} ${nunito.variable} font-sans antialiased min-h-screen flex flex-col`}>
         <SessionProvider>
           <PostHogProvider>
-            <Nav
+            <AppChrome
               shelterCount={stats.count}
               animalType={stats.animalType}
               mealsHelped={stats.meals}
-            />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            >
+              {children}
+            </AppChrome>
           </PostHogProvider>
         </SessionProvider>
       </body>
