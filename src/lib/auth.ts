@@ -5,6 +5,7 @@ import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
+import { recordAnalyticsEvent } from "./internal-analytics";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
@@ -49,14 +50,13 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
       }
-      // Fetch role from DB
       if (token.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email },
@@ -75,6 +75,21 @@ export const authOptions: NextAuthOptions = {
         (session.user as Record<string, unknown>).role = token.role;
       }
       return session;
+    },
+  },
+  events: {
+    async signIn({ user, account, isNewUser }) {
+      if (!user?.id || !account?.provider || !isNewUser) return;
+      if (!["google", "facebook"].includes(account.provider)) return;
+
+      await recordAnalyticsEvent({
+        eventName: "auth_signup_completed",
+        userId: user.id,
+        properties: {
+          method: account.provider,
+          oauth_signup: true,
+        },
+      });
     },
   },
   pages: {
