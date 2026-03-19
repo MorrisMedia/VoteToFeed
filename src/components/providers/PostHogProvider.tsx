@@ -4,6 +4,12 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
+import {
+  applyClarityTags,
+  captureLandingAttribution,
+  registerAnalyticsContext,
+  trackPostHogEvent,
+} from "@/lib/analytics";
 
 declare global {
   interface Window {
@@ -36,6 +42,13 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     });
 
     didInitPostHog = true;
+    registerAnalyticsContext();
+    applyClarityTags();
+    captureLandingAttribution();
+    trackPostHogEvent("analytics_booted", {
+      has_clarity: typeof window !== "undefined" && typeof window.clarity === "function",
+      posthog_host: posthogHost,
+    });
   }, []);
 
   useEffect(() => {
@@ -43,6 +56,8 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 
     if (status !== "authenticated" || !session?.user?.id) {
       posthog.reset();
+      registerAnalyticsContext();
+      applyClarityTags();
       return;
     }
 
@@ -54,6 +69,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     };
 
     posthog.identify(userId, traits);
+    registerAnalyticsContext();
 
     if (typeof window !== "undefined" && typeof window.clarity === "function") {
       window.clarity(
@@ -67,6 +83,8 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       if (session.user.role) {
         window.clarity("set", "role", session.user.role);
       }
+
+      applyClarityTags();
     }
   }, [session, status]);
 
