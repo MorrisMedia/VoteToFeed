@@ -1,41 +1,30 @@
 import Link from "next/link";
-import { PetCard } from "@/components/pets/PetCard";
 import { PetImage } from "@/app/pets/[id]/PetImage";
-import { ShelterBanner } from "@/components/layout/ShelterBanner";
-import { VoteFeed } from "@/components/voting/VoteFeed";
-import { getAnimalType, getWeeklyVoteGoal, getFreeVotesConfig } from "@/lib/admin-settings";
+import { getAnimalType, getWeeklyVoteGoal } from "@/lib/admin-settings";
 import prisma from "@/lib/prisma";
-import { getCurrentWeekId, getWeekDateRange, daysRemainingInWeek, formatDisplayName } from "@/lib/utils";
+import { getCurrentWeekId, getWeekDateRange, formatDisplayName } from "@/lib/utils";
+
+const signupHref = "/auth/signup?callbackUrl=%2Fpets%2Fnew";
 
 async function getHomeData() {
   const weekId = getCurrentWeekId();
   const now = new Date();
   const { start, end } = getWeekDateRange();
-  const [animalType, weeklyGoal, freeVotesConfig] = await Promise.all([
+  const [animalType, weeklyGoal] = await Promise.all([
     getAnimalType(),
     getWeeklyVoteGoal(),
-    getFreeVotesConfig(),
   ]);
 
-  const [stats, weeklyMealsAgg, recentPets, popularPets, totalPets, activeContests] = await Promise.all([
+  const [stats, weeklyMealsAgg, totalPets, topPets, featuredContest] = await Promise.all([
     prisma.petWeeklyStats.aggregate({
       where: { weekId, pet: { isActive: true } },
-      _sum: { totalVotes: true, paidVotes: true },
+      _sum: { totalVotes: true },
     }),
-    // Use stored mealsProvided from actual purchases — not recalculated with current rate
     prisma.purchase.aggregate({
       where: { status: "COMPLETED", createdAt: { gte: start, lt: end } },
       _sum: { mealsProvided: true },
     }),
-    prisma.pet.findMany({
-      where: { isActive: true },
-      include: {
-        user: { select: { name: true } },
-        weeklyStats: { where: { weekId }, take: 1 },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-    }),
+    prisma.pet.count({ where: { isActive: true } }),
     prisma.petWeeklyStats.findMany({
       where: { weekId, pet: { isActive: true } },
       include: {
@@ -44,375 +33,366 @@ async function getHomeData() {
         },
       },
       orderBy: { totalVotes: "desc" },
-      take: 12,
+      take: 3,
     }),
-    prisma.pet.count({ where: { isActive: true } }),
-    prisma.contest.findMany({
+    prisma.contest.findFirst({
       where: { isActive: true, endDate: { gte: now }, startDate: { lte: now } },
       include: {
         _count: { select: { entries: true } },
         prizes: { orderBy: { placement: "asc" }, select: { value: true } },
       },
       orderBy: [{ isFeatured: "desc" }, { endDate: "asc" }],
-      take: 10,
     }),
   ]);
 
-  const weeklyVotes = stats._sum.totalVotes ?? 0;
-  const mealsHelped = Math.round(weeklyMealsAgg._sum.mealsProvided ?? 0);
-
   return {
-    weeklyVotes,
     animalType,
-    mealsHelped,
     weeklyGoal,
+    weeklyVotes: stats._sum.totalVotes ?? 0,
+    mealsHelped: Math.round(weeklyMealsAgg._sum.mealsProvided ?? 0),
     totalPets,
-    freeVotesAmount: freeVotesConfig.amount,
-    freeVotesPeriod: freeVotesConfig.period,
-    recent: recentPets.map((p) => ({
-      id: p.id,
-      name: p.name,
-      ownerName: formatDisplayName(p.ownerFirstName, p.ownerLastName, p.ownerName),
-      state: p.state,
-      photos: p.photos,
-      type: p.type,
-      weeklyVotes: p.weeklyStats[0]?.totalVotes ?? 0,
-      weeklyRank: null,
-      isNew: Date.now() - new Date(p.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
-    })),
-    popular: popularPets.map((s, i) => ({
-      id: s.pet.id,
-      name: s.pet.name,
-      ownerName: formatDisplayName(s.pet.ownerFirstName, s.pet.ownerLastName, s.pet.ownerName),
-      state: s.pet.state,
-      photos: s.pet.photos,
-      type: s.pet.type,
-      weeklyVotes: s.totalVotes,
-      weeklyRank: i + 1,
-      isNew: Date.now() - new Date(s.pet.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
-    })),
-    contests: activeContests.map((c) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      petType: c.petType,
-      description: c.description,
-      coverImage: c.coverImage,
-      startDate: c.startDate.toISOString(),
-      endDate: c.endDate.toISOString(),
-      isFeatured: c.isFeatured,
-      sponsorName: c.sponsorName,
-      entryCount: c._count.entries,
-      totalPrizeValue: c.prizes.reduce((sum, p) => sum + p.value, 0),
-      daysLeft: Math.max(0, Math.ceil((c.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))),
+    featuredContest: featuredContest
+      ? {
+          id: featuredContest.id,
+          name: featuredContest.name,
+          petType: featuredContest.petType,
+          entryCount: featuredContest._count.entries,
+          totalPrizeValue: featuredContest.prizes.reduce((sum, prize) => sum + prize.value, 0),
+        }
+      : null,
+    topPets: topPets.map((entry, index) => ({
+      id: entry.pet.id,
+      name: entry.pet.name,
+      ownerName: formatDisplayName(entry.pet.ownerFirstName, entry.pet.ownerLastName, entry.pet.ownerName),
+      photos: entry.pet.photos,
+      type: entry.pet.type,
+      weeklyVotes: entry.totalVotes,
+      weeklyRank: index + 1,
     })),
   };
 }
 
-function HomePetSection({
+function LogoMark({ className = "" }: { className?: string }) {
+  return (
+    <svg width="40" height="40" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <path d="M6 20 Q6 29 18 29 Q30 29 30 20" stroke="#2EC4B6" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+      <line x1="18" y1="29" x2="18" y2="32" stroke="#2EC4B6" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="32" x2="24" y2="32" stroke="#2EC4B6" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="5" y1="20" x2="31" y2="20" stroke="#2EC4B6" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M18 16 C18 16 14 12.5 14 10.5 C14 9 15.2 8 16.5 8 C17.2 8 17.8 8.4 18 8.9 C18.2 8.4 18.8 8 19.5 8 C20.8 8 22 9 22 10.5 C22 12.5 18 16 18 16Z" fill="#E8453C"/>
+    </svg>
+  );
+}
+
+function StepCard({
+  step,
   title,
-  href,
-  pets,
-  animalType,
+  description,
 }: {
+  step: string;
   title: string;
-  href: string;
-  pets: Array<{
-    id: string;
-    name: string;
-    ownerName: string;
-    state?: string | null;
-    photos: string[];
-    type: string;
-    weeklyVotes: number;
-    weeklyRank?: number | null;
-    isNew?: boolean;
-  }>;
-  animalType: string;
+  description: string;
 }) {
   return (
-    <section>
-      <div className="flex items-center justify-between gap-3 mb-6">
-        <h2 className="section-title">{title}</h2>
-        <Link href={href} className="text-sm font-medium text-brand-600 hover:text-brand-700 whitespace-nowrap">
-          View all &rarr;
-        </Link>
+    <div className="card p-6">
+      <div className="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center text-sm font-black shadow-sm">
+        {step}
       </div>
+      <h3 className="mt-4 text-xl font-extrabold text-surface-900 tracking-tight">{title}</h3>
+      <p className="mt-2 text-base text-surface-700 leading-relaxed">{description}</p>
+    </div>
+  );
+}
 
-      {pets.length > 0 ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {pets.map((pet) => (
-            <PetCard key={pet.id} {...pet} animalType={animalType} />
-          ))}
-        </div>
-      ) : (
-        <div className="card p-10 text-center">
-          <p className="font-semibold text-surface-700">No pets yet</p>
-          <p className="text-sm text-surface-800 mt-1">Be the first to enter!</p>
-          <Link href="/pets/new" className="btn-primary mt-4">Add your pet</Link>
-        </div>
-      )}
-    </section>
+function BenefitCard({
+  emoji,
+  title,
+  description,
+}: {
+  emoji: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-surface-200 bg-white p-6 shadow-sm">
+      <div className="text-2xl">{emoji}</div>
+      <h3 className="mt-3 text-lg font-extrabold text-surface-900 tracking-tight">{title}</h3>
+      <p className="mt-2 text-base text-surface-700 leading-relaxed">{description}</p>
+    </div>
   );
 }
 
 export default async function HomePage() {
   const data = await getHomeData();
-  const daysLeft = daysRemainingInWeek();
-  const pets = data.popular.length ? data.popular : data.recent;
-  const featuredPet = pets[0] ?? null;
-  const topPets = (data.popular.length ? data.popular : data.recent).slice(0, 8);
-  const newPets = data.recent.slice(0, 8);
+  const featuredPet = data.topPets[0] ?? null;
+  const spotlightPets = data.topPets;
+  const goalPercent = data.weeklyGoal > 0 ? Math.min(100, Math.round((data.weeklyVotes / data.weeklyGoal) * 100)) : 0;
 
   return (
-    <div className="min-h-screen">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-white border-b border-surface-100">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-brand-50 via-transparent to-transparent opacity-60" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-          <div className="flex items-center gap-10 lg:gap-16">
-            {/* Left: Text */}
-            <div className="flex-1 min-w-0">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-50 border border-accent-200/60 text-sm font-bold text-accent-700 mb-4">
-                <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse-subtle" />
-                Every vote helps shelter pets
+    <div className="min-h-screen bg-white">
+      <section className="relative overflow-hidden border-b border-surface-100 bg-[linear-gradient(180deg,#fff_0%,#fff7f1_45%,#ffffff_100%)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(232,69,60,0.10),transparent_28%),radial-gradient(circle_at_top_left,rgba(46,196,182,0.12),transparent_30%)]" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-12 items-center">
+            <div>
+              <div className="inline-flex items-center gap-3 rounded-full border border-brand-100 bg-white px-4 py-2 shadow-sm">
+                <LogoMark className="w-7 h-7" />
+                <span className="text-sm font-bold text-surface-800">VoteToFeed</span>
+                <span className="hidden sm:inline text-sm text-surface-700">Free pet photo contests that help feed shelter pets</span>
               </div>
-              <h1 className="text-4xl sm:text-5xl font-black text-surface-900 tracking-tight leading-[1.1]">
-                Vote for adorable pets.
+
+              <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black text-surface-900 tracking-tight leading-[1.02]">
+                Enter your pet.
                 <br />
-                <span className="text-brand-500">Feed shelter pets.</span>
+                <span className="text-brand-500">Win prizes.</span>
+                <br />
+                Feed shelter pets.
               </h1>
-              <p className="mt-4 text-lg sm:text-xl text-surface-700 leading-relaxed max-w-lg">
-                Free photo contests with prize packs worth up to $2,000. Every vote helps feed shelter pets in need.
+
+              <p className="mt-5 max-w-2xl text-lg sm:text-xl text-surface-700 leading-relaxed">
+                Upload your dog or cat, rally votes, and compete for weekly prizes — while every vote helps put food in a shelter bowl.
               </p>
-              <p className="mt-2 text-sm text-surface-800">Powered by <span className="font-semibold text-surface-800">iHeartDogs</span> &amp; <span className="font-semibold text-surface-800">iHeartCats</span></p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/pets/new" className="btn-primary">
-                  Add your pet — free
+
+              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                <Link href={signupHref} className="btn-primary text-base sm:text-lg px-6 py-4">
+                  Enter Your Pet Free
                 </Link>
-                <Link href="/contests" className="btn-secondary">
-                  View contests
+                <Link href="/auth/signup" className="btn-secondary text-base sm:text-lg px-6 py-4">
+                  Sign Up to Vote
                 </Link>
               </div>
-              <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-surface-700">
-                <span className="flex items-center gap-1.5">
-                  <span className="font-semibold text-surface-900">{data.totalPets.toLocaleString()}</span> pets entered
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-semibold text-surface-900">{data.weeklyVotes.toLocaleString()}</span> votes this week
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-semibold text-brand-600">{daysLeft}d</span> remaining
-                </span>
+
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm sm:text-base text-surface-700">
+                <span className="font-semibold text-surface-900">Free to enter</span>
+                <span>Dogs & cats</span>
+                <span>Weekly winners</span>
+                <span>Mobile-friendly signup</span>
+              </div>
+
+              <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
+                  <div className="text-2xl font-black text-surface-900 tracking-tight">{data.totalPets.toLocaleString()}</div>
+                  <div className="mt-1 text-sm text-surface-700">pets entered</div>
+                </div>
+                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
+                  <div className="text-2xl font-black text-surface-900 tracking-tight">{data.weeklyVotes.toLocaleString()}</div>
+                  <div className="mt-1 text-sm text-surface-700">votes this week</div>
+                </div>
+                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
+                  <div className="text-2xl font-black text-surface-900 tracking-tight">{data.mealsHelped.toLocaleString()}</div>
+                  <div className="mt-1 text-sm text-surface-700">meals funded this week</div>
+                </div>
+                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
+                  <div className="text-2xl font-black text-surface-900 tracking-tight">20M+</div>
+                  <div className="mt-1 text-sm text-surface-700">social reach</div>
+                </div>
               </div>
             </div>
 
-            {/* Right: Featured pet photo */}
-            {featuredPet && (
-              <div className="hidden md:block flex-shrink-0 w-[320px] lg:w-[400px]">
-                <Link href={`/pets/${featuredPet.id}`} className="block relative rounded-2xl overflow-hidden shadow-card-hover aspect-[4/5] bg-surface-100 group">
-                  <PetImage
-                    src={featuredPet.photos[0] || ""}
-                    alt={featuredPet.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    petId={featuredPet.id}
-                    petType={featuredPet.type}
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pt-16 pb-4 px-4">
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-white font-bold text-lg leading-tight truncate">{featuredPet.name}</p>
-                        <p className="text-white/70 text-xs mt-0.5 truncate">{featuredPet.ownerName}</p>
+            <div className="relative">
+              <div className="rounded-[32px] border border-surface-200 bg-white p-4 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+                {featuredPet ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    <Link href={`/pets/${featuredPet.id}`} className="relative block overflow-hidden rounded-[28px] bg-surface-100 aspect-[4/5] group">
+                      <PetImage
+                        src={featuredPet.photos[0] || ""}
+                        alt={featuredPet.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        petId={featuredPet.id}
+                        petType={featuredPet.type}
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent px-5 py-5">
+                        <div className="flex items-end justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-white text-2xl font-black leading-tight truncate">{featuredPet.name}</p>
+                            <p className="text-white/80 text-sm truncate">{featuredPet.ownerName}</p>
+                          </div>
+                          <div className="rounded-full bg-white/90 px-3 py-1.5 text-sm font-bold text-surface-900 backdrop-blur-sm">
+                            #{featuredPet.weeklyRank}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm flex-shrink-0">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-brand-500">
-                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
-                        </svg>
-                        <span className="text-xs font-bold text-surface-900">{featuredPet.weeklyVotes.toLocaleString()}</span>
+                    </Link>
+
+                    <div className="rounded-[24px] bg-surface-50 p-4 border border-surface-200">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-surface-900">This week&apos;s featured pet</p>
+                          <p className="text-sm text-surface-700">{featuredPet.weeklyVotes.toLocaleString()} votes and climbing</p>
+                        </div>
+                        <Link href={signupHref} className="btn-primary px-4 py-3 text-sm whitespace-nowrap">
+                          Join Free
+                        </Link>
                       </div>
                     </div>
                   </div>
-                  <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-brand-500 text-white flex items-center justify-center text-xs font-bold shadow-md">
-                    1
+                ) : (
+                  <div className="rounded-[28px] bg-surface-50 border border-surface-200 p-8 text-center">
+                    <div className="mx-auto w-16 h-16 rounded-3xl bg-brand-100 flex items-center justify-center text-3xl">🐾</div>
+                    <h2 className="mt-4 text-2xl font-black text-surface-900">Your pet could be next.</h2>
+                    <p className="mt-2 text-surface-700">Create a free account and be the first to enter this week.</p>
+                    <Link href={signupHref} className="btn-primary mt-5">Enter Your Pet Free</Link>
                   </div>
-                </Link>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Mobile-only: Horizontal pet photo strip */}
-      {pets.length > 0 && (
-        <div className="md:hidden bg-white border-b border-surface-100 py-4">
-          <div className="px-4 mb-3 flex items-center justify-between">
-            <p className="text-base font-extrabold text-surface-900">🐾 This Week's Contestants</p>
-            <Link href="/pets?sort=popular" className="text-sm font-bold text-brand-600">See all →</Link>
+      <section className="border-b border-surface-100 bg-surface-50/70">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-surface-700">Powered by pet communities trusted by millions</p>
+              <p className="mt-1 text-sm sm:text-base text-surface-700">iHeartDogs • iHeartCats • Veteran-owned & operated since 2014</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 text-sm sm:text-base">
+              <div className="rounded-2xl bg-white border border-surface-200 px-4 py-3 text-center font-bold text-surface-900">5.2M Facebook followers</div>
+              <div className="rounded-2xl bg-white border border-surface-200 px-4 py-3 text-center font-bold text-surface-900">20M+ total reach</div>
+              <div className="rounded-2xl bg-white border border-surface-200 px-4 py-3 text-center font-bold text-surface-900">Weekly prize packs</div>
+            </div>
           </div>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide" style={{scrollSnapType: "x mandatory"}}>
-            {pets.slice(0, 12).map((pet) => (
-              <Link
-                key={pet.id}
-                href={`/pets/${pet.id}`}
-                className="flex-shrink-0 flex flex-col items-center gap-2"
-                style={{scrollSnapAlign: "start"}}
-              >
-                <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-surface-200 bg-surface-100">
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+        <div className="max-w-3xl">
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-600">How it works</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl font-black text-surface-900 tracking-tight">Three quick steps. Built for mobile. Straight into signup.</h2>
+          <p className="mt-4 text-lg text-surface-700 leading-relaxed">No maze. No clutter. Just a clean path from click to account to pet entry.</p>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+          <StepCard step="1" title="Create your free account" description="Start with signup so every visitor can vote, save progress, and enter a pet without getting lost." />
+          <StepCard step="2" title="Upload your pet" description="Add a photo, pick the contest, and set up your pet profile in under a minute on mobile." />
+          <StepCard step="3" title="Collect votes and win" description="Share your profile, climb the leaderboard, and help fund meals for shelter pets with every vote." />
+        </div>
+      </section>
+
+      <section className="bg-surface-50 border-y border-surface-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-18">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-8 lg:gap-12 items-start">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-600">Why people enter</p>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-black text-surface-900 tracking-tight">More than a cute pet contest.</h2>
+              <p className="mt-4 text-lg text-surface-700 leading-relaxed">
+                The page is now centered on the actual offer: free entry, weekly prizes, social exposure, and shelter impact.
+              </p>
+
+              <div className="mt-6 rounded-3xl border border-surface-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-surface-900">Weekly shelter impact</p>
+                    <p className="text-sm text-surface-700">{data.weeklyVotes.toLocaleString()} votes so far this week for {data.animalType} in need</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-brand-600">{goalPercent}%</p>
+                    <p className="text-xs text-surface-700">of weekly goal</p>
+                  </div>
+                </div>
+                <div className="mt-4 h-3 rounded-full bg-surface-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500" style={{ width: `${goalPercent}%` }} />
+                </div>
+              </div>
+
+              {data.featuredContest ? (
+                <div className="mt-4 rounded-3xl border border-brand-100 bg-brand-50/50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-600">Current contest</p>
+                  <h3 className="mt-2 text-xl font-black text-surface-900">{data.featuredContest.name}</h3>
+                  <p className="mt-2 text-base text-surface-700">
+                    {data.featuredContest.entryCount.toLocaleString()} entries • {data.featuredContest.totalPrizeValue > 0 ? `$${(data.featuredContest.totalPrizeValue / 100).toLocaleString()} in prizes` : "Weekly prize packs"}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <BenefitCard emoji="🏆" title="Weekly prizes" description="Pets compete for prize packs worth hundreds of dollars, with fresh winners every week." />
+              <BenefitCard emoji="📣" title="Big audience" description="Top pets get exposure through iHeartDogs and iHeartCats communities with massive reach." />
+              <BenefitCard emoji="🍖" title="Real shelter impact" description="Every vote supports meal donations for shelter pets — it is built into the experience, not tacked on." />
+              <BenefitCard emoji="📱" title="Fast on mobile" description="The landing flow is optimized for phone traffic so ad clicks can convert cleanly into signups." />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-18">
+        <div className="flex items-end justify-between gap-4 mb-8">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-600">Social proof</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-black text-surface-900 tracking-tight">Top pets this week</h2>
+          </div>
+          <Link href="/leaderboard/DOG" className="hidden sm:inline-flex btn-secondary">See leaderboard</Link>
+        </div>
+
+        {spotlightPets.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+            {spotlightPets.map((pet) => (
+              <Link key={pet.id} href={`/pets/${pet.id}`} className="group rounded-[28px] overflow-hidden border border-surface-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="relative aspect-[5/6] bg-surface-100 overflow-hidden">
                   <PetImage
                     src={pet.photos[0] || ""}
                     alt={pet.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     petId={pet.id}
                     petType={pet.type}
                   />
-                  {pet.weeklyRank && pet.weeklyRank <= 3 && (
-                    <div className="absolute top-1 left-1 w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-black flex items-center justify-center shadow">
-                      {pet.weeklyRank}
-                    </div>
-                  )}
+                  <div className="absolute top-3 left-3 rounded-full bg-white/95 px-3 py-1 text-sm font-black text-surface-900 shadow-sm">
+                    #{pet.weeklyRank}
+                  </div>
                 </div>
-                <span className="text-sm font-bold text-surface-900 max-w-[96px] truncate text-center">{pet.name}</span>
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-black text-surface-900 tracking-tight truncate">{pet.name}</h3>
+                      <p className="mt-1 text-sm text-surface-700 truncate">{pet.ownerName}</p>
+                    </div>
+                    <div className="rounded-2xl bg-brand-50 px-3 py-2 text-right">
+                      <div className="text-lg font-black text-brand-600 leading-none">{pet.weeklyVotes.toLocaleString()}</div>
+                      <div className="text-[11px] text-surface-700 mt-1">votes</div>
+                    </div>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
+        ) : (
+          <div className="card p-8 text-center">
+            <p className="text-lg font-bold text-surface-900">No pets entered yet.</p>
+            <p className="mt-2 text-surface-700">Be the first one on the board.</p>
+            <Link href={signupHref} className="btn-primary mt-5">Enter Your Pet Free</Link>
+          </div>
+        )}
+
+        <div className="mt-6 sm:hidden">
+          <Link href="/leaderboard/DOG" className="btn-secondary w-full">See leaderboard</Link>
         </div>
-      )}
+      </section>
 
-      {/* Active Contests Slider */}
-      {data.contests.length > 0 && (
-        <section className="bg-surface-50/70 border-b border-surface-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-surface-900 uppercase tracking-wider flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-brand-500"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
-                Active Contests
-              </h2>
-              <Link href="/contests" className="text-xs font-medium text-brand-600 hover:text-brand-700">
-                View all &rarr;
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {data.contests.map((contest) => {
-                const typeLabel: Record<string, string> = { NATIONAL: "Weekly", SEASONAL: "Seasonal", CHARITY: "Charity", CALENDAR: "Calendar", BREED: "Breed", STATE: "Regional" };
-                const typeBadge: Record<string, string> = { NATIONAL: "bg-brand-100 text-brand-700", SEASONAL: "bg-amber-100 text-amber-700", CHARITY: "bg-emerald-100 text-emerald-700", CALENDAR: "bg-violet-100 text-violet-700", BREED: "bg-sky-100 text-sky-700", STATE: "bg-orange-100 text-orange-700" };
-                return (
-                  <Link
-                    key={contest.id}
-                    href={`/contests/${contest.id}`}
-                    className="min-w-0 rounded-xl overflow-hidden bg-white border border-surface-200/80 shadow-sm hover:shadow-md transition-shadow group"
-                  >
-                    {/* Cover image */}
-                    <div className="relative h-28 sm:h-32 bg-surface-100 overflow-hidden">
-                      {contest.coverImage ? (
-                        <img src={contest.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center">
-                          <span className="text-4xl">{contest.petType === "DOG" ? "🐶" : "🐱"}</span>
-                        </div>
-                      )}
-                      {/* Overlay badges */}
-                      <div className="absolute top-2 left-2 flex gap-1.5">
-                        <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm ${typeBadge[contest.type] || "bg-surface-100 text-surface-800"}`}>
-                          {typeLabel[contest.type] || contest.type}
-                        </span>
-                        {contest.isFeatured && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100/90 text-yellow-700 backdrop-blur-sm">
-                            Featured
-                          </span>
-                        )}
-                      </div>
-                      {/* Days left pill */}
-                      <div className="absolute top-2 right-2">
-                        <span className="text-[10px] font-bold bg-black/60 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
-                          {contest.daysLeft}d left
-                        </span>
-                      </div>
-                    </div>
-                    {/* Contest info */}
-                    <div className="p-3.5">
-                      <h3 className="font-bold text-surface-900 text-lg leading-snug truncate">{contest.name}</h3>
-                      {contest.description && (
-                        <p className="text-xs text-surface-700 mt-1 line-clamp-2 leading-relaxed">{contest.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2.5 text-xs text-surface-700">
-                        <span className="flex items-center gap-1">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                          {contest.entryCount} entries
-                        </span>
-                        {contest.totalPrizeValue > 0 && (
-                          <span className="flex items-center gap-1 font-semibold text-emerald-600">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
-                            ${(contest.totalPrizeValue / 100).toLocaleString()} in prizes
-                          </span>
-                        )}
-                        {contest.sponsorName && (
-                          <span className="text-surface-800">by {contest.sponsorName}</span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+      <section className="border-t border-surface-100 bg-[linear-gradient(180deg,#fff7f1_0%,#ffffff_100%)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-18 text-center">
+          <div className="mx-auto inline-flex items-center gap-3 rounded-full bg-white border border-surface-200 px-4 py-2 shadow-sm">
+            <LogoMark className="w-6 h-6" />
+            <span className="text-sm font-bold text-surface-800">VoteToFeed</span>
           </div>
-        </section>
-      )}
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-        {/* Shelter Banner */}
-        <ShelterBanner
-          weeklyVotes={data.weeklyVotes}
-          animalType={data.animalType}
-          mealsHelped={data.mealsHelped}
-          weeklyGoal={data.weeklyGoal}
-        />
-
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main content */}
-          <div className="lg:col-span-3 space-y-10">
-            <HomePetSection
-              title="Top Pets This Week"
-              href="/pets?sort=popular"
-              pets={topPets}
-              animalType={data.animalType}
-            />
-
-            <HomePetSection
-              title="New Pets"
-              href="/pets?sort=recent"
-              pets={newPets}
-              animalType={data.animalType}
-            />
+          <h2 className="mt-5 text-3xl sm:text-5xl font-black text-surface-900 tracking-tight leading-tight">
+            Ready to make your pet the next star?
+          </h2>
+          <p className="mt-4 text-lg sm:text-xl text-surface-700 leading-relaxed max-w-3xl mx-auto">
+            Free account. Fast mobile signup. Straight into pet entry. Every vote helps feed shelter pets in need.
+          </p>
+          <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href={signupHref} className="btn-primary text-base sm:text-lg px-6 py-4">
+              Start Free and Enter Your Pet
+            </Link>
+            <Link href="/auth/signup" className="btn-secondary text-base sm:text-lg px-6 py-4">
+              Create Account to Vote
+            </Link>
           </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
-            <VoteFeed />
-
-            {/* Trust signals */}
-            <div className="card p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-surface-900">How it works</h3>
-              <div className="space-y-3">
-                {[
-                  { step: "1", title: "Add your pet", desc: "Upload a photo — completely free" },
-                  { step: "2", title: "Collect votes", desc: `${data.freeVotesAmount} free votes per ${data.freeVotesPeriod === "daily" ? "day" : data.freeVotesPeriod === "monthly" ? "month" : "week"} for everyone` },
-                  { step: "3", title: "Win prizes", desc: "Top pets win packs worth up to $2K" },
-                ].map((item) => (
-                  <div key={item.step} className="flex gap-3">
-                    <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-bold text-brand-600">{item.step}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-surface-800">{item.title}</p>
-                      <p className="text-xs text-surface-800">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <p className="mt-4 text-sm text-surface-700">No credit card. Dogs and cats welcome. New winners every week.</p>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
