@@ -60,7 +60,6 @@ export function DashboardClient({
   const [buyingTier, setBuyingTier] = useState<string | null>(null);
   const daysLeft = daysRemainingInWeek();
 
-  // Auto-switch tab based on URL hash (e.g. /dashboard#votes)
   useEffect(() => {
     const hash = window.location.hash.replace("#", "") as Tab;
     const validTabs: Tab[] = ["overview", "pets", "votes", "purchases", "impact"];
@@ -167,7 +166,6 @@ export function DashboardClient({
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-surface-900 tracking-tight">
@@ -193,7 +191,6 @@ export function DashboardClient({
           </div>
         )}
 
-        {/* Tab Navigation */}
         <div className="flex gap-1 mb-8 overflow-x-auto pb-1 hide-scrollbar">
           {tabs.map((tab) => (
             <button
@@ -211,7 +208,6 @@ export function DashboardClient({
           ))}
         </div>
 
-        {/* Overview Tab */}
         {activeTab === "overview" && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -229,11 +225,7 @@ export function DashboardClient({
 }
 
 function StatCard({ label, value, sub, color, icon }: { label: string; value: string; sub: string; color: "brand" | "accent" | "default"; icon: React.ReactNode }) {
-  const colorClasses = {
-    brand: "text-brand-600",
-    accent: "text-accent-600",
-    default: "text-surface-900",
-  };
+  const colorClasses = { brand: "text-brand-600", accent: "text-accent-600", default: "text-surface-900" };
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between mb-2">
