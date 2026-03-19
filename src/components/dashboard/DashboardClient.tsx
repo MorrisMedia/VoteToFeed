@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatVotes, rankSuffix, daysRemainingInWeek, VOTE_PACKAGES, calculateMeals } from "@/lib/utils";
 import { trackStripePurchaseEvent } from "@/lib/meta-pixel";
+import { trackPostHogEvent } from "@/lib/analytics";
 
 type Pet = {
   id: string;
@@ -75,10 +76,31 @@ export function DashboardClient({
       amountDollars: latestPurchase.amount / 100,
       voteQuantity: latestPurchase.votes,
     });
+    trackPostHogEvent("checkout_completed", {
+      package_tier: latestPurchase.tier,
+      amount_cents: latestPurchase.amount,
+      amount_dollars: latestPurchase.amount / 100,
+      votes: latestPurchase.votes,
+      meals: latestPurchase.meals,
+    });
   }, [purchaseStatus, recentPurchases]);
+
+  useEffect(() => {
+    if (purchaseStatus !== "cancelled") return;
+    trackPostHogEvent("checkout_cancelled", {
+      package_tier: purchaseTier || undefined,
+    });
+  }, [purchaseStatus, purchaseTier]);
 
   async function handleBuyVotes(tier: string) {
     setBuyingTier(tier);
+    const selectedPackage = VOTE_PACKAGES.find((pkg) => pkg.tier === tier);
+    trackPostHogEvent("checkout_started", {
+      package_tier: tier,
+      votes: selectedPackage?.votes,
+      amount_cents: selectedPackage?.price,
+      amount_dollars: selectedPackage ? selectedPackage.price / 100 : undefined,
+    });
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
