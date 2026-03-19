@@ -168,25 +168,6 @@ export default async function HomePage() {
                 <span>Weekly winners</span>
                 <span>Mobile-friendly signup</span>
               </div>
-
-              <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
-                  <div className="text-2xl font-black text-surface-900 tracking-tight">{data.totalPets.toLocaleString()}</div>
-                  <div className="mt-1 text-sm text-surface-700">pets entered</div>
-                </div>
-                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
-                  <div className="text-2xl font-black text-surface-900 tracking-tight">{data.weeklyVotes.toLocaleString()}</div>
-                  <div className="mt-1 text-sm text-surface-700">votes this week</div>
-                </div>
-                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
-                  <div className="text-2xl font-black text-surface-900 tracking-tight">{data.mealsHelped.toLocaleString()}</div>
-                  <div className="mt-1 text-sm text-surface-700">meals funded this week</div>
-                </div>
-                <div className="rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
-                  <div className="text-2xl font-black text-surface-900 tracking-tight">20M+</div>
-                  <div className="mt-1 text-sm text-surface-700">social reach</div>
-                </div>
-              </div>
             </div>
 
             <div className="relative">
