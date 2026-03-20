@@ -1,4 +1,4 @@
-export const META_PIXEL_ID = "412240925577439";
+export const META_PIXEL_ID = "2009139989998970";
 
 const DEFAULT_SOURCE_PREFIX = "creative_test";
 
@@ -52,7 +52,7 @@ export function trackMetaPixel(eventName: string, params?: Record<string, unknow
 export function trackVoteToFeedEvent(eventName: string, params: StandardEventParams) {
   trackMetaPixel(eventName, {
     currency: "USD",
-    value: 0.10,
+    value: 0.1,
     source: getCreativeSource(),
     ...params,
   }, "track");
@@ -65,9 +65,89 @@ export function trackEmailSignupEvent(sourcePart?: string | null) {
     content_name: "VoteToFeed_EmailSignup",
     content_category: "VoteToFeed_Newsletter",
     source: getCreativeSource(sourcePart),
-    value: 0.10,
+    value: 0.1,
   });
   window.sessionStorage.setItem(EMAIL_SIGNUP_SESSION_KEY, "1");
+}
+
+export function trackCheckoutStartedEvent({
+  tier,
+  voteQuantity,
+  amountDollars,
+  sourcePart,
+}: {
+  tier: string;
+  voteQuantity?: number;
+  amountDollars?: number;
+  sourcePart?: string | null;
+}) {
+  trackMetaPixel("InitiateCheckout", {
+    content_name: `VoteToFeed_${tier}_Checkout`,
+    content_category: "VoteToFeed_Revenue",
+    source: getCreativeSource(sourcePart),
+    value: amountDollars ?? 0,
+    currency: "USD",
+    num_items: voteQuantity,
+  }, "track");
+}
+
+export function trackPetEntryEvent({
+  petId,
+  petName,
+  petType,
+  contestCount,
+  sourcePart,
+}: {
+  petId: string;
+  petName: string;
+  petType: string;
+  contestCount: number;
+  sourcePart?: string | null;
+}) {
+  const source = getCreativeSource(sourcePart);
+
+  trackMetaPixel("SubmitApplication", {
+    content_name: "VoteToFeed_PetEntry",
+    content_category: "VoteToFeed_ContestEntry",
+    content_ids: [petId],
+    source,
+    value: 0.1,
+    currency: "USD",
+    num_items: contestCount,
+    pet_name: petName,
+    pet_type: petType,
+  }, "track");
+
+  trackMetaPixel("VoteToFeedEntry", {
+    petId,
+    petName,
+    petType,
+    contestCount,
+    source,
+  });
+}
+
+export function trackVoteCastEvent({
+  petId,
+  petType,
+  voteType,
+  weeklyVotes,
+  isAnonymous,
+}: {
+  petId: string;
+  petType: string;
+  voteType: string;
+  weeklyVotes: number;
+  isAnonymous?: boolean;
+}) {
+  trackMetaPixel("VoteToFeedVote", {
+    petId,
+    petType,
+    voteType,
+    weeklyVotes,
+    isAnonymous: isAnonymous || false,
+    source: getCreativeSource(petType),
+  });
 }
 
 export function trackStripePurchaseEvent({
@@ -75,18 +155,20 @@ export function trackStripePurchaseEvent({
   voteQuantity,
   photoId,
   sourcePart,
+  tier,
 }: {
   amountDollars: number;
   voteQuantity: number;
   photoId?: string | null;
   sourcePart?: string | null;
+  tier?: string | null;
 }) {
   if (typeof window === "undefined") return;
-  const dedupeKey = `${PURCHASE_SESSION_KEY}:${amountDollars}:${voteQuantity}:${photoId || "none"}`;
+  const dedupeKey = `${PURCHASE_SESSION_KEY}:${amountDollars}:${voteQuantity}:${photoId || "none"}:${tier || "unknown"}`;
   if (window.sessionStorage.getItem(dedupeKey) === "1") return;
 
   const payload: StandardEventParams = {
-    content_name: "VoteToFeed_PaidVote",
+    content_name: tier ? `VoteToFeed_${tier}_Purchase` : "VoteToFeed_PaidVote",
     content_category: "VoteToFeed_Revenue",
     source: getCreativeSource(sourcePart),
     value: amountDollars,
