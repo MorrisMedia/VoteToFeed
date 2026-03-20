@@ -1,4 +1,4 @@
-export const META_PIXEL_ID = "412240925577439";
+export const META_PIXEL_ID = "2009139989998970";
 
 const DEFAULT_SOURCE_PREFIX = "creative_test";
 
