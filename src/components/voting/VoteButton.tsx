@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { getCreativeSource, trackMetaPixel, trackVoteToFeedEvent } from "@/lib/meta-pixel";
+import { getCreativeSource, trackVoteCastEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 import { trackPostHogEvent } from "@/lib/analytics";
 
 type Props = {
@@ -97,8 +97,9 @@ export function VoteButton({
         setFreeVotes(data.user.freeVotesRemaining);
         setPaidVotes(data.user.paidVoteBalance);
         setLastVoteType(data.vote.type === "FREE" ? "free" : "paid");
-        trackMetaPixel("VoteToFeedVote", {
+        trackVoteCastEvent({
           petId,
+          petType,
           voteType: data.vote.type,
           weeklyVotes: data.pet.weeklyVotes,
           isAnonymous: data.vote.isAnonymous || false,
@@ -117,7 +118,7 @@ export function VoteButton({
             content_name: "VoteToFeed_FreeVote",
             content_category: "VoteToFeed_Engagement",
             source: getCreativeSource(petType),
-            value: 0.10,
+            value: 0.1,
           });
         }
 
@@ -289,9 +290,7 @@ function VoteStats({
       )}
       <div className="mt-3 pt-3 border-t border-surface-100">
         <p className="text-xs text-accent-600 font-medium">
-          {voteCount > 0
-            ? `${voteCount} votes for shelter ${animalType}`
-            : `Vote to help shelter ${animalType}`}
+          {voteCount > 0 ? `${voteCount} votes for shelter ${animalType}` : `Vote to help shelter ${animalType}`}
         </p>
       </div>
     </div>
