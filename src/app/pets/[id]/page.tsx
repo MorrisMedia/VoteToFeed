@@ -12,6 +12,7 @@ import { Metadata } from "next";
 import { ShareButtons } from "./ShareButtons";
 import { PetImage } from "./PetImage";
 import { PetPhotoGallery } from "./PetPhotoGallery";
+import { AvatarFallback } from "@/components/shared/AvatarFallback";
 
 export const dynamic = "force-dynamic";
 
@@ -25,47 +26,6 @@ function abbreviateName(name?: string | null) {
   const lastInitial = parts[parts.length - 1][0]?.toUpperCase();
 
   return lastInitial ? `${firstName} ${lastInitial}.` : firstName;
-}
-
-function Avatar({
-  image,
-  name,
-  className,
-  fallbackClassName,
-  title,
-}: {
-  image?: string | null;
-  name?: string | null;
-  className: string;
-  fallbackClassName: string;
-  title?: string;
-}) {
-  const initial = (name || "?")[0].toUpperCase();
-
-  if (!image) {
-    return (
-      <div title={title} className={fallbackClassName}>
-        {initial}
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={image}
-      alt={name || ""}
-      title={title}
-      className={className}
-      onError={(e) => {
-        const target = e.currentTarget;
-        const fallback = document.createElement("div");
-        fallback.className = fallbackClassName;
-        fallback.textContent = initial;
-        if (title) fallback.title = title;
-        target.replaceWith(fallback);
-      }}
-    />
-  );
 }
 
 export async function generateMetadata({
@@ -260,7 +220,7 @@ export default async function PetDetailPage({
               <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Recent voters</p>
               <div className="flex -space-x-2">
                 {pet.votes.map((v) => (
-                  <Avatar
+                  <AvatarFallback
                     key={v.id}
                     image={v.user.image}
                     name={v.user.name}
@@ -299,7 +259,7 @@ export default async function PetDetailPage({
           {pet.comments.map((c) => (
             <li key={c.id} className="py-4">
               <div className="flex gap-3">
-                <Avatar
+                <AvatarFallback
                   image={c.user.image}
                   name={c.user.name}
                   className="w-11 h-11 rounded-full object-cover flex-shrink-0"
