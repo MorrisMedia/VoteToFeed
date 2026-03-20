@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { COMMENT_TEMPLATES } from "@/lib/scheduled-comments";
+import { COMMENT_TEMPLATES, GENERIC_COMMENT_TEMPLATES, normalizeBreedLabel } from "@/lib/scheduled-comments";
 import { getCurrentWeekId } from "@/lib/utils";
 
 const MAX_ENGAGEMENT_ACTIONS_PER_PET = 6;
@@ -42,7 +42,7 @@ async function incrementWeeklyVoteStats(petId: string, weekId: string) {
 
 async function recalculateWeeklyRanks(weekId: string) {
   const stats = await prisma.petWeeklyStats.findMany({
-    where: { weekId, pet: { isActive: true } },
+    where: { weekId },
     orderBy: [{ totalVotes: "desc" }, { updatedAt: "asc" }, { petId: "asc" }],
     select: { id: true },
   });
@@ -87,10 +87,12 @@ async function createVoteIfNeeded(seedId: string, targetUserId: string, pet: Eng
 }
 
 async function createComment(seedId: string, targetUserId: string, pet: EngagementPet, logs: EngagementLogSummary[]) {
-  const template = pickRandom(COMMENT_TEMPLATES, 1)[0];
+  const normalizedBreed = normalizeBreedLabel(pet.breed);
+  const templatePool = normalizedBreed ? COMMENT_TEMPLATES : GENERIC_COMMENT_TEMPLATES;
+  const template = pickRandom(templatePool, 1)[0];
   const commentText = renderTemplate(template, {
     petname: pet.name,
-    breed: pet.breed || "pet",
+    breed: normalizedBreed || "",
   });
 
   await prisma.comment.create({
