@@ -9,13 +9,13 @@ export const COMMENT_TEMPLATES = [
   "I can't get over how cute {petname} is! Welcome! 🎉",
   "A {breed}! One of my favorite breeds! Welcome {petname}! 🐕",
   "Those eyes! {petname} has stolen my heart! 💖",
-  "{petname} looks like the goodest boy/girl! Welcome! 🎀",
+  "{petname} looks absolutely adorable! Welcome! 🎀",
   "So happy to see another {breed} here! Welcome {petname}! 🌟",
   "That {breed} smile is everything! Hi {petname}! 👋",
   "Welcome to the family, {petname}! You're gonna get so many votes! 🗳️",
   "{petname} is absolutely precious! What a sweet {breed}! 💝",
   "OMG look at that face! Welcome {petname}! You're a natural! 📸",
-  "Hey {petname}! Ready to help feed some shelter pups? 🍖",
+  "Hey {petname}! Ready to help feed some shelter pets? 🍖",
   "What a gorgeous {breed}! {petname} is a superstar! 🌈",
   "I'm voting for {petname} every single day! So cute! 🐶",
   "That {breed} energy is real! Welcome {petname}! 💫",
@@ -32,16 +32,16 @@ export const COMMENT_TEMPLATES = [
   "VoteToFeed just got cuter thanks to {petname}! Welcome! 🌸",
   "Hands down one of the cutest {breed}s I've ever seen! Hi {petname}! 🫶",
   "That tail must be wagging non-stop! Welcome {petname}! 🐕🦺",
-  "So glad {petname} is here! What a beautiful pup! 🌻",
+  "So glad {petname} is here! What a beautiful pet! 🌻",
   "I'll be cheering for {petname} every week! Go {breed}s! 📣",
   "{petname} has main character energy and I'm here for it! 🎬",
   "Somebody get {petname} a modeling contract! Gorgeous {breed}! 😎",
   "The cutest {breed} in town! Welcome to VoteToFeed, {petname}! 🏠",
-  "I showed {petname}'s photo to my dog and now they want to be friends! 🐾🐾",
+  "I showed {petname}'s photo to my pets and now they want to be friends! 🐾🐾",
   "Look at those paws! {petname} you are perfection! ✨",
   "{petname} and that {breed} charm — instant vote from me! 🗳️💖",
   "Just when I thought this app couldn't get cuter... {petname} showed up! 😍",
-  "Welcome aboard, {petname}! Every vote helps feed a shelter dog! 🍖💕",
+  "Welcome aboard, {petname}! Every vote helps feed a shelter pet! 🍖💕",
   "That {breed} face is making my day! Go {petname}! 🌞",
   "Cannot. Handle. The cuteness. Welcome {petname}! 💀❤️",
   "A+ entry right here! {petname} the {breed} is a winner! 🏅",
@@ -49,8 +49,39 @@ export const COMMENT_TEMPLATES = [
   "I'm obsessed with {petname}! Such a beautiful {breed}! 😭💖",
   "New here? Welcome {petname}! You're already getting my vote! 👍",
   "That smile tho! {petname} you just made everyone's day! 😊",
-  "Can {petname} teach my dog how to pose? A natural! 📷🌟",
+  "Can {petname} teach my pets how to pose? A natural! 📷🌟",
   "Bring on the votes for {petname}! This {breed} deserves them all! 🗳️🎉",
+];
+
+export const GENERIC_COMMENT_TEMPLATES = [
+  "Oh my goodness, {petname} is ADORABLE! 🐾",
+  "Welcome {petname}! You're going to love it here! 💕",
+  "That face! {petname} is such a cutie! 🥰",
+  "Is {petname} always this photogenic? What a star! ⭐",
+  "I can't get over how cute {petname} is! Welcome! 🎉",
+  "Those eyes! {petname} has stolen my heart! 💖",
+  "{petname} looks absolutely adorable! Welcome! 🎀",
+  "Welcome to the family, {petname}! You're gonna get so many votes! 🗳️",
+  "OMG look at that face! Welcome {petname}! You're a natural! 📸",
+  "Hey {petname}! Ready to help feed some shelter pets? 🍖",
+  "New best friend alert! Welcome {petname}! 🚨❤️",
+  "Okay {petname} just won the cutest pet contest IMO! 🏆",
+  "{petname} is giving major model vibes! 📷✨",
+  "Can we talk about how precious {petname} is?! 😭💕",
+  "I need to meet {petname} in real life! What a sweetheart! 🥹",
+  "That little face! {petname} you are TOO cute! 🧡",
+  "Aww {petname}! I bet you give the best cuddles! 🤗",
+  "VoteToFeed just got cuter thanks to {petname}! Welcome! 🌸",
+  "So glad {petname} is here! What a beautiful pet! 🌻",
+  "{petname} has main character energy and I'm here for it! 🎬",
+  "I showed {petname}'s photo to my pets and now they want to be friends! 🐾🐾",
+  "Look at those paws! {petname} you are perfection! ✨",
+  "Just when I thought this app couldn't get cuter... {petname} showed up! 😍",
+  "Welcome aboard, {petname}! Every vote helps feed a shelter pet! 🍖💕",
+  "Cannot. Handle. The cuteness. Welcome {petname}! 💀❤️",
+  "New here? Welcome {petname}! You're already getting my vote! 👍",
+  "That smile tho! {petname} you just made everyone's day! 😊",
+  "Can {petname} teach my pets how to pose? A natural! 📷🌟",
 ];
 
 const DEFAULT_SCHEDULED_COMMENT_COUNT = 5;
@@ -69,10 +100,32 @@ function renderTemplate(template: string, vars: { petname: string; breed: string
   return template.replace(/\{petname\}/g, vars.petname).replace(/\{breed\}/g, vars.breed);
 }
 
-function pickUniqueCommentTexts(petName: string, breed: string, count: number) {
-  return shuffle(COMMENT_TEMPLATES)
+export function normalizeBreedLabel(breed: string | null | undefined) {
+  const cleaned = breed?.trim();
+  if (!cleaned) return null;
+
+  const normalized = cleaned.toLowerCase();
+  if (
+    normalized === "unknown" ||
+    normalized === "other" ||
+    normalized === "n/a" ||
+    normalized === "na" ||
+    normalized === "none" ||
+    normalized === "pet"
+  ) {
+    return null;
+  }
+
+  return cleaned;
+}
+
+function pickUniqueCommentTexts(petName: string, breed: string | null | undefined, count: number) {
+  const normalizedBreed = normalizeBreedLabel(breed);
+  const templatePool = normalizedBreed ? COMMENT_TEMPLATES : GENERIC_COMMENT_TEMPLATES;
+
+  return shuffle(templatePool)
     .slice(0, count)
-    .map((template) => renderTemplate(template, { petname: petName, breed }));
+    .map((template) => renderTemplate(template, { petname: petName, breed: normalizedBreed || "" }));
 }
 
 function buildScheduleTimes(startAt: Date, count: number) {
@@ -111,7 +164,7 @@ export async function schedulePetWelcomeComments(params: {
 
   const selectedAccounts = shuffle(engagementAccounts).slice(0, Math.min(count, engagementAccounts.length));
   const scheduleTimes = buildScheduleTimes(new Date(), selectedAccounts.length);
-  const commentTexts = pickUniqueCommentTexts(params.petName, params.petBreed || "pet", selectedAccounts.length);
+  const commentTexts = pickUniqueCommentTexts(params.petName, params.petBreed, selectedAccounts.length);
 
   await prisma.scheduledComment.createMany({
     data: selectedAccounts.map((account, index) => ({
