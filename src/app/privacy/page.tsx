@@ -36,10 +36,9 @@ export default function PrivacyPage() {
           </ul>
 
           <h3 className="text-lg font-semibold text-surface-800 mt-4">Information from Third-Party Authentication</h3>
-          <p>If you sign in using Google or Facebook OAuth:</p>
+          <p>If you sign in using Google OAuth:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li><strong>Google:</strong> We receive your name, email address, and profile photo from your Google account</li>
-            <li><strong>Facebook:</strong> We receive your name, email address, and profile photo from your Facebook account</li>
           </ul>
           <p>We use this information only to create and maintain your VoteToFeed account. We do not access your contacts, post on your behalf, or access any other data from these services.</p>
 

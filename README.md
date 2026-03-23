@@ -45,7 +45,7 @@ Users submit pet photos, collect votes, and compete for epic prize packs worth u
 | Language | TypeScript |
 | Database | PostgreSQL |
 | ORM | Prisma |
-| Auth | NextAuth.js (Credentials, Google, Facebook) |
+| Auth | NextAuth.js (Credentials, Google) |
 | Payments | Stripe Checkout |
 | Email | SendGrid |
 | Styling | Tailwind CSS |
@@ -86,7 +86,6 @@ Optional (can also be set in Admin > Settings):
 - `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
 
 ### 3. Database Setup
 
