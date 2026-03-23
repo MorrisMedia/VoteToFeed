@@ -86,6 +86,8 @@ Optional (can also be set in Admin > Settings):
 - `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - Backwards-compatible fallback: `CLIENT_ID`, `CLIENT_SECRET`
+  - Optional explicit Google callback override: `GOOGLE_REDIRECT_URI` or `REDIRECT_URI`
 - `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
 
 ### 3. Database Setup

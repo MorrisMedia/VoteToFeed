@@ -6,18 +6,42 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-    FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID || "",
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET || "",
-    }),
-    CredentialsProvider({
+const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID || "";
+const googleClientSecret =
+  process.env.GOOGLE_CLIENT_SECRET || process.env.CLIENT_SECRET || "";
+const googleRedirectUri =
+  process.env.GOOGLE_REDIRECT_URI || process.env.REDIRECT_URI || "";
+
+const facebookClientId = process.env.FACEBOOK_CLIENT_ID || "";
+const facebookClientSecret = process.env.FACEBOOK_CLIENT_SECRET || "";
+
+const providers: NextAuthOptions["providers"] = [
+  ...(googleClientId && googleClientSecret
+    ? [
+        GoogleProvider({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+          ...(googleRedirectUri
+            ? {
+                authorization: {
+                  params: {
+                    redirect_uri: googleRedirectUri,
+                  },
+                },
+              }
+            : {}),
+        }),
+      ]
+    : []),
+  ...(facebookClientId && facebookClientSecret
+    ? [
+        FacebookProvider({
+          clientId: facebookClientId,
+          clientSecret: facebookClientSecret,
+        }),
+      ]
+    : []),
+  CredentialsProvider({
       name: "Email",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -46,7 +70,11 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
-  ],
+];
+
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
+  providers,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
