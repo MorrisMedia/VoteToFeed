@@ -639,3 +639,28 @@ model EngagementLog {
   @@index([targetUserId, createdAt])
   @@index([seedAccountId])
 }
+
+// ─── BOOKINGS ────────────────────────────────────────────
+
+model Booking {
+  id            String        @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  purpose       String?
+  notes         String?       @db.Text
+  startTime     DateTime
+  endTime       DateTime
+  status        BookingStatus @default(CONFIRMED)
+  googleEventId String?
+  createdAt     DateTime      @default(now())
+
+  @@index([startTime])
+  @@index([email])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}

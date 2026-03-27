@@ -228,6 +228,20 @@ export function Nav({
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          {/* Book a Call icon button */}
+          <Link
+            href="/book"
+            title="Book a Call"
+            className="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-lg border border-surface-200 hover:bg-surface-50 hover:border-surface-300 transition-all text-surface-600 hover:text-brand-600"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </Link>
+
           <Link href="/pets/new" className="btn-primary hidden sm:inline-flex">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Pet
@@ -264,6 +278,15 @@ export function Nav({
                   </Link>
                   <Link href="/dashboard#votes" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
                     Buy Votes
+                  </Link>
+                  <Link href="/book" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Book a Call
                   </Link>
                   {(session.user as Record<string, unknown>)?.role === "ADMIN" && (
                     <Link href="/admin" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50" onClick={closeMenu}>
@@ -355,6 +378,15 @@ export function Nav({
               <Link href="/dashboard" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>My Pets</Link>
             )}
             <Link href="/pets/new" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>+ Add Pet</Link>
+            <Link href="/book" className="flex items-center gap-2.5 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Book a Call
+            </Link>
 
             {/* Flashing Buy Votes CTA - mobile */}
             <Link
