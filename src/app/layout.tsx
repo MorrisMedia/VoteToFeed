@@ -62,6 +62,10 @@ export const dynamic = "force-dynamic";
 
 async function getShelterStats() {
   try {
+    if (!prisma) {
+      return { count: 0, animalType: "animals", meals: 0 };
+    }
+
     const weekId = getCurrentWeekId();
     const { start, end } = getWeekDateRange();
     const [agg, weeklyMealsAgg, animalType] = await Promise.all([
@@ -78,7 +82,8 @@ async function getShelterStats() {
     const total = agg._sum.totalVotes ?? 0;
     const meals = Math.round(weeklyMealsAgg._sum.mealsProvided ?? 0);
     return { count: total, animalType, meals };
-  } catch (_e) {
+  } catch (e) {
+    console.error("Error fetching shelter stats:", e);
     return { count: 0, animalType: "animals", meals: 0 };
   }
 }
