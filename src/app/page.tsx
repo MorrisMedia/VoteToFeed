@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { PetImage } from "@/app/pets/[id]/PetImage";
 import { getAnimalType, getWeeklyVoteGoal } from "@/lib/admin-settings";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId, getWeekDateRange, formatDisplayName } from "@/lib/utils";
 
@@ -123,7 +125,8 @@ function BenefitCard({
 }
 
 export default async function HomePage() {
-  const data = await getHomeData();
+  const [data, session] = await Promise.all([getHomeData(), getServerSession(authOptions)]);
+  const isLoggedIn = !!session?.user;
   const featuredPet = data.topPets[0] ?? null;
   const spotlightPets = data.topPets;
   const goalPercent = data.weeklyGoal > 0 ? Math.min(100, Math.round((data.weeklyVotes / data.weeklyGoal) * 100)) : 0;
@@ -154,12 +157,25 @@ export default async function HomePage() {
               </p>
 
               <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <Link href={signupHref} className="btn-primary text-base sm:text-lg px-6 py-4">
-                  Enter Your Pet Free
-                </Link>
-                <Link href="/auth/signup" className="btn-secondary text-base sm:text-lg px-6 py-4">
-                  Sign Up to Vote
-                </Link>
+                {isLoggedIn ? (
+                  <>
+                    <Link href="/pets/new" className="btn-primary text-base sm:text-lg px-6 py-4">
+                      Add Pet
+                    </Link>
+                    <Link href="/pets" className="btn-secondary text-base sm:text-lg px-6 py-4">
+                      Vote Now
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href={signupHref} className="btn-primary text-base sm:text-lg px-6 py-4">
+                      Enter Your Pet Free
+                    </Link>
+                    <Link href="/auth/signup" className="btn-secondary text-base sm:text-lg px-6 py-4">
+                      Sign Up to Vote
+                    </Link>
+                  </>
+                )}
               </div>
 
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm sm:text-base text-surface-700">
@@ -201,8 +217,8 @@ export default async function HomePage() {
                           <p className="text-sm font-bold text-surface-900">This week&apos;s featured pet</p>
                           <p className="text-sm text-surface-700">{featuredPet.weeklyVotes.toLocaleString()} votes and climbing</p>
                         </div>
-                        <Link href={signupHref} className="btn-primary px-4 py-3 text-sm whitespace-nowrap">
-                          Join Free
+                        <Link href={isLoggedIn ? "/pets/new" : signupHref} className="btn-primary px-4 py-3 text-sm whitespace-nowrap">
+                          {isLoggedIn ? "Add Pet" : "Join Free"}
                         </Link>
                       </div>
                     </div>
@@ -211,8 +227,8 @@ export default async function HomePage() {
                   <div className="rounded-[28px] bg-surface-50 border border-surface-200 p-8 text-center">
                     <div className="mx-auto w-16 h-16 rounded-3xl bg-brand-100 flex items-center justify-center text-3xl">🐾</div>
                     <h2 className="mt-4 text-2xl font-black text-surface-900">Your pet could be next.</h2>
-                    <p className="mt-2 text-surface-700">Create a free account and be the first to enter this week.</p>
-                    <Link href={signupHref} className="btn-primary mt-5">Enter Your Pet Free</Link>
+                    <p className="mt-2 text-surface-700">{isLoggedIn ? "Be the first to enter this week." : "Create a free account and be the first to enter this week."}</p>
+                    <Link href={isLoggedIn ? "/pets/new" : signupHref} className="btn-primary mt-5">{isLoggedIn ? "Add Pet" : "Enter Your Pet Free"}</Link>
                   </div>
                 )}
               </div>
@@ -342,7 +358,7 @@ export default async function HomePage() {
           <div className="card p-8 text-center">
             <p className="text-lg font-bold text-surface-900">No pets entered yet.</p>
             <p className="mt-2 text-surface-700">Be the first one on the board.</p>
-            <Link href={signupHref} className="btn-primary mt-5">Enter Your Pet Free</Link>
+            <Link href={isLoggedIn ? "/pets/new" : signupHref} className="btn-primary mt-5">{isLoggedIn ? "Add Pet" : "Enter Your Pet Free"}</Link>
           </div>
         )}
 
@@ -364,12 +380,25 @@ export default async function HomePage() {
             Free account. Fast mobile signup. Straight into pet entry. Every vote helps feed shelter pets in need.
           </p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href={signupHref} className="btn-primary text-base sm:text-lg px-6 py-4">
-              Start Free and Enter Your Pet
-            </Link>
-            <Link href="/auth/signup" className="btn-secondary text-base sm:text-lg px-6 py-4">
-              Create Account to Vote
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link href="/pets/new" className="btn-primary text-base sm:text-lg px-6 py-4">
+                  Add Pet
+                </Link>
+                <Link href="/pets" className="btn-secondary text-base sm:text-lg px-6 py-4">
+                  Vote Now
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href={signupHref} className="btn-primary text-base sm:text-lg px-6 py-4">
+                  Start Free and Enter Your Pet
+                </Link>
+                <Link href="/auth/signup" className="btn-secondary text-base sm:text-lg px-6 py-4">
+                  Create Account to Vote
+                </Link>
+              </>
+            )}
           </div>
           <p className="mt-4 text-sm text-surface-700">No credit card. Dogs and cats welcome. New winners every week.</p>
         </div>
