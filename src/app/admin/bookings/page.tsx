@@ -13,10 +13,15 @@ export default async function AdminBookingsPage() {
   const role = (session.user as { role?: string }).role;
   if (role !== "ADMIN") redirect("/dashboard");
 
-  const bookings = await prisma.booking.findMany({
-    orderBy: { startTime: "desc" },
-    take: 100,
-  });
+  let bookings: Awaited<ReturnType<typeof prisma.booking.findMany>> = [];
+  try {
+    bookings = await prisma.booking.findMany({
+      orderBy: { startTime: "desc" },
+      take: 100,
+    });
+  } catch (err) {
+    console.error("[AdminBookings] Failed to fetch bookings:", err);
+  }
 
   const now = new Date();
 

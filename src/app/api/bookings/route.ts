@@ -36,53 +36,58 @@ export async function POST(req: NextRequest) {
 
   const endTime = new Date(startTime.getTime() + SLOT_MINUTES * 60 * 1000);
 
-  // Check for conflicting bookings in the database
-  const conflict = await prisma.booking.findFirst({
-    where: {
-      status: { not: "CANCELLED" },
-      startTime: { lt: endTime },
-      endTime: { gt: startTime },
-    },
-  });
+  try {
+    // Check for conflicting bookings in the database
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        status: { not: "CANCELLED" },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
 
-  if (conflict) {
-    return NextResponse.json(
-      { error: "This time slot is no longer available. Please choose another." },
-      { status: 409 }
-    );
+    if (conflict) {
+      return NextResponse.json(
+        { error: "This time slot is no longer available. Please choose another." },
+        { status: 409 }
+      );
+    }
+
+    // Create Google Calendar event (non-blocking if credentials missing)
+    const googleEventId = await createCalendarEvent({
+      summary: `Booking: ${name.trim()}`,
+      description: [
+        `Name: ${name.trim()}`,
+        `Email: ${email.trim()}`,
+        phone ? `Phone: ${phone.trim()}` : null,
+        purpose ? `Purpose: ${purpose.trim()}` : null,
+        notes ? `Notes: ${notes.trim()}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      startISO: startTime.toISOString(),
+      endISO: endTime.toISOString(),
+      attendeeEmail: email.trim().toLowerCase(),
+      attendeeName: name.trim(),
+    });
+
+    const booking = await prisma.booking.create({
+      data: {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone?.trim() || null,
+        purpose: purpose?.trim() || null,
+        notes: notes?.trim() || null,
+        startTime,
+        endTime,
+        status: "CONFIRMED",
+        googleEventId,
+      },
+    });
+
+    return NextResponse.json({ id: booking.id }, { status: 201 });
+  } catch (err) {
+    console.error("[POST /api/bookings]", err);
+    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
   }
-
-  // Create Google Calendar event (non-blocking if credentials missing)
-  const googleEventId = await createCalendarEvent({
-    summary: `Booking: ${name.trim()}`,
-    description: [
-      `Name: ${name.trim()}`,
-      `Email: ${email.trim()}`,
-      phone ? `Phone: ${phone.trim()}` : null,
-      purpose ? `Purpose: ${purpose.trim()}` : null,
-      notes ? `Notes: ${notes.trim()}` : null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    startISO: startTime.toISOString(),
-    endISO: endTime.toISOString(),
-    attendeeEmail: email.trim().toLowerCase(),
-    attendeeName: name.trim(),
-  });
-
-  const booking = await prisma.booking.create({
-    data: {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone?.trim() || null,
-      purpose: purpose?.trim() || null,
-      notes: notes?.trim() || null,
-      startTime,
-      endTime,
-      status: "CONFIRMED",
-      googleEventId,
-    },
-  });
-
-  return NextResponse.json({ id: booking.id }, { status: 201 });
 }
