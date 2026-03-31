@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { getCurrentWeekId } from "@/lib/utils";
 import { getMealRate, getAnimalType } from "@/lib/admin-settings";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/leaderboard - Get leaderboard data
 export async function GET(req: NextRequest) {
   try {

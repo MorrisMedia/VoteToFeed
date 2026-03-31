@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -7,7 +9,7 @@ import { getCurrentWeekId } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
 /**
- * ⚠️ CRITICAL: Seed accounts can ONLY create their own pets.
+ * âš ï¸ CRITICAL: Seed accounts can ONLY create their own pets.
  * Seed accounts MUST NEVER:
  * - Modify real user pets
  * - Upload images to other users' pets
@@ -54,122 +56,122 @@ const SEED_ACCOUNTS = [
   {
     email: "vote@iheartdogs.com",
     name: "Max the Golden",
-    dog: { name: "Max", breed: "Golden Retriever", photo: "https://images.dog.ceo/breeds/retriever-golden/n02099601_1722.jpg", bio: "Hi! I'm Max, a Golden Retriever who loves belly rubs! 🐾" },
-    cat: { name: "Whiskers", breed: "Maine Coon", photo: "https://cdn.pixabay.com/photo/2017/02/20/18/03/cat-2083492_640.jpg", bio: "I'm Whiskers, a majestic Maine Coon! 🐱" },
+    dog: { name: "Max", breed: "Golden Retriever", photo: "https://images.dog.ceo/breeds/retriever-golden/n02099601_1722.jpg", bio: "Hi! I'm Max, a Golden Retriever who loves belly rubs! ðŸ¾" },
+    cat: { name: "Whiskers", breed: "Maine Coon", photo: "https://cdn.pixabay.com/photo/2017/02/20/18/03/cat-2083492_640.jpg", bio: "I'm Whiskers, a majestic Maine Coon! ðŸ±" },
   },
   {
     email: "vote+1@iheartdogs.com",
     name: "Luna Belle",
-    dog: { name: "Luna", breed: "Siberian Husky", photo: "https://images.dog.ceo/breeds/husky/n02110185_10047.jpg", bio: "I'm Luna, a Siberian Husky who loves the snow! ❄️" },
-    cat: { name: "Shadow", breed: "Russian Blue", photo: "https://cdn.pixabay.com/photo/2018/01/28/12/37/cat-3113513_640.jpg", bio: "I'm Shadow, a sleek Russian Blue! 🖤" },
+    dog: { name: "Luna", breed: "Siberian Husky", photo: "https://images.dog.ceo/breeds/husky/n02110185_10047.jpg", bio: "I'm Luna, a Siberian Husky who loves the snow! â„ï¸" },
+    cat: { name: "Shadow", breed: "Russian Blue", photo: "https://cdn.pixabay.com/photo/2018/01/28/12/37/cat-3113513_640.jpg", bio: "I'm Shadow, a sleek Russian Blue! ðŸ–¤" },
   },
   {
     email: "vote+2@iheartdogs.com",
     name: "Cooper & Friends",
-    dog: { name: "Cooper", breed: "Labrador Retriever", photo: "https://images.dog.ceo/breeds/labrador/n02099712_4323.jpg", bio: "I'm Cooper, a Lab who loves fetch! 🎾" },
-    cat: { name: "Mittens", breed: "Ragdoll", photo: "https://cdn.pixabay.com/photo/2019/11/08/11/36/cat-4611189_640.jpg", bio: "I'm Mittens, a fluffy Ragdoll! 💙" },
+    dog: { name: "Cooper", breed: "Labrador Retriever", photo: "https://images.dog.ceo/breeds/labrador/n02099712_4323.jpg", bio: "I'm Cooper, a Lab who loves fetch! ðŸŽ¾" },
+    cat: { name: "Mittens", breed: "Ragdoll", photo: "https://cdn.pixabay.com/photo/2019/11/08/11/36/cat-4611189_640.jpg", bio: "I'm Mittens, a fluffy Ragdoll! ðŸ’™" },
   },
   {
     email: "vote+3@iheartdogs.com",
     name: "Daisy Mae",
-    dog: { name: "Daisy", breed: "Corgi", photo: "https://images.dog.ceo/breeds/corgi-cardigan/n02113186_10475.jpg", bio: "I'm Daisy, a Corgi with the cutest wiggle! 🌼" },
-    cat: { name: "Luna", breed: "Siamese", photo: "https://cdn.pixabay.com/photo/2017/07/25/01/22/cat-2536662_640.jpg", bio: "I'm Luna, a chatty Siamese! 🌙" },
+    dog: { name: "Daisy", breed: "Corgi", photo: "https://images.dog.ceo/breeds/corgi-cardigan/n02113186_10475.jpg", bio: "I'm Daisy, a Corgi with the cutest wiggle! ðŸŒ¼" },
+    cat: { name: "Luna", breed: "Siamese", photo: "https://cdn.pixabay.com/photo/2017/07/25/01/22/cat-2536662_640.jpg", bio: "I'm Luna, a chatty Siamese! ðŸŒ™" },
   },
   {
     email: "vote+4@iheartdogs.com",
     name: "Bear Hudson",
-    dog: { name: "Bear", breed: "German Shepherd", photo: "https://images.dog.ceo/breeds/germanshepherd/n02106662_20841.jpg", bio: "I'm Bear, a loyal German Shepherd! 🐻" },
-    cat: { name: "Ginger", breed: "Orange Tabby", photo: "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg", bio: "I'm Ginger, an orange tabby with cattitude! 🧡" },
+    dog: { name: "Bear", breed: "German Shepherd", photo: "https://images.dog.ceo/breeds/germanshepherd/n02106662_20841.jpg", bio: "I'm Bear, a loyal German Shepherd! ðŸ»" },
+    cat: { name: "Ginger", breed: "Orange Tabby", photo: "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg", bio: "I'm Ginger, an orange tabby with cattitude! ðŸ§¡" },
   },
   {
     email: "vote+5@iheartdogs.com",
     name: "Rosie Posie",
-    dog: { name: "Rosie", breed: "Poodle", photo: "https://images.dog.ceo/breeds/poodle-standard/n02113799_2506.jpg", bio: "I'm Rosie, a fabulous Poodle! 🌹" },
-    cat: { name: "Cleo", breed: "Abyssinian", photo: "https://cdn.pixabay.com/photo/2020/10/05/10/51/cat-5628953_640.jpg", bio: "I'm Cleo, an adventurous Abyssinian! 👑" },
+    dog: { name: "Rosie", breed: "Poodle", photo: "https://images.dog.ceo/breeds/poodle-standard/n02113799_2506.jpg", bio: "I'm Rosie, a fabulous Poodle! ðŸŒ¹" },
+    cat: { name: "Cleo", breed: "Abyssinian", photo: "https://cdn.pixabay.com/photo/2020/10/05/10/51/cat-5628953_640.jpg", bio: "I'm Cleo, an adventurous Abyssinian! ðŸ‘‘" },
   },
   {
     email: "vote+6@iheartdogs.com",
     name: "Duke Wellington",
-    dog: { name: "Duke", breed: "Beagle", photo: "https://images.dog.ceo/breeds/beagle/n02088364_11136.jpg", bio: "I'm Duke, a Beagle with the best nose! 👃" },
-    cat: { name: "Oliver", breed: "British Shorthair", photo: "https://cdn.pixabay.com/photo/2017/11/14/13/06/kitty-2948404_640.jpg", bio: "I'm Oliver, a proper British Shorthair! 🎩" },
+    dog: { name: "Duke", breed: "Beagle", photo: "https://images.dog.ceo/breeds/beagle/n02088364_11136.jpg", bio: "I'm Duke, a Beagle with the best nose! ðŸ‘ƒ" },
+    cat: { name: "Oliver", breed: "British Shorthair", photo: "https://cdn.pixabay.com/photo/2017/11/14/13/06/kitty-2948404_640.jpg", bio: "I'm Oliver, a proper British Shorthair! ðŸŽ©" },
   },
   {
     email: "vote+7@iheartdogs.com",
     name: "Buster Brown",
-    dog: { name: "Buster", breed: "Bulldog", photo: "https://images.dog.ceo/breeds/bulldog-english/jager-2.jpg", bio: "I'm Buster, a chill Bulldog! 😎" },
-    cat: { name: "Nala", breed: "Bengal", photo: "https://cdn.pixabay.com/photo/2019/02/06/15/18/cat-3979126_640.jpg", bio: "I'm Nala, a wild Bengal beauty! 🐆" },
+    dog: { name: "Buster", breed: "Bulldog", photo: "https://images.dog.ceo/breeds/bulldog-english/jager-2.jpg", bio: "I'm Buster, a chill Bulldog! ðŸ˜Ž" },
+    cat: { name: "Nala", breed: "Bengal", photo: "https://cdn.pixabay.com/photo/2019/02/06/15/18/cat-3979126_640.jpg", bio: "I'm Nala, a wild Bengal beauty! ðŸ†" },
   },
   {
     email: "vote+8@iheartdogs.com",
     name: "Willow Grace",
-    dog: { name: "Willow", breed: "Australian Shepherd", photo: "https://images.dog.ceo/breeds/australian-shepherd/pepper.jpg", bio: "I'm Willow, an Aussie full of energy! 🌿" },
-    cat: { name: "Milo", breed: "Tuxedo", photo: "https://cdn.pixabay.com/photo/2018/10/01/09/21/pets-3715733_640.jpg", bio: "I'm Milo, always dressed to impress! 🤵" },
+    dog: { name: "Willow", breed: "Australian Shepherd", photo: "https://images.dog.ceo/breeds/australian-shepherd/pepper.jpg", bio: "I'm Willow, an Aussie full of energy! ðŸŒ¿" },
+    cat: { name: "Milo", breed: "Tuxedo", photo: "https://cdn.pixabay.com/photo/2018/10/01/09/21/pets-3715733_640.jpg", bio: "I'm Milo, always dressed to impress! ðŸ¤µ" },
   },
   {
     email: "vote+9@iheartdogs.com",
     name: "Rocky Mountain",
-    dog: { name: "Rocky", breed: "Rottweiler", photo: "https://images.dog.ceo/breeds/rottweiler/n02106550_10174.jpg", bio: "I'm Rocky, a big softy Rottweiler! 🏔️" },
-    cat: { name: "Simba", breed: "Persian", photo: "https://cdn.pixabay.com/photo/2016/12/30/17/27/cat-1941089_640.jpg", bio: "I'm Simba, a fluffy Persian prince! 🦁" },
+    dog: { name: "Rocky", breed: "Rottweiler", photo: "https://images.dog.ceo/breeds/rottweiler/n02106550_10174.jpg", bio: "I'm Rocky, a big softy Rottweiler! ðŸ”ï¸" },
+    cat: { name: "Simba", breed: "Persian", photo: "https://cdn.pixabay.com/photo/2016/12/30/17/27/cat-1941089_640.jpg", bio: "I'm Simba, a fluffy Persian prince! ðŸ¦" },
   },
   {
     email: "vote+10@iheartdogs.com",
     name: "Penny Lane",
-    dog: { name: "Penny", breed: "Dachshund", photo: "https://images.dog.ceo/breeds/dachshund/dachshund-2.jpg", bio: "I'm Penny, a tiny Dachshund with a big heart! 💕" },
-    cat: { name: "Bella", breed: "Scottish Fold", photo: "https://cdn.pixabay.com/photo/2019/11/08/11/36/kitten-4611189_640.jpg", bio: "I'm Bella, a cute Scottish Fold! 🎀" },
+    dog: { name: "Penny", breed: "Dachshund", photo: "https://images.dog.ceo/breeds/dachshund/dachshund-2.jpg", bio: "I'm Penny, a tiny Dachshund with a big heart! ðŸ’•" },
+    cat: { name: "Bella", breed: "Scottish Fold", photo: "https://cdn.pixabay.com/photo/2019/11/08/11/36/kitten-4611189_640.jpg", bio: "I'm Bella, a cute Scottish Fold! ðŸŽ€" },
   },
   {
     email: "vote+11@iheartdogs.com",
     name: "Tucker James",
-    dog: { name: "Tucker", breed: "Boxer", photo: "https://images.dog.ceo/breeds/boxer/n02108089_14898.jpg", bio: "I'm Tucker, a bouncy Boxer! 🥊" },
-    cat: { name: "Felix", breed: "Tabby", photo: "https://cdn.pixabay.com/photo/2014/04/13/20/49/cat-323262_640.jpg", bio: "I'm Felix, a classic tabby cat! 🐱" },
+    dog: { name: "Tucker", breed: "Boxer", photo: "https://images.dog.ceo/breeds/boxer/n02108089_14898.jpg", bio: "I'm Tucker, a bouncy Boxer! ðŸ¥Š" },
+    cat: { name: "Felix", breed: "Tabby", photo: "https://cdn.pixabay.com/photo/2014/04/13/20/49/cat-323262_640.jpg", bio: "I'm Felix, a classic tabby cat! ðŸ±" },
   },
   {
     email: "vote+12@iheartdogs.com",
     name: "Sadie Sunshine",
-    dog: { name: "Sadie", breed: "Shih Tzu", photo: "https://images.dog.ceo/breeds/shihtzu/n02086240_7832.jpg", bio: "I'm Sadie, a fluffy Shih Tzu! ☀️" },
-    cat: { name: "Smokey", breed: "Chartreux", photo: "https://cdn.pixabay.com/photo/2015/11/16/14/43/cat-1045782_640.jpg", bio: "I'm Smokey, a mysterious Chartreux! 🌫️" },
+    dog: { name: "Sadie", breed: "Shih Tzu", photo: "https://images.dog.ceo/breeds/shihtzu/n02086240_7832.jpg", bio: "I'm Sadie, a fluffy Shih Tzu! â˜€ï¸" },
+    cat: { name: "Smokey", breed: "Chartreux", photo: "https://cdn.pixabay.com/photo/2015/11/16/14/43/cat-1045782_640.jpg", bio: "I'm Smokey, a mysterious Chartreux! ðŸŒ«ï¸" },
   },
   {
     email: "vote+13@iheartdogs.com",
     name: "Finn Adventure",
-    dog: { name: "Finn", breed: "Border Collie", photo: "https://images.dog.ceo/breeds/collie-border/n02106166_3437.jpg", bio: "I'm Finn, the smartest Border Collie! 🧠" },
-    cat: { name: "Jasper", breed: "Birman", photo: "https://cdn.pixabay.com/photo/2017/12/21/12/26/glare-3031956_640.jpg", bio: "I'm Jasper, a gorgeous Birman! 💎" },
+    dog: { name: "Finn", breed: "Border Collie", photo: "https://images.dog.ceo/breeds/collie-border/n02106166_3437.jpg", bio: "I'm Finn, the smartest Border Collie! ðŸ§ " },
+    cat: { name: "Jasper", breed: "Birman", photo: "https://cdn.pixabay.com/photo/2017/12/21/12/26/glare-3031956_640.jpg", bio: "I'm Jasper, a gorgeous Birman! ðŸ’Ž" },
   },
   {
     email: "vote+14@iheartdogs.com",
     name: "Mochi Bear",
-    dog: { name: "Mochi", breed: "Pomeranian", photo: "https://images.dog.ceo/breeds/pomeranian/n02112018_10129.jpg", bio: "I'm Mochi, a tiny Pom with big fluff! 🍡" },
-    cat: { name: "Pepper", breed: "Calico", photo: "https://cdn.pixabay.com/photo/2019/03/22/17/05/cat-4073717_640.jpg", bio: "I'm Pepper, a colorful Calico! 🌶️" },
+    dog: { name: "Mochi", breed: "Pomeranian", photo: "https://images.dog.ceo/breeds/pomeranian/n02112018_10129.jpg", bio: "I'm Mochi, a tiny Pom with big fluff! ðŸ¡" },
+    cat: { name: "Pepper", breed: "Calico", photo: "https://cdn.pixabay.com/photo/2019/03/22/17/05/cat-4073717_640.jpg", bio: "I'm Pepper, a colorful Calico! ðŸŒ¶ï¸" },
   },
   {
     email: "vote+15@iheartdogs.com",
     name: "Scout Explorer",
-    dog: { name: "Scout", breed: "Bernese Mountain Dog", photo: "https://images.dog.ceo/breeds/mountain-bernese/n02107683_5425.jpg", bio: "I'm Scout, a gentle Bernese giant! 🏕️" },
-    cat: { name: "Tigger", breed: "Orange Tabby", photo: "https://cdn.pixabay.com/photo/2016/01/20/13/05/cat-1151519_640.jpg", bio: "I'm Tigger, always bouncing around! 🐯" },
+    dog: { name: "Scout", breed: "Bernese Mountain Dog", photo: "https://images.dog.ceo/breeds/mountain-bernese/n02107683_5425.jpg", bio: "I'm Scout, a gentle Bernese giant! ðŸ•ï¸" },
+    cat: { name: "Tigger", breed: "Orange Tabby", photo: "https://cdn.pixabay.com/photo/2016/01/20/13/05/cat-1151519_640.jpg", bio: "I'm Tigger, always bouncing around! ðŸ¯" },
   },
   {
     email: "vote+16@iheartdogs.com",
     name: "Chloe Buttons",
-    dog: { name: "Chloe", breed: "French Bulldog", photo: "https://images.dog.ceo/breeds/bulldog-french/n02108915_5482.jpg", bio: "I'm Chloe, a sassy Frenchie! 🎀" },
-    cat: { name: "Oreo", breed: "Tuxedo", photo: "https://cdn.pixabay.com/photo/2018/04/20/17/18/cat-3336579_640.jpg", bio: "I'm Oreo, black and white and loved all over! 🍪" },
+    dog: { name: "Chloe", breed: "French Bulldog", photo: "https://images.dog.ceo/breeds/bulldog-french/n02108915_5482.jpg", bio: "I'm Chloe, a sassy Frenchie! ðŸŽ€" },
+    cat: { name: "Oreo", breed: "Tuxedo", photo: "https://cdn.pixabay.com/photo/2018/04/20/17/18/cat-3336579_640.jpg", bio: "I'm Oreo, black and white and loved all over! ðŸª" },
   },
   {
     email: "vote+17@iheartdogs.com",
     name: "Charlie Waffles",
-    dog: { name: "Charlie", breed: "Cavalier King Charles", photo: "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_5765.jpg", bio: "I'm Charlie, a royal Cavalier! 🧇" },
-    cat: { name: "Leo", breed: "Maine Coon", photo: "https://cdn.pixabay.com/photo/2021/10/19/10/56/cat-6723256_640.jpg", bio: "I'm Leo, a big fluffy Maine Coon! 🦁" },
+    dog: { name: "Charlie", breed: "Cavalier King Charles", photo: "https://images.dog.ceo/breeds/spaniel-cocker/n02102318_5765.jpg", bio: "I'm Charlie, a royal Cavalier! ðŸ§‡" },
+    cat: { name: "Leo", breed: "Maine Coon", photo: "https://cdn.pixabay.com/photo/2021/10/19/10/56/cat-6723256_640.jpg", bio: "I'm Leo, a big fluffy Maine Coon! ðŸ¦" },
   },
   {
     email: "vote+18@iheartdogs.com",
     name: "Ziggy Stardust",
-    dog: { name: "Ziggy", breed: "Dalmatian", photo: "https://images.dog.ceo/breeds/dalmatian/cooper2.jpg", bio: "I'm Ziggy, a spotted Dalmatian rockstar! ⭐" },
-    cat: { name: "Cinnamon", breed: "Abyssinian", photo: "https://cdn.pixabay.com/photo/2017/09/25/13/12/cat-2785241_640.jpg", bio: "I'm Cinnamon, a warm Abyssinian! 🍂" },
+    dog: { name: "Ziggy", breed: "Dalmatian", photo: "https://images.dog.ceo/breeds/dalmatian/cooper2.jpg", bio: "I'm Ziggy, a spotted Dalmatian rockstar! â­" },
+    cat: { name: "Cinnamon", breed: "Abyssinian", photo: "https://cdn.pixabay.com/photo/2017/09/25/13/12/cat-2785241_640.jpg", bio: "I'm Cinnamon, a warm Abyssinian! ðŸ‚" },
   },
   {
     email: "vote+19@iheartdogs.com",
     name: "Maple Autumn",
-    dog: { name: "Maple", breed: "Samoyed", photo: "https://images.dog.ceo/breeds/samoyed/n02111889_10032.jpg", bio: "I'm Maple, a fluffy cloud Samoyed! 🍁" },
-    cat: { name: "Snowball", breed: "White Persian", photo: "https://cdn.pixabay.com/photo/2018/11/30/05/17/kitten-3847422_640.jpg", bio: "I'm Snowball, a pure white Persian! ❄️" },
+    dog: { name: "Maple", breed: "Samoyed", photo: "https://images.dog.ceo/breeds/samoyed/n02111889_10032.jpg", bio: "I'm Maple, a fluffy cloud Samoyed! ðŸ" },
+    cat: { name: "Snowball", breed: "White Persian", photo: "https://cdn.pixabay.com/photo/2018/11/30/05/17/kitten-3847422_640.jpg", bio: "I'm Snowball, a pure white Persian! â„ï¸" },
   },
 ];
 

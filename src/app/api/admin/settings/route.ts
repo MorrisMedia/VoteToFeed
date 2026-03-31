@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { getAllSettings, updateSetting } from "@/lib/admin-settings";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/settings
 export async function GET(req: NextRequest) {
   try {

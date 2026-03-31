@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import Stripe from "stripe";
 import { getStripeAsync } from "@/lib/stripe";
 import prisma from "@/lib/prisma";

@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -13,7 +15,7 @@ async function requireAdmin() {
   return session.user;
 }
 
-// GET /api/admin/api-keys — List all API keys
+// GET /api/admin/api-keys â€” List all API keys
 export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,7 +32,7 @@ export async function GET() {
   return NextResponse.json({ keys });
 }
 
-// POST /api/admin/api-keys — Create a new API key
+// POST /api/admin/api-keys â€” Create a new API key
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ key: rawKey, apiKey: { id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix, createdAt: apiKey.createdAt } }, { status: 201 });
 }
 
-// DELETE /api/admin/api-keys — Revoke an API key
+// DELETE /api/admin/api-keys â€” Revoke an API key
 export async function DELETE(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

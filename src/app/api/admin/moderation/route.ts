@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -10,7 +12,7 @@ async function requireAdmin() {
   return session.user;
 }
 
-// GET /api/admin/moderation — Get moderation queue + all comments
+// GET /api/admin/moderation â€” Get moderation queue + all comments
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,7 +88,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Invalid tab" }, { status: 400 });
 }
 
-// POST /api/admin/moderation — Actions (approve/reject spam, delete comment, ban user)
+// POST /api/admin/moderation â€” Actions (approve/reject spam, delete comment, ban user)
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest) {
 
   switch (action) {
     case "approve_comment": {
-      // Approve flagged comment → remove flag, keep comment visible
+      // Approve flagged comment â†’ remove flag, keep comment visible
       await prisma.flaggedComment.update({
         where: { id },
         data: { status: "APPROVED", reviewedBy: adminEmail, reviewedAt: new Date() },
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
     case "reject_comment": {
-      // Reject flagged comment → delete the comment
+      // Reject flagged comment â†’ delete the comment
       const flag = await prisma.flaggedComment.findUnique({ where: { id }, select: { commentId: true } });
       if (flag) {
         await prisma.flaggedComment.update({
