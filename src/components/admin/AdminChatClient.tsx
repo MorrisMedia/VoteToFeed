@@ -40,6 +40,7 @@ export function AdminChatClient() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,20 +100,24 @@ export function AdminChatClient() {
   async function sendAdminReply(convId: string) {
     if (!replyText.trim() || sendingReply) return;
     setSendingReply(true);
+    setReplyError(null);
     try {
       const res = await fetch("/api/admin/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: convId, message: replyText.trim() }),
       });
-      if (res.ok) {
-        setReplyText("");
-        // Reload the conversation to see the new message
-        await openConversation(convId);
-        loadConversations();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        setReplyError(errData?.error || "Failed to send reply. Please try again.");
+        return;
       }
+      setReplyText("");
+      // Reload the conversation to see the new message
+      await openConversation(convId);
+      loadConversations();
     } catch {
-      // ignore
+      setReplyError("Network error. Please check your connection and try again.");
     } finally {
       setSendingReply(false);
     }
@@ -235,6 +240,9 @@ export function AdminChatClient() {
               </button>
             </div>
             <p className="text-[10px] text-surface-400 mt-1">This reply will appear in the user&apos;s chat widget</p>
+            {replyError && (
+              <p className="text-[11px] text-red-600 mt-1 font-medium">{replyError}</p>
+            )}
           </div>
         )}
 

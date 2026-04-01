@@ -176,6 +176,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
     }
 
+    // Validate userId: if provided, verify it matches the authenticated session
+    let verifiedUserId: string | null = null;
+    let verifiedUserName: string | null = typeof userName === "string" ? userName : null;
+    let verifiedUserEmail: string | null = typeof userEmail === "string" ? userEmail : null;
+
+    if (userId) {
+      const { getServerSession } = await import("next-auth");
+      const { authOptions } = await import("@/lib/auth");
+      const session = await getServerSession(authOptions);
+      const sessionUser = session?.user as { id?: string; name?: string; email?: string } | undefined;
+
+      if (sessionUser && sessionUser.id === userId) {
+        verifiedUserId = userId;
+        verifiedUserName = sessionUser.name || verifiedUserName;
+        verifiedUserEmail = sessionUser.email || verifiedUserEmail;
+      }
+      // If userId doesn't match session, silently ignore it (don't trust client)
+    }
+
     const trimmedMessage = message.trim().slice(0, 1000);
 
     // Rate limit check
@@ -197,20 +216,20 @@ export async function POST(req: NextRequest) {
         data: {
           sessionId,
           lastMessage: trimmedMessage,
-          userName: typeof userName === "string" ? userName : null,
-          userEmail: typeof userEmail === "string" ? userEmail : null,
-          userId: typeof userId === "string" ? userId : null,
+          userName: verifiedUserName,
+          userEmail: verifiedUserEmail,
+          userId: verifiedUserId,
         },
         include: { messages: { orderBy: { createdAt: "asc" }, take: 50 } },
       });
-    } else if (userId && !conversation.userId) {
+    } else if (verifiedUserId && !conversation.userId) {
       // Link user if they logged in after starting the conversation
       await prisma.chatConversation.update({
         where: { id: conversation.id },
         data: {
-          userId,
-          userName: typeof userName === "string" ? userName : conversation.userName,
-          userEmail: typeof userEmail === "string" ? userEmail : conversation.userEmail,
+          userId: verifiedUserId,
+          userName: verifiedUserName || conversation.userName,
+          userEmail: verifiedUserEmail || conversation.userEmail,
         },
       });
     }
@@ -233,11 +252,11 @@ export async function POST(req: NextRequest) {
     history.push({ role: "user", content: trimmedMessage });
 
     // Build dynamic system prompt with live data + user context
-    const liveContext = await getLiveContext(userId || conversation.userId || undefined);
+    const liveContext = await getLiveContext(verifiedUserId || conversation.userId || undefined);
     let fullPrompt = CHAT_SYSTEM_PROMPT;
 
-    if (userName || conversation.userName) {
-      const name = userName || conversation.userName;
+    if (verifiedUserName || conversation.userName) {
+      const name = verifiedUserName || conversation.userName;
       fullPrompt += `\n\n--- USER INFO ---\nThe user's name is "${name}". They are logged in. Address them by their first name naturally.`;
     } else {
       fullPrompt += `\n\n--- USER INFO ---\nThis is an anonymous visitor (not logged in). Be welcoming and suggest creating a free account when appropriate.`;

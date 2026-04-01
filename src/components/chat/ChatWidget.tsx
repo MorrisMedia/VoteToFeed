@@ -188,6 +188,12 @@ export function ChatWidget() {
           userId: user?.id || null,
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const errMsg = errData?.error || "Something went wrong. Please try again.";
+        setMessages((prev) => [...prev, { role: "assistant", content: errMsg }]);
+        return;
+      }
       const data = await res.json();
       if (data.reply) {
         setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
