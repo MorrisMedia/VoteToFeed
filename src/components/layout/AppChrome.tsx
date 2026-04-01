@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 type Props = {
   children: React.ReactNode;
@@ -37,6 +38,7 @@ export function AppChrome({ children, shelterCount, animalType, mealsHelped }: P
       />
       <main className="flex-1">{children}</main>
       <Footer />
+      <ChatWidget />
     </>
   );
 }

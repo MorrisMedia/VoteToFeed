@@ -95,6 +95,7 @@ model User {
   notifications  UserNotificationPrefs?
   shelterPosts   ShelterPost[]
   passwordResetTokens PasswordResetToken[]
+  chatConversations ChatConversation[]
 }
 
 enum UserRole {
@@ -663,4 +664,47 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+// ─── AI CHAT SUPPORT ─────────────────────────────────────
+
+model ChatConversation {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique // browser session ID
+  userId      String?  // null for anonymous visitors
+  userName    String?  // visitor-provided name or user name
+  userEmail   String?
+  status      ChatStatus @default(OPEN)
+  lastMessage String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages ChatMessage[]
+
+  @@index([status, updatedAt])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           ChatRole // USER, ASSISTANT, or ADMIN
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+enum ChatStatus {
+  OPEN
+  CLOSED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  ADMIN
 }
