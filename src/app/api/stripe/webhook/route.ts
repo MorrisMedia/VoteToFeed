@@ -29,7 +29,7 @@ async function completePurchase({
   amount,
   meals,
 }: {
-  purchase: { id: string; status: string };
+  purchase: { id: string; status: string; userId: string; votes: number; amount: number; mealsProvided: number };
   stripePaymentId?: string | null;
   userId?: string;
   votes?: number;
@@ -37,27 +37,52 @@ async function completePurchase({
   meals?: number;
 }) {
   if (purchase.status === "COMPLETED") return;
-  if (!userId || !votes) return;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.purchase.update({
-      where: { id: purchase.id },
+  // Fall back to the Purchase record's own data when Stripe metadata is missing
+  const resolvedUserId = userId || purchase.userId;
+  const resolvedVotes = votes || purchase.votes;
+  const resolvedAmount = amount ?? purchase.amount;
+  const resolvedMeals = meals ?? purchase.mealsProvided;
+
+  if (!resolvedUserId || !resolvedVotes) {
+    console.error(`completePurchase: missing userId or votes for purchase ${purchase.id}`, {
+      metadataUserId: userId,
+      metadataVotes: votes,
+      purchaseUserId: purchase.userId,
+      purchaseVotes: purchase.votes,
+    });
+    return;
+  }
+
+  // Use updateMany with a status guard inside the transaction to prevent
+  // double-incrementing if both checkout.session.completed and
+  // payment_intent.succeeded fire at the same time.
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.purchase.updateMany({
+      where: { id: purchase.id, status: { not: "COMPLETED" } },
       data: {
         status: "COMPLETED",
         stripePaymentId: stripePaymentId || undefined,
       },
     });
 
+    // If no rows were updated, another webhook already completed this purchase
+    if (result.count === 0) return false;
+
     await tx.user.update({
-      where: { id: userId },
+      where: { id: resolvedUserId },
       data: {
-        paidVoteBalance: { increment: votes },
+        paidVoteBalance: { increment: resolvedVotes },
       },
     });
+
+    return true;
   });
 
+  if (!updated) return;
+
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: resolvedUserId },
     select: { email: true },
   });
 
@@ -65,9 +90,9 @@ async function completePurchase({
     const animalType = await getAnimalType();
     await sendPurchaseConfirmation(
       user.email,
-      votes,
-      amount || 0,
-      meals || 0,
+      resolvedVotes,
+      resolvedAmount || 0,
+      resolvedMeals || 0,
       animalType
     ).catch(console.error);
   }
@@ -104,7 +129,13 @@ export async function POST(req: NextRequest) {
         const metadata = (session.metadata || {}) as Record<string, string>;
         const purchase = await findPurchase(metadata, session.id);
 
-        if (!purchase) break;
+        if (!purchase) {
+          console.error("checkout.session.completed: no matching purchase found", {
+            metadata,
+            sessionId: session.id,
+          });
+          break;
+        }
 
         await completePurchase({
           purchase,
@@ -122,7 +153,13 @@ export async function POST(req: NextRequest) {
         const metadata = (intent.metadata || {}) as Record<string, string>;
         const purchase = await findPurchase(metadata, null);
 
-        if (!purchase) break;
+        if (!purchase) {
+          console.error("payment_intent.succeeded: no matching purchase found", {
+            metadata,
+            intentId: intent.id,
+          });
+          break;
+        }
 
         await completePurchase({
           purchase,
