@@ -50,6 +50,7 @@ async function getLiveContext(userId?: string) {
     weeklyMeals,
     topPets,
     userPets,
+    userData,
   ] = await Promise.all([
     prisma.petWeeklyStats.aggregate({
       where: { weekId },
@@ -81,6 +82,12 @@ async function getLiveContext(userId?: string) {
           },
         })
       : Promise.resolve([]),
+    userId
+      ? prisma.user.findUnique({
+          where: { id: userId },
+          select: { freeVotesRemaining: true, paidVoteBalance: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const lines: string[] = [];
@@ -112,6 +119,15 @@ async function getLiveContext(userId?: string) {
       const stats = p.weeklyStats[0];
       lines.push(`- ${p.name} (${p.type}) — ${stats?.totalVotes ?? 0} votes this week, rank #${stats?.rank ?? "unranked"}`);
     });
+  }
+
+  if (userData) {
+    lines.push(`\nThis user's vote balance:`);
+    lines.push(`- Free votes remaining this week: ${userData.freeVotesRemaining}`);
+    lines.push(`- Paid votes available: ${userData.paidVoteBalance}`);
+    if (userData.paidVoteBalance === 0) {
+      lines.push(`- HINT: This user has no paid votes. If they want more votes or want to help their pet win, suggest buying a vote package!`);
+    }
   }
 
   return lines.join("\n");
