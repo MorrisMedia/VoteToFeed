@@ -179,11 +179,15 @@ export function DashboardClient({
         {purchaseStatus && (
           <div className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
             purchaseStatus === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              ? recentPurchases.length > 0
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
               : "border-amber-200 bg-amber-50 text-amber-800"
           }`}>
             {purchaseStatus === "success"
-              ? `Payment received${purchaseTier ? ` for the ${purchaseTier.toLowerCase()} package` : ""}. Your votes were added to your balance.`
+              ? recentPurchases.length > 0
+                ? `Payment received${purchaseTier ? ` for the ${purchaseTier.toLowerCase()} package` : ""}. Your votes were added to your balance.`
+                : `Payment received${purchaseTier ? ` for the ${purchaseTier.toLowerCase()} package` : ""}. Your votes are being processed — please refresh in a moment.`
               : `Checkout cancelled${purchaseTier ? ` for the ${purchaseTier.toLowerCase()} package` : ""}. No charge was made.`}
           </div>
         )}

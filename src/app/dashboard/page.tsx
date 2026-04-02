@@ -12,6 +12,7 @@ import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId } from "@/lib/utils";
 import { getMealRate, getAnimalType } from "@/lib/admin-settings";
+import { getStripeAsync } from "@/lib/stripe";
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await getServerSession(authOptions);
@@ -19,6 +20,50 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const userId = (session.user as { id: string }).id;
   const weekId = getCurrentWeekId();
+
+  // Always complete any stuck PENDING purchases for this user.
+  // This covers cases where the Stripe webhook failed or was delayed.
+  // Only completes purchases that Stripe confirms were actually paid.
+  const pendingPurchases = await prisma.purchase.findMany({
+    where: { userId, status: "PENDING" },
+  });
+  if (pendingPurchases.length > 0) {
+    let stripe;
+    try {
+      stripe = await getStripeAsync();
+    } catch {
+      // Stripe not configured — skip auto-completion
+    }
+    if (stripe) {
+      for (const p of pendingPurchases) {
+        try {
+          // Verify with Stripe that this checkout session was actually paid
+          if (!p.stripeSessionId) continue;
+          const stripeSession = await stripe.checkout.sessions.retrieve(p.stripeSessionId);
+          if (stripeSession.payment_status !== "paid") continue;
+
+          await prisma.$transaction(async (tx) => {
+            const result = await tx.purchase.updateMany({
+              where: { id: p.id, status: "PENDING" },
+              data: {
+                status: "COMPLETED",
+                stripePaymentId: typeof stripeSession.payment_intent === "string"
+                  ? stripeSession.payment_intent
+                  : undefined,
+              },
+            });
+            if (result.count === 0) return;
+            await tx.user.update({
+              where: { id: userId },
+              data: { paidVoteBalance: { increment: p.votes } },
+            });
+          });
+        } catch (err) {
+          console.error(`Dashboard: failed to complete pending purchase ${p.id}:`, err);
+        }
+      }
+    }
+  }
 
   const [user, mealRate, animalType] = await Promise.all([
     prisma.user.findUnique({
