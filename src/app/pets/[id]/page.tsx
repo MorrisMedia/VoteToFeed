@@ -67,13 +67,18 @@ export async function generateMetadata({
     ...(rank ? { rank: String(rank) } : {}),
   });
   const ogImage = `${appUrl}/api/og?${ogParams.toString()}`;
+  const petUrl = `${appUrl}/pets/${params.id}`;
 
   return {
     title,
     description,
+    alternates: {
+      canonical: petUrl,
+    },
     openGraph: {
       title: `Vote for ${pet.name} to win! 🏆`,
       description,
+      url: petUrl,
       images: [{ url: ogImage, width: 1200, height: 630, alt: `Vote for ${pet.name}` }],
       type: "website",
       siteName: "Vote to Feed",
