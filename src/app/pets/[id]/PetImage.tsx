@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 // Generate a consistent color for a pet based on its ID
 function getPetPlaceholderColor(petId: string): string {
@@ -74,6 +74,14 @@ export function PetImage({
     return actualFallback;
   });
   const triedFallback = useRef(!hasValidSource);
+
+  // Reset state when src prop changes (e.g. navigating between pets)
+  useEffect(() => {
+    setImageLoaded(false);
+    setHasError(false);
+    setCurrentSrc(hasValidSource ? src : actualFallback);
+    triedFallback.current = !hasValidSource;
+  }, [src]);
 
   // Show placeholder when ALL image sources have failed
   const showPlaceholder = hasError;
