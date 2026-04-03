@@ -74,14 +74,19 @@ export function PetImage({
     return actualFallback;
   });
   const triedFallback = useRef(!hasValidSource);
+  const prevSrcRef = useRef(src);
 
-  // Reset state when src prop changes (e.g. navigating between pets)
+  // Reset state only when src prop actually changes (e.g. navigating between pets)
+  // Skips initial mount to avoid undoing imgRef's cached-image detection
   useEffect(() => {
-    setImageLoaded(false);
-    setHasError(false);
-    setCurrentSrc(hasValidSource ? src : actualFallback);
-    triedFallback.current = !hasValidSource;
-  }, [src]);
+    if (prevSrcRef.current !== src) {
+      setImageLoaded(false);
+      setHasError(false);
+      setCurrentSrc(hasValidSource ? src : actualFallback);
+      triedFallback.current = !hasValidSource;
+      prevSrcRef.current = src;
+    }
+  }, [src, hasValidSource, actualFallback]);
 
   // Show placeholder when ALL image sources have failed
   const showPlaceholder = hasError;
