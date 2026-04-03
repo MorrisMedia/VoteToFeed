@@ -39,8 +39,9 @@ export function ShareButtons({
       return;
     }
 
-    // Fallback: open share URL in same window on mobile, new tab on desktop
-    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+    // Use Facebook Share Dialog (not sharer.php) — properly opens share post in Facebook app on mobile
+    const fbAppId = "949563544407594";
+    const shareUrl = `https://www.facebook.com/dialog/share?app_id=${fbAppId}&href=${encodedUrl}&quote=${encodedText}&display=popup&redirect_uri=${encodedUrl}`;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
       window.location.href = shareUrl;
