@@ -26,21 +26,6 @@ export default async function OGImage({ params }: { params: { id: string } }) {
   const rank = pet?.weeklyStats?.[0]?.rank ? String(pet.weeklyStats[0].rank) : "";
   const photo = pet?.photos?.[0] || "";
 
-  // Pre-fetch the photo as base64 so ImageResponse doesn't have to do an external fetch
-  let photoSrc = "";
-  if (photo) {
-    try {
-      const res = await fetch(photo, { signal: AbortSignal.timeout(5000) });
-      if (res.ok) {
-        const buffer = await res.arrayBuffer();
-        const contentType = res.headers.get("content-type") || "image/jpeg";
-        photoSrc = `data:${contentType};base64,${Buffer.from(buffer).toString("base64")}`;
-      }
-    } catch {
-      // Photo fetch failed — will show placeholder
-    }
-  }
-
   return new ImageResponse(
     (
       <div
@@ -63,9 +48,9 @@ export default async function OGImage({ params }: { params: { id: string } }) {
             overflow: "hidden",
           }}
         >
-          {photoSrc ? (
+          {photo ? (
             <img
-              src={photoSrc}
+              src={photo}
               alt=""
               style={{
                 width: "500px",
