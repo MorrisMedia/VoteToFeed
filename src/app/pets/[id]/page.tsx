@@ -7,6 +7,7 @@ import { getCurrentWeekId } from "@/lib/utils";
 import { getAnimalType } from "@/lib/admin-settings";
 import { VoteButton } from "@/components/voting/VoteButton";
 import { CommentForm } from "@/components/pets/CommentForm";
+import { CommentList } from "@/components/pets/CommentList";
 import { rankSuffix, timeAgo } from "@/lib/utils";
 import { Metadata } from "next";
 import { ShareButtons } from "./ShareButtons";
@@ -117,8 +118,12 @@ export default async function PetDetailPage({
         take: 20,
         include: {
           user: { select: { name: true, image: true } },
+          _count: { select: { likes: true } },
           replies: {
-            include: { user: { select: { name: true, image: true } } },
+            include: {
+              user: { select: { name: true, image: true } },
+              _count: { select: { likes: true } },
+            },
             orderBy: { createdAt: "asc" },
           },
         },
@@ -139,6 +144,13 @@ export default async function PetDetailPage({
         })
         .then((u) => ({ free: u?.freeVotesRemaining ?? 0, paid: u?.paidVoteBalance ?? 0 }))
     : { free: 0, paid: 0 };
+
+  const currentUserId = session?.user ? (session.user as { id: string }).id : null;
+  const likedCommentIds = currentUserId
+    ? await prisma.commentLike
+        .findMany({ where: { userId: currentUserId }, select: { commentId: true } })
+        .then((rows) => new Set(rows.map((r) => r.commentId)))
+    : new Set<string>();
 
   const morePets = await prisma.pet.findMany({
     where: {
@@ -264,37 +276,22 @@ export default async function PetDetailPage({
             </p>
           </div>
         )}
-        <ul className="mt-5 space-y-0 divide-y divide-surface-100">
-          {pet.comments.map((c) => (
-            <li key={c.id} className="py-4">
-              <div className="flex gap-3">
-                <AvatarFallback
-                  image={c.user.image}
-                  name={c.user.name}
-                  className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                  fallbackClassName="w-11 h-11 rounded-full bg-surface-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-surface-500"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold text-surface-900">{abbreviateName(c.user.name)}</p>
-                    <p className="text-xs text-surface-600 font-medium">{timeAgo(new Date(c.createdAt))}</p>
-                  </div>
-                  <p className="text-base text-surface-800 font-medium mt-1">{c.text}</p>
-                  {c.replies.length > 0 && (
-                    <ul className="mt-3 ml-3 space-y-2 border-l-2 border-surface-100 pl-3">
-                      {c.replies.map((r) => (
-                        <li key={r.id}>
-                          <p className="text-xs font-medium text-surface-700">{abbreviateName(r.user.name)}</p>
-                          <p className="text-sm text-surface-700 font-medium">{r.text}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <CommentList
+          comments={pet.comments.map((c) => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+            likeCount: c._count.likes,
+            likedByMe: likedCommentIds.has(c.id),
+            replies: c.replies.map((r) => ({
+              ...r,
+              createdAt: r.createdAt.toISOString(),
+              likeCount: r._count.likes,
+              likedByMe: likedCommentIds.has(r.id),
+            })),
+          }))}
+          petId={pet.id}
+          isLoggedIn={!!session?.user}
+        />
       </section>
 
       {shuffled.length > 0 && (

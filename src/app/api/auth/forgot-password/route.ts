@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Forgot password error:", error);
+    console.error("[forgot-password] error:", error);
     return NextResponse.json({ ok: true });
   }
 }
