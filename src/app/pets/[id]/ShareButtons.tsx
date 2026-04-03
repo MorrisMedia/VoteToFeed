@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { trackVoteToFeedEvent } from "@/lib/meta-pixel";
 
 export function ShareButtons({
@@ -20,6 +20,34 @@ export function ShareButtons({
   const text = `Vote for ${petName} to win! Every vote helps feed shelter pets 🐾❤️`;
   const encodedUrl = encodeURIComponent(url);
   const encodedText = encodeURIComponent(text);
+
+  const handleFacebookShare = useCallback(() => {
+    trackVoteToFeedEvent("Share", {
+      content_name: "VoteToFeed_SocialShare",
+      content_category: "VoteToFeed_Viral",
+      value: 0.10,
+    });
+
+    // Use FB SDK dialog if available (works better on mobile)
+    const fb = (window as unknown as { FB?: { ui: (params: Record<string, string>) => void } }).FB;
+    if (fb) {
+      fb.ui({
+        method: "share",
+        href: url,
+        quote: text,
+      });
+      return;
+    }
+
+    // Fallback: open share URL in same window on mobile, new tab on desktop
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = shareUrl;
+    } else {
+      window.open(shareUrl, "_blank", "noopener,noreferrer,width=600,height=400");
+    }
+  }, [url, text, encodedUrl, encodedText]);
 
   async function copyLink() {
     try {
@@ -79,20 +107,13 @@ export function ShareButtons({
         </button>
 
         {/* Facebook */}
-        <a
-          href={`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackVoteToFeedEvent("Share", {
-            content_name: "VoteToFeed_SocialShare",
-            content_category: "VoteToFeed_Viral",
-            value: 0.10,
-          })}
+        <button
+          onClick={handleFacebookShare}
           className="flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl text-sm font-bold bg-[#1877F2] text-white hover:bg-[#166FE5] transition-colors"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           <span>Facebook</span>
-        </a>
+        </button>
 
         {/* Text / iMessage */}
         <a
