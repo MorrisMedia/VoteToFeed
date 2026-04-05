@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 type ProofItem = {
   name: string;
@@ -16,11 +16,26 @@ type SocialProofData = {
   totalVotes: number;
 };
 
+const STORAGE_KEY = "vtf_sp_state";
+
+function getStoredState(): { dismissed: boolean; lastShown: number; index: number } {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { dismissed: false, lastShown: 0, index: 0 };
+}
+
+function saveState(state: { dismissed: boolean; lastShown: number; index: number }) {
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
 export function SocialProofToast() {
+  const stored = useRef(getStoredState());
   const [data, setData] = useState<SocialProofData | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(stored.current.index);
   const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(stored.current.dismissed);
 
   const fetchData = useCallback(async () => {
     try {
@@ -38,17 +53,30 @@ export function SocialProofToast() {
   useEffect(() => {
     if (!data || data.recentPurchases.length === 0 || dismissed) return;
 
-    // Show first toast after 20 seconds
+    const now = Date.now();
+    const elapsed = now - stored.current.lastShown;
+    const MIN_INTERVAL = 60000; // 60s minimum between toasts
+
+    // If shown recently, wait the remaining time + buffer
+    const initialWait = elapsed < MIN_INTERVAL ? (MIN_INTERVAL - elapsed + 5000) : 20000;
+
     const initialDelay = setTimeout(() => {
       setVisible(true);
-      // Hide after 4 seconds
+      stored.current.lastShown = Date.now();
+      saveState({ ...stored.current, lastShown: Date.now() });
       setTimeout(() => setVisible(false), 4000);
-    }, 20000);
+    }, initialWait);
 
-    // Then cycle every 60-90 seconds (randomized)
+    // Then cycle every 60-90 seconds
     const interval = setInterval(() => {
       if (dismissed) return;
-      setCurrentIndex((prev) => (prev + 1) % data.recentPurchases.length);
+      setCurrentIndex((prev) => {
+        const next = (prev + 1) % data.recentPurchases.length;
+        stored.current.index = next;
+        stored.current.lastShown = Date.now();
+        saveState(stored.current);
+        return next;
+      });
       setVisible(true);
       setTimeout(() => setVisible(false), 4000);
     }, 60000 + Math.random() * 30000);
@@ -83,7 +111,10 @@ export function SocialProofToast() {
     >
       <div className="bg-white rounded-2xl shadow-2xl border border-surface-100 p-4 max-w-[320px] relative">
         <button
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            setDismissed(true);
+            saveState({ ...stored.current, dismissed: true });
+          }}
           className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full text-surface-300 hover:text-surface-500 hover:bg-surface-100 transition-colors text-xs"
           aria-label="Dismiss"
         >
