@@ -37,22 +37,27 @@ export default async function ContestDetailPage({
 
   // Count votes per pet across the ENTIRE contest date range (not just current week)
   const petIds = [...new Set(contest.entries.map((e) => e.petId))];
-  const contestVotes =
+  const dateFilter = { gte: contest.startDate, lte: contest.endDate };
+
+  const [contestVotes, anonVotes] =
     petIds.length > 0
-      ? await prisma.vote.groupBy({
-          by: ["petId"],
-          where: {
-            petId: { in: petIds },
-            createdAt: {
-              gte: contest.startDate,
-              lte: contest.endDate,
-            },
-          },
-          _sum: { quantity: true },
-        })
-      : [];
-  const votesByPet = new Map(
-    contestVotes.map((v) => [v.petId, v._sum.quantity ?? 0])
+      ? await Promise.all([
+          prisma.vote.groupBy({
+            by: ["petId"],
+            where: { petId: { in: petIds }, createdAt: dateFilter },
+            _sum: { quantity: true },
+          }),
+          prisma.anonymousVote.groupBy({
+            by: ["petId"],
+            where: { petId: { in: petIds }, createdAt: dateFilter },
+            _count: true,
+          }),
+        ])
+      : [[], []];
+
+  const votesByPet = new Map<string, number>();
+  for (const v of contestVotes) votesByPet.set(v.petId, (votesByPet.get(v.petId) ?? 0) + (v._sum.quantity ?? 0));
+  for (const v of anonVotes) votesByPet.set(v.petId, (votesByPet.get(v.petId) ?? 0) + v._count);
   );
 
   const daysLeft = Math.max(0, Math.ceil((contest.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));

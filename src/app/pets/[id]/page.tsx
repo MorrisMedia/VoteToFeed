@@ -133,8 +133,85 @@ export default async function PetDetailPage({
 
   if (!pet || !pet.isActive) notFound();
 
-  const weeklyVotes = pet.weeklyStats[0]?.totalVotes ?? 0;
-  const weeklyRank = pet.weeklyStats[0]?.rank ?? null;
+  // Find the active contest this pet is entered in
+  const now = new Date();
+  const activeContestEntry = await prisma.contestEntry.findFirst({
+    where: {
+      petId: pet.id,
+      contest: {
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+    },
+    include: {
+      contest: { select: { startDate: true, endDate: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Count total votes across the entire contest period (not just current week)
+  let totalContestVotes: number;
+  if (activeContestEntry) {
+    const dateFilter = {
+      gte: activeContestEntry.contest.startDate,
+      lte: activeContestEntry.contest.endDate,
+    };
+    const [voteAgg, anonCount] = await Promise.all([
+      prisma.vote.aggregate({
+        where: { petId: pet.id, createdAt: dateFilter },
+        _sum: { quantity: true },
+      }),
+      prisma.anonymousVote.count({
+        where: { petId: pet.id, createdAt: dateFilter },
+      }),
+    ]);
+    totalContestVotes = (voteAgg._sum.quantity ?? 0) + anonCount;
+  } else {
+    totalContestVotes = pet.weeklyStats[0]?.totalVotes ?? 0;
+  }
+
+  // Get rank based on contest leaderboard
+  let contestRank: number | null = null;
+  if (activeContestEntry) {
+    const contestDateFilter = {
+      gte: activeContestEntry.contest.startDate,
+      lte: activeContestEntry.contest.endDate,
+    };
+    const allContestEntries = await prisma.contestEntry.findMany({
+      where: { contestId: activeContestEntry.contestId },
+      select: { petId: true },
+    });
+    const allPetIds = allContestEntries.map((e) => e.petId);
+    const [allVotes, allAnonVotes] = await Promise.all([
+      prisma.vote.groupBy({
+        by: ["petId"],
+        where: { petId: { in: allPetIds }, createdAt: contestDateFilter },
+        _sum: { quantity: true },
+      }),
+      prisma.anonymousVote.groupBy({
+        by: ["petId"],
+        where: { petId: { in: allPetIds }, createdAt: contestDateFilter },
+        _count: true,
+      }),
+    ]);
+    const anonMap = new Map(allAnonVotes.map((v) => [v.petId, v._count]));
+    const sorted = allPetIds
+      .map((pid) => ({
+        petId: pid,
+        votes: (allVotes.find((v) => v.petId === pid)?._sum.quantity ?? 0) + (anonMap.get(pid) ?? 0),
+      }))
+      .sort((a, b) => b.votes - a.votes);
+    contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
+  }
+        votes: allVotes.find((v) => v.petId === pid)?._sum.quantity ?? 0,
+      }))
+      .sort((a, b) => b.votes - a.votes);
+    contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
+  }
+
+  const weeklyVotes = totalContestVotes;
+  const weeklyRank = contestRank ?? pet.weeklyStats[0]?.rank ?? null;
   const isOwner = session?.user && (session.user as { id?: string }).id === pet.userId;
   const freeVotes = session?.user
     ? await prisma.user
