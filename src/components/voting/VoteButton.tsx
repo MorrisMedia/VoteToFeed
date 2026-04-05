@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getCreativeSource, trackVoteCastEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 import { trackPostHogEvent } from "@/lib/analytics";
+import { VOTE_PACKAGES, calculateMeals } from "@/lib/utils";
 
 type Props = {
   petId: string;
@@ -15,6 +16,9 @@ type Props = {
   animalType?: string;
   weeklyRank?: number | null;
   petType?: string;
+  contestEndDate?: string | null;
+  votesNeededForTop3?: number | null;
+  mealRate?: number;
 };
 
 export function VoteButton({
@@ -26,13 +30,16 @@ export function VoteButton({
   animalType = "animals",
   weeklyRank,
   petType = "DOG",
+  contestEndDate,
+  votesNeededForTop3,
+  mealRate = 1,
 }: Props) {
   const { status } = useSession();
   const [loading, setLoading] = useState(false);
   const [voteCount, setVoteCount] = useState(initialWeeklyVotes);
   const [freeVotes, setFreeVotes] = useState(initialFree);
   const [paidVotes, setPaidVotes] = useState(initialPaid);
-  const [showPurchase, setShowPurchase] = useState(false);
+  const [showPurchase, setShowPurchase] = useState(!initialFree && !initialPaid);
   const [lastVoteType, setLastVoteType] = useState<"free" | "paid" | null>(null);
   const [animating, setAnimating] = useState(false);
 
@@ -75,11 +82,7 @@ export function VoteButton({
         paid_votes_remaining: paidVotes,
       });
 
-      if (status === "authenticated") {
-        setShowPurchase(true);
-      } else {
-        alert("You've used your 3 free votes this week");
-      }
+      setShowPurchase(true);
       return;
     }
 
@@ -167,7 +170,7 @@ export function VoteButton({
   if (isOwner) {
     return (
       <div className="space-y-3">
-        <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={false} />
+        <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={false} contestEndDate={contestEndDate} votesNeededForTop3={votesNeededForTop3} />
         <div className="rounded-xl border border-dashed border-surface-300 p-5 text-center bg-surface-50">
           <p className="text-sm text-surface-500 font-medium">This is your pet</p>
           <p className="text-xs text-surface-400 mt-1">Share the link so others can vote!</p>
@@ -178,7 +181,7 @@ export function VoteButton({
 
   return (
     <div className="space-y-3">
-      <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={animating} />
+      <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={animating} contestEndDate={contestEndDate} votesNeededForTop3={votesNeededForTop3} />
 
       <button
         onClick={handleVote}
@@ -243,13 +246,40 @@ export function VoteButton({
       )}
 
       {showPurchase && (
-        <div className="card p-4 border-brand-200 bg-brand-50 text-center animate-slide-up">
-          <p className="text-sm font-medium text-surface-800">
-            {freeVotes === 0 && paidVotes === 0 ? "Out of votes!" : "Want to vote more?"}
+        <div className="card p-4 border-brand-200 bg-gradient-to-b from-brand-50 to-white text-center animate-slide-up space-y-3">
+          <p className="text-sm font-bold text-surface-900">
+            {freeVotes === 0 && paidVotes === 0 ? "🔥 Out of votes!" : "⚡ Boost your votes"}
           </p>
-          <p className="text-xs text-surface-500 mt-1">Buy votes to keep supporting shelter pets</p>
-          <Link href="/dashboard#votes" className="btn-primary mt-3 text-xs px-4 py-2 inline-flex">
-            View vote packages
+          <p className="text-xs text-surface-500">Every vote feeds a shelter pet. Pick a package:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {VOTE_PACKAGES.slice(0, 3).map((pkg) => {
+              const meals = calculateMeals(pkg.price, mealRate);
+              const isBest = pkg.tier === "SUPPORTER";
+              return (
+                <Link
+                  key={pkg.tier}
+                  href={status === "authenticated" ? `/dashboard?buy=${pkg.tier}&pet=${petId}` : `/auth/signin?callbackUrl=/dashboard?buy=${pkg.tier}&pet=${petId}`}
+                  className={`relative rounded-xl p-3 text-center transition-all hover:shadow-md ${
+                    isBest
+                      ? "bg-brand-500 text-white ring-2 ring-brand-300 shadow-sm"
+                      : "bg-surface-50 hover:bg-surface-100 border border-surface-200"
+                  }`}
+                >
+                  {isBest && (
+                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-yellow-400 text-[9px] font-bold uppercase text-yellow-900 whitespace-nowrap">
+                      Best Value
+                    </span>
+                  )}
+                  <p className={`text-lg font-black ${isBest ? "text-white" : "text-surface-900"}`}>{pkg.votes}</p>
+                  <p className={`text-[10px] font-medium ${isBest ? "text-white/80" : "text-surface-400"}`}>votes</p>
+                  <p className={`text-sm font-bold mt-1 ${isBest ? "text-white" : "text-brand-600"}`}>${(pkg.price / 100).toFixed(2)}</p>
+                  <p className={`text-[10px] mt-0.5 ${isBest ? "text-white/70" : "text-accent-600"}`}>~{meals} meals</p>
+                </Link>
+              );
+            })}
+          </div>
+          <Link href="/dashboard#votes" className="text-[11px] text-brand-600 font-medium hover:underline">
+            View all packages →
           </Link>
         </div>
       )}
@@ -263,12 +293,16 @@ function VoteStats({
   weeklyRank,
   petType,
   animating,
+  contestEndDate,
+  votesNeededForTop3,
 }: {
   voteCount: number;
   animalType: string;
   weeklyRank?: number | null;
   petType: string;
   animating: boolean;
+  contestEndDate?: string | null;
+  votesNeededForTop3?: number | null;
 }) {
   const rankSuffix = (n: number) => {
     const s = ["th", "st", "nd", "rd"];
@@ -276,18 +310,44 @@ function VoteStats({
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
+  const daysLeft = contestEndDate
+    ? Math.max(0, Math.ceil((new Date(contestEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   return (
     <div className="card p-5">
-      <p className="text-xs font-medium text-surface-400 uppercase tracking-wider">Total</p>
-      <p className={`text-5xl font-black text-surface-900 mt-1 tabular-nums transition-transform ${animating ? "scale-110 text-brand-600" : ""}`}>
-        {voteCount.toLocaleString()}
-        <span className="text-lg font-semibold text-surface-500 ml-1.5">votes</span>
-      </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-surface-400 uppercase tracking-wider">Total</p>
+          <p className={`text-5xl font-black text-surface-900 mt-1 tabular-nums transition-transform ${animating ? "scale-110 text-brand-600" : ""}`}>
+            {voteCount.toLocaleString()}
+            <span className="text-lg font-semibold text-surface-500 ml-1.5">votes</span>
+          </p>
+        </div>
+        {daysLeft != null && daysLeft > 0 && (
+          <div className="text-right flex-shrink-0">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${daysLeft <= 3 ? "bg-red-100 text-red-700 animate-pulse" : daysLeft <= 7 ? "bg-amber-100 text-amber-700" : "bg-surface-100 text-surface-600"}`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              {daysLeft}d left
+            </div>
+          </div>
+        )}
+      </div>
+
       {weeklyRank != null && weeklyRank > 0 && (
         <p className="text-lg font-semibold text-surface-500 mt-1">
           {rankSuffix(weeklyRank)} in National {petType === "DOG" ? "Dog" : petType === "CAT" ? "Cat" : "Pet"} Contest
         </p>
       )}
+
+      {votesNeededForTop3 != null && votesNeededForTop3 > 0 && weeklyRank != null && weeklyRank > 3 && (
+        <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+          <p className="text-xs font-bold text-amber-800">
+            🏆 Only {votesNeededForTop3} vote{votesNeededForTop3 !== 1 ? "s" : ""} away from Top 3!
+          </p>
+        </div>
+      )}
+
       <div className="mt-3 pt-3 border-t border-surface-100">
         <p className="text-xs text-accent-600 font-medium">
           {voteCount > 0 ? `${voteCount} votes for shelter ${animalType}` : `Vote to help shelter ${animalType}`}
