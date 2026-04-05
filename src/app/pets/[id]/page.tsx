@@ -204,11 +204,6 @@ export default async function PetDetailPage({
       .sort((a, b) => b.votes - a.votes);
     contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
   }
-        votes: allVotes.find((v) => v.petId === pid)?._sum.quantity ?? 0,
-      }))
-      .sort((a, b) => b.votes - a.votes);
-    contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
-  }
 
   const weeklyVotes = totalContestVotes;
   const weeklyRank = contestRank ?? pet.weeklyStats[0]?.rank ?? null;

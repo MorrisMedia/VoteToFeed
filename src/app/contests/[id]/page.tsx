@@ -58,7 +58,6 @@ export default async function ContestDetailPage({
   const votesByPet = new Map<string, number>();
   for (const v of contestVotes) votesByPet.set(v.petId, (votesByPet.get(v.petId) ?? 0) + (v._sum.quantity ?? 0));
   for (const v of anonVotes) votesByPet.set(v.petId, (votesByPet.get(v.petId) ?? 0) + v._count);
-  );
 
   const daysLeft = Math.max(0, Math.ceil((contest.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   const hasEnded = contest.endDate < now;
