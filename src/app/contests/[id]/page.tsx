@@ -3,7 +3,7 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { PetCard } from "@/components/pets/PetCard";
 import { getAnimalType } from "@/lib/admin-settings";
-import { getCurrentWeekId, formatDisplayName } from "@/lib/utils";
+import { formatDisplayName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,6 @@ export default async function ContestDetailPage({
   params: { id: string };
   searchParams?: { reentry?: string; petId?: string };
 }) {
-  const weekId = getCurrentWeekId();
   const animalType = await getAnimalType();
   const now = new Date();
 
@@ -26,7 +25,6 @@ export default async function ContestDetailPage({
         include: {
           pet: {
             include: {
-              weeklyStats: { where: { weekId }, take: 1 },
               user: { select: { name: true } },
             },
           },
@@ -37,6 +35,26 @@ export default async function ContestDetailPage({
 
   if (!contest) notFound();
 
+  // Count votes per pet across the ENTIRE contest date range (not just current week)
+  const petIds = [...new Set(contest.entries.map((e) => e.petId))];
+  const contestVotes =
+    petIds.length > 0
+      ? await prisma.vote.groupBy({
+          by: ["petId"],
+          where: {
+            petId: { in: petIds },
+            createdAt: {
+              gte: contest.startDate,
+              lte: contest.endDate,
+            },
+          },
+          _sum: { quantity: true },
+        })
+      : [];
+  const votesByPet = new Map(
+    contestVotes.map((v) => [v.petId, v._sum.quantity ?? 0])
+  );
+
   const daysLeft = Math.max(0, Math.ceil((contest.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   const hasEnded = contest.endDate < now;
   const prizeTotal = contest.prizes.reduce((s, p) => s + p.value, 0);
@@ -44,8 +62,8 @@ export default async function ContestDetailPage({
   const sortedEntries = contest.entries
     .filter((e) => e.pet.isActive)
     .sort((a, b) => {
-      const aVotes = a.pet.weeklyStats[0]?.totalVotes ?? 0;
-      const bVotes = b.pet.weeklyStats[0]?.totalVotes ?? 0;
+      const aVotes = votesByPet.get(a.petId) ?? 0;
+      const bVotes = votesByPet.get(b.petId) ?? 0;
       return bVotes - aVotes;
     });
 
@@ -141,7 +159,7 @@ export default async function ContestDetailPage({
                     state={entry.pet.state}
                     photos={entry.pet.photos}
                     type={entry.pet.type}
-                    weeklyVotes={entry.pet.weeklyStats[0]?.totalVotes ?? 0}
+                    weeklyVotes={votesByPet.get(entry.petId) ?? 0}
                     weeklyRank={i + 1}
                     isNew={Date.now() - new Date(entry.pet.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000}
                     animalType={animalType}
