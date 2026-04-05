@@ -66,6 +66,14 @@ export function DashboardClient({
     if (hash && validTabs.includes(hash)) {
       setActiveTab(hash);
     }
+
+    // Auto-trigger checkout from ?buy=TIER query param (from VoteButton packages)
+    const params = new URLSearchParams(window.location.search);
+    const buyTier = params.get("buy");
+    if (buyTier && VOTE_PACKAGES.some((pkg) => pkg.tier === buyTier)) {
+      setActiveTab("votes");
+      handleBuyVotes(buyTier);
+    }
   }, []);
 
   useEffect(() => {
