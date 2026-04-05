@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId } from "@/lib/utils";
-import { getAnimalType } from "@/lib/admin-settings";
+import { getAnimalType, getMealRate } from "@/lib/admin-settings";
 import { VoteButton } from "@/components/voting/VoteButton";
 import { CommentForm } from "@/components/pets/CommentForm";
 import { CommentList } from "@/components/pets/CommentList";
@@ -207,6 +207,34 @@ export default async function PetDetailPage({
 
   const weeklyVotes = totalContestVotes;
   const weeklyRank = contestRank ?? pet.weeklyStats[0]?.rank ?? null;
+
+  // Calculate votes needed for top 3 (for competitive nudge)
+  let votesNeededForTop3: number | null = null;
+  if (activeContestEntry && weeklyRank != null && weeklyRank > 3) {
+    const contestDateFilter2 = {
+      gte: activeContestEntry.contest.startDate,
+      lte: activeContestEntry.contest.endDate,
+    };
+    const allEntries2 = await prisma.contestEntry.findMany({
+      where: { contestId: activeContestEntry.contestId },
+      select: { petId: true },
+    });
+    const petIds2 = allEntries2.map((e) => e.petId);
+    const [vg, ag] = await Promise.all([
+      prisma.vote.groupBy({ by: ["petId"], where: { petId: { in: petIds2 }, createdAt: contestDateFilter2 }, _sum: { quantity: true } }),
+      prisma.anonymousVote.groupBy({ by: ["petId"], where: { petId: { in: petIds2 }, createdAt: contestDateFilter2 }, _count: true }),
+    ]);
+    const am = new Map(ag.map((v) => [v.petId, v._count]));
+    const ranked = petIds2
+      .map((pid) => (vg.find((v) => v.petId === pid)?._sum.quantity ?? 0) + (am.get(pid) ?? 0))
+      .sort((a, b) => b - a);
+    const thirdPlaceVotes = ranked[2] ?? 0;
+    votesNeededForTop3 = Math.max(0, thirdPlaceVotes - totalContestVotes + 1);
+  }
+
+  const contestEndDate = activeContestEntry?.contest.endDate?.toISOString() ?? null;
+  const mealRate = await getMealRate();
+
   const isOwner = session?.user && (session.user as { id?: string }).id === pet.userId;
   const freeVotes = session?.user
     ? await prisma.user
@@ -306,6 +334,9 @@ export default async function PetDetailPage({
             animalType={animalType}
             weeklyRank={weeklyRank}
             petType={pet.type}
+            contestEndDate={contestEndDate}
+            votesNeededForTop3={votesNeededForTop3}
+            mealRate={mealRate}
           />
 
           {pet.votes.length > 0 && (
