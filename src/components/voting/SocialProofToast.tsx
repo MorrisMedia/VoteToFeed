@@ -38,20 +38,20 @@ export function SocialProofToast() {
   useEffect(() => {
     if (!data || data.recentPurchases.length === 0 || dismissed) return;
 
-    // Show first toast after 8 seconds
+    // Show first toast after 20 seconds
     const initialDelay = setTimeout(() => {
       setVisible(true);
-      // Hide after 5 seconds
-      setTimeout(() => setVisible(false), 5000);
-    }, 8000);
+      // Hide after 4 seconds
+      setTimeout(() => setVisible(false), 4000);
+    }, 20000);
 
-    // Then cycle every 25-40 seconds (randomized)
+    // Then cycle every 60-90 seconds (randomized)
     const interval = setInterval(() => {
       if (dismissed) return;
       setCurrentIndex((prev) => (prev + 1) % data.recentPurchases.length);
       setVisible(true);
-      setTimeout(() => setVisible(false), 5000);
-    }, 25000 + Math.random() * 15000);
+      setTimeout(() => setVisible(false), 4000);
+    }, 60000 + Math.random() * 30000);
 
     return () => {
       clearTimeout(initialDelay);
