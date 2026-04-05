@@ -8,6 +8,7 @@ import { getAnimalType } from "@/lib/admin-settings";
 import "./globals.css";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { MetaPixel } from "@/components/providers/MetaPixel";
+import { SocialProofToast } from "@/components/voting/SocialProofToast";
 import { AppChrome } from "@/components/layout/AppChrome";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -121,6 +122,7 @@ export default async function RootLayout({
               mealsHelped={stats.meals}
             >
               {children}
+              <SocialProofToast />
             </AppChrome>
           </PostHogProvider>
         </SessionProvider>

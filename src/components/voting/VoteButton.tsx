@@ -6,9 +6,11 @@ import Link from "next/link";
 import { getCreativeSource, trackVoteCastEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 import { trackPostHogEvent } from "@/lib/analytics";
 import { VOTE_PACKAGES, calculateMeals } from "@/lib/utils";
+import { ImpactModal } from "./ImpactModal";
 
 type Props = {
   petId: string;
+  petName?: string;
   isOwner: boolean;
   initialWeeklyVotes: number;
   freeVotesRemaining?: number;
@@ -23,6 +25,7 @@ type Props = {
 
 export function VoteButton({
   petId,
+  petName,
   isOwner,
   initialWeeklyVotes,
   freeVotesRemaining: initialFree = 0,
@@ -42,6 +45,8 @@ export function VoteButton({
   const [showPurchase, setShowPurchase] = useState(!initialFree && !initialPaid);
   const [lastVoteType, setLastVoteType] = useState<"free" | "paid" | null>(null);
   const [animating, setAnimating] = useState(false);
+  const [showImpactModal, setShowImpactModal] = useState(false);
+  const [impactVoteCount, setImpactVoteCount] = useState(0);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -127,6 +132,13 @@ export function VoteButton({
 
         setAnimating(true);
         setTimeout(() => setAnimating(false), 600);
+
+        // Show impact modal after every 3rd vote or when out of votes
+        const newVoteCount = data.pet.weeklyVotes;
+        if (newVoteCount % 3 === 0 || (data.user.freeVotesRemaining === 0 && data.user.paidVoteBalance === 0)) {
+          setImpactVoteCount(newVoteCount);
+          setTimeout(() => setShowImpactModal(true), 800);
+        }
 
         if (data.user.freeVotesRemaining === 0 && data.user.paidVoteBalance === 0 && status === "authenticated") {
           setTimeout(() => {
@@ -283,6 +295,18 @@ export function VoteButton({
           </Link>
         </div>
       )}
+
+      {/* Impact Modal */}
+      <ImpactModal
+        open={showImpactModal}
+        onClose={() => setShowImpactModal(false)}
+        voteCount={impactVoteCount || voteCount}
+        petName={petName}
+        petId={petId}
+        isAuthenticated={status === "authenticated"}
+        mealRate={mealRate}
+        animalType={animalType}
+      />
     </div>
   );
 }
@@ -341,18 +365,34 @@ function VoteStats({
       )}
 
       {votesNeededForTop3 != null && votesNeededForTop3 > 0 && weeklyRank != null && weeklyRank > 3 && (
-        <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
-          <p className="text-xs font-bold text-amber-800">
-            🏆 Only {votesNeededForTop3} vote{votesNeededForTop3 !== 1 ? "s" : ""} away from Top 3!
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-amber-800">🏆 Top 3 Prize Zone</p>
+            <p className="text-xs font-bold text-amber-700">
+              {votesNeededForTop3} vote{votesNeededForTop3 !== 1 ? "s" : ""} away
+            </p>
+          </div>
+          <div className="relative h-3 rounded-full bg-surface-100 overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-700"
+              style={{ width: `${Math.min(95, Math.max(5, (voteCount / (voteCount + votesNeededForTop3)) * 100))}%` }}
+            />
+            <div className="absolute inset-y-0 right-0 w-[5%] rounded-r-full bg-gradient-to-r from-emerald-400 to-emerald-500 flex items-center justify-center">
+              <span className="text-[7px] font-black text-white">🏆</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-surface-400 text-center">
+            Just {votesNeededForTop3} more vote{votesNeededForTop3 !== 1 ? "s" : ""} to win prizes!
           </p>
         </div>
       )}
 
       <div className="mt-3 pt-3 border-t border-surface-100">
         <p className="text-xs text-accent-600 font-medium">
-          {voteCount > 0 ? `${voteCount} votes for shelter ${animalType}` : `Vote to help shelter ${animalType}`}
+          {voteCount > 0 ? `🐾 ${voteCount} meals for shelter ${animalType}` : `Vote to help shelter ${animalType}`}
         </p>
       </div>
+
     </div>
   );
 }

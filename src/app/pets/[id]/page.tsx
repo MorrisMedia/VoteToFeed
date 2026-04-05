@@ -327,6 +327,7 @@ export default async function PetDetailPage({
 
           <VoteButton
             petId={pet.id}
+            petName={pet.name}
             isOwner={!!isOwner}
             initialWeeklyVotes={weeklyVotes}
             freeVotesRemaining={freeVotes.free}
