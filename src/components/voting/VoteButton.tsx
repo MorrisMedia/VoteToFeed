@@ -278,7 +278,7 @@ function VoteStats({
 
   return (
     <div className="card p-5">
-      <p className="text-xs font-medium text-surface-400 uppercase tracking-wider">This week</p>
+      <p className="text-xs font-medium text-surface-400 uppercase tracking-wider">Total</p>
       <p className={`text-5xl font-black text-surface-900 mt-1 tabular-nums transition-transform ${animating ? "scale-110 text-brand-600" : ""}`}>
         {voteCount.toLocaleString()}
         <span className="text-lg font-semibold text-surface-500 ml-1.5">votes</span>

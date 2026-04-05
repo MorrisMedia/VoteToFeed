@@ -17,6 +17,35 @@ import { sendBatchedVoteAlert } from "@/lib/email";
 // How long (ms) before we send another vote alert for the same pet
 const VOTE_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
+/** Return total votes for a pet across the active contest period */
+async function getContestTotalVotes(petId: string): Promise<number> {
+  const now = new Date();
+  const entry = await prisma.contestEntry.findFirst({
+    where: {
+      petId,
+      contest: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
+    },
+    include: { contest: { select: { startDate: true, endDate: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!entry) return 0;
+  const agg = await prisma.vote.aggregate({
+    where: {
+      petId,
+      createdAt: { gte: entry.contest.startDate, lte: entry.contest.endDate },
+    },
+    _sum: { quantity: true },
+  });
+  // Also count anonymous votes in the same window
+  const anonAgg = await prisma.anonymousVote.count({
+    where: {
+      petId,
+      createdAt: { gte: entry.contest.startDate, lte: entry.contest.endDate },
+    },
+  });
+  return (agg._sum.quantity ?? 0) + anonAgg;
+}
+
 async function triggerVoteAlert(petId: string, ownerId: string, ownerEmail: string, ownerName: string, weeklyVotes: number) {
   const now = new Date();
   const cooldown = await prisma.voteEmailCooldown.findUnique({
@@ -227,6 +256,9 @@ export async function POST(req: NextRequest) {
       const mealRate = await getMealRate();
       const animalType = await getAnimalType();
 
+      // Get total votes across the entire contest period
+      const contestTotal = await getContestTotalVotes(petId);
+
       // Fire-and-forget vote alert (debounced — 1 email per 6h per pet)
       if (pet.user.email && pet.userId !== userId) {
         triggerVoteAlert(
@@ -234,7 +266,7 @@ export async function POST(req: NextRequest) {
           pet.userId,
           pet.user.email,
           pet.user.name ?? "",
-          updatedStats?.totalVotes ?? 1
+          contestTotal
         );
       }
 
@@ -246,7 +278,7 @@ export async function POST(req: NextRequest) {
           quantity: votesToCast,
         },
         pet: {
-          weeklyVotes: updatedStats?.totalVotes || 0,
+          weeklyVotes: contestTotal,
         },
         user: {
           freeVotesRemaining: updatedUser?.freeVotesRemaining || 0,
@@ -312,6 +344,9 @@ export async function POST(req: NextRequest) {
     const animalType = await getAnimalType();
     const remainingAnonymousVotes = Math.max(0, ANONYMOUS_VOTE_LIMIT - (anonymousVotesUsed + 1));
 
+    // Get total votes across the entire contest period
+    const contestTotal = await getContestTotalVotes(petId);
+
     return NextResponse.json({
       success: true,
       vote: {
@@ -320,7 +355,7 @@ export async function POST(req: NextRequest) {
         isAnonymous: true,
       },
       pet: {
-        weeklyVotes: updatedStats.totalVotes || 0,
+        weeklyVotes: contestTotal,
       },
       user: {
         freeVotesRemaining: remainingAnonymousVotes,
