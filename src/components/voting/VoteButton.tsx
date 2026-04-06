@@ -50,6 +50,7 @@ export function VoteButton({
   const [showImpactModal, setShowImpactModal] = useState(false);
   const [impactVoteCount, setImpactVoteCount] = useState(0);
   const [navigatingPkg, setNavigatingPkg] = useState<string | null>(null);
+  const noVotesLeft = freeVotes === 0 && paidVotes === 0;
 
   useEffect(() => {
     if (status === "loading") return;
@@ -90,7 +91,9 @@ export function VoteButton({
         paid_votes_remaining: paidVotes,
       });
 
-      setShowPurchase(true);
+      // Show impact modal (with upsell) every time they click with 0 votes
+      setImpactVoteCount(voteCount);
+      setShowImpactModal(true);
       return;
     }
 
@@ -136,9 +139,15 @@ export function VoteButton({
         setAnimating(true);
         setTimeout(() => setAnimating(false), 600);
 
-        // Show impact modal after every 3rd vote or when out of votes
+        // Show impact modal: every 3 votes under 10, every 10 after that, or when out of votes
         const newVoteCount = data.pet.weeklyVotes;
-        if (newVoteCount % 3 === 0 || (data.user.freeVotesRemaining === 0 && data.user.paidVoteBalance === 0)) {
+        const outOfVotes = data.user.freeVotesRemaining === 0 && data.user.paidVoteBalance === 0;
+        const shouldShowModal =
+          outOfVotes ||
+          (newVoteCount < 10 && newVoteCount % 3 === 0) ||
+          (newVoteCount >= 10 && newVoteCount % 10 === 0);
+
+        if (shouldShowModal) {
           setImpactVoteCount(newVoteCount);
           setTimeout(() => setShowImpactModal(true), 800);
         }
@@ -180,7 +189,7 @@ export function VoteButton({
     } finally {
       setLoading(false);
     }
-  }, [freeVotes, hasVotes, paidVotes, petId, petType, status]);
+  }, [freeVotes, hasVotes, paidVotes, petId, petType, status, voteCount]);
 
   return (
     <div className="space-y-3">
@@ -310,6 +319,7 @@ export function VoteButton({
         isAuthenticated={status === "authenticated"}
         mealRate={mealRate}
         animalType={animalType}
+        outOfVotes={noVotesLeft}
       />
     </div>
   );
