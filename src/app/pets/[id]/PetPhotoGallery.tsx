@@ -184,28 +184,24 @@ export function PetPhotoGallery({
           onClose={() => setLightboxOpen(false)}
           petId={petId}
           weeklyVotes={weeklyVotes}
-          canVote={canVote && !isOwner}
+          canVote={canVote}
           votesRemaining={votesRemaining}
-          onVote={
-            !isOwner
-              ? async () => {
-                  try {
-                    const res = await fetch("/api/votes", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ petId, quantity: 1 }),
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                      return { success: true, newVoteCount: data.pet.weeklyVotes };
-                    }
-                    return { success: false };
-                  } catch {
-                    return { success: false };
-                  }
-                }
-              : undefined
-          }
+          onVote={async () => {
+            try {
+              const res = await fetch("/api/votes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ petId, quantity: 1 }),
+              });
+              const data = await res.json();
+              if (res.ok) {
+                return { success: true, newVoteCount: data.pet.weeklyVotes };
+              }
+              return { success: false };
+            } catch {
+              return { success: false };
+            }
+          }}
         />
       )}
     </div>

@@ -179,18 +179,6 @@ export function VoteButton({
     }
   }, [freeVotes, hasVotes, paidVotes, petId, petType, status]);
 
-  if (isOwner) {
-    return (
-      <div className="space-y-3">
-        <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={false} contestEndDate={contestEndDate} votesNeededForTop3={votesNeededForTop3} />
-        <div className="rounded-xl border border-dashed border-surface-300 p-5 text-center bg-surface-50">
-          <p className="text-sm text-surface-500 font-medium">This is your pet</p>
-          <p className="text-xs text-surface-400 mt-1">Share the link so others can vote!</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={animating} contestEndDate={contestEndDate} votesNeededForTop3={votesNeededForTop3} />

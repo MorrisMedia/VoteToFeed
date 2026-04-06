@@ -145,13 +145,6 @@ export async function POST(req: NextRequest) {
     if (session?.user) {
       const userId = (session.user as Record<string, unknown>).id as string;
 
-      if (pet.userId === userId) {
-        return NextResponse.json(
-          { error: "Cannot vote for your own pet" },
-          { status: 400 }
-        );
-      }
-
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
