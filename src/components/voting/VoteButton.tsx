@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCreativeSource, trackVoteCastEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 import { trackPostHogEvent } from "@/lib/analytics";
@@ -38,6 +39,7 @@ export function VoteButton({
   mealRate = 1,
 }: Props) {
   const { status } = useSession();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [voteCount, setVoteCount] = useState(initialWeeklyVotes);
   const [freeVotes, setFreeVotes] = useState(initialFree);
@@ -47,6 +49,7 @@ export function VoteButton({
   const [animating, setAnimating] = useState(false);
   const [showImpactModal, setShowImpactModal] = useState(false);
   const [impactVoteCount, setImpactVoteCount] = useState(0);
+  const [navigatingPkg, setNavigatingPkg] = useState<string | null>(null);
   const noVotesLeft = freeVotes === 0 && paidVotes === 0;
 
   useEffect(() => {
@@ -265,25 +268,38 @@ export function VoteButton({
               const meals = calculateMeals(pkg.price, mealRate);
               const isBest = pkg.tier === "SUPPORTER";
               return (
-                <Link
+                <button
                   key={pkg.tier}
-                  href={status === "authenticated" ? `/dashboard?buy=${pkg.tier}&pet=${petId}` : `/auth/signin?callbackUrl=/dashboard?buy=${pkg.tier}&pet=${petId}`}
-                  className={`relative rounded-xl p-3 text-center transition-all hover:shadow-md ${
+                  onClick={() => {
+                    setNavigatingPkg(pkg.tier);
+                    const url = status === "authenticated" ? `/dashboard?buy=${pkg.tier}&pet=${petId}` : `/auth/signin?callbackUrl=/dashboard?buy=${pkg.tier}&pet=${petId}`;
+                    router.push(url);
+                  }}
+                  disabled={!!navigatingPkg}
+                  className={`relative rounded-xl p-3 text-center transition-all hover:shadow-md disabled:opacity-70 ${
                     isBest
                       ? "bg-brand-500 text-white ring-2 ring-brand-300 shadow-sm"
                       : "bg-surface-50 hover:bg-surface-100 border border-surface-200"
                   }`}
                 >
-                  {isBest && (
-                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-yellow-400 text-[9px] font-bold uppercase text-yellow-900 whitespace-nowrap">
-                      Best Value
-                    </span>
+                  {navigatingPkg === pkg.tier ? (
+                    <div className="flex items-center justify-center py-3">
+                      <div className={`w-5 h-5 rounded-full border-2 ${isBest ? "border-white border-t-transparent" : "border-brand-500 border-t-transparent"} animate-spin`} />
+                    </div>
+                  ) : (
+                    <>
+                      {isBest && (
+                        <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-yellow-400 text-[9px] font-bold uppercase text-yellow-900 whitespace-nowrap">
+                          Best Value
+                        </span>
+                      )}
+                      <p className={`text-lg font-black ${isBest ? "text-white" : "text-surface-900"}`}>{pkg.votes}</p>
+                      <p className={`text-[10px] font-medium ${isBest ? "text-white/80" : "text-surface-400"}`}>votes</p>
+                      <p className={`text-sm font-bold mt-1 ${isBest ? "text-white" : "text-brand-600"}`}>${(pkg.price / 100).toFixed(2)}</p>
+                      <p className={`text-[10px] mt-0.5 ${isBest ? "text-white/70" : "text-accent-600"}`}>~{meals} meals</p>
+                    </>
                   )}
-                  <p className={`text-lg font-black ${isBest ? "text-white" : "text-surface-900"}`}>{pkg.votes}</p>
-                  <p className={`text-[10px] font-medium ${isBest ? "text-white/80" : "text-surface-400"}`}>votes</p>
-                  <p className={`text-sm font-bold mt-1 ${isBest ? "text-white" : "text-brand-600"}`}>${(pkg.price / 100).toFixed(2)}</p>
-                  <p className={`text-[10px] mt-0.5 ${isBest ? "text-white/70" : "text-accent-600"}`}>~{meals} meals</p>
-                </Link>
+                </button>
               );
             })}
           </div>

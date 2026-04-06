@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { VOTE_PACKAGES, calculateMeals } from "@/lib/utils";
 
@@ -48,12 +49,15 @@ export function ImpactModal({
   const factRef = useRef(Math.floor(Math.random() * SHELTER_FACTS.length));
   const urgencyRef = useRef(Math.floor(Math.random() * URGENCY_MESSAGES.length));
   const [closing, setClosing] = useState(false);
+  const [navigating, setNavigating] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (open) {
       factRef.current = Math.floor(Math.random() * SHELTER_FACTS.length);
       urgencyRef.current = Math.floor(Math.random() * URGENCY_MESSAGES.length);
       setClosing(false);
+      setNavigating(null);
     }
   }, [open]);
 
@@ -164,46 +168,72 @@ export function ImpactModal({
 
             {/* 3-column package grid */}
             <div className="grid grid-cols-3 gap-2">
-              <Link
-                href={buyUrl(starter.tier)}
-                className="rounded-xl bg-gradient-to-b from-surface-50 to-surface-100 border border-surface-200 p-2.5 text-center hover:shadow-md hover:border-brand-300 transition-all active:scale-95"
+              <button
+                onClick={() => { setNavigating(starter.tier); router.push(buyUrl(starter.tier)); }}
+                disabled={!!navigating}
+                className="rounded-xl bg-gradient-to-b from-surface-50 to-surface-100 border border-surface-200 p-2.5 text-center hover:shadow-md hover:border-brand-300 transition-all active:scale-95 disabled:opacity-70"
               >
-                <p className="text-lg font-black text-surface-800">{starter.votes}</p>
-                <p className="text-[9px] text-surface-400 font-medium">votes</p>
-                <p className="text-sm font-bold text-brand-600 mt-1">${(starter.price / 100).toFixed(2)}</p>
-                <p className="text-[9px] mt-0.5 text-emerald-600">~{starterMeals} meal{starterMeals !== 1 ? "s" : ""} 🐾</p>
-              </Link>
-              <Link
-                href={buyUrl(friend.tier)}
-                className="rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 text-white p-2.5 text-center hover:shadow-lg transition-all active:scale-95 ring-2 ring-brand-300"
+                {navigating === starter.tier ? (
+                  <div className="flex items-center justify-center py-4"><div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" /></div>
+                ) : (
+                  <>
+                    <p className="text-lg font-black text-surface-800">{starter.votes}</p>
+                    <p className="text-[9px] text-surface-400 font-medium">votes</p>
+                    <p className="text-sm font-bold text-brand-600 mt-1">${(starter.price / 100).toFixed(2)}</p>
+                    <p className="text-[9px] mt-0.5 text-emerald-600">~{starterMeals} meal{starterMeals !== 1 ? "s" : ""} 🐾</p>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => { setNavigating(friend.tier); router.push(buyUrl(friend.tier)); }}
+                disabled={!!navigating}
+                className="rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 text-white p-2.5 text-center hover:shadow-lg transition-all active:scale-95 ring-2 ring-brand-300 disabled:opacity-70"
               >
-                <p className="text-lg font-black">{friend.votes}</p>
-                <p className="text-[9px] opacity-80 font-medium">votes</p>
-                <p className="text-sm font-bold mt-1">${(friend.price / 100).toFixed(2)}</p>
-                <p className="text-[9px] mt-0.5 text-emerald-200">~{friendMeals} meals 🐾</p>
-              </Link>
-              <Link
-                href={buyUrl(supporter.tier)}
-                className="rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 text-white p-2.5 text-center hover:shadow-lg transition-all active:scale-95 relative"
+                {navigating === friend.tier ? (
+                  <div className="flex items-center justify-center py-4"><div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" /></div>
+                ) : (
+                  <>
+                    <p className="text-lg font-black">{friend.votes}</p>
+                    <p className="text-[9px] opacity-80 font-medium">votes</p>
+                    <p className="text-sm font-bold mt-1">${(friend.price / 100).toFixed(2)}</p>
+                    <p className="text-[9px] mt-0.5 text-emerald-200">~{friendMeals} meals 🐾</p>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => { setNavigating(supporter.tier); router.push(buyUrl(supporter.tier)); }}
+                disabled={!!navigating}
+                className="rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 text-white p-2.5 text-center hover:shadow-lg transition-all active:scale-95 relative disabled:opacity-70"
               >
-                <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-red-500 text-[7px] font-black uppercase text-white whitespace-nowrap shadow-sm">
-                  Best Value
-                </span>
-                <p className="text-lg font-black">{supporter.votes}</p>
-                <p className="text-[9px] opacity-80 font-medium">votes</p>
-                <p className="text-sm font-bold mt-1">${(supporter.price / 100).toFixed(2)}</p>
-                <p className="text-[9px] mt-0.5 text-emerald-100">~{supporterMeals} meals 🐾</p>
-              </Link>
+                {navigating === supporter.tier ? (
+                  <div className="flex items-center justify-center py-4"><div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" /></div>
+                ) : (
+                  <>
+                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-red-500 text-[7px] font-black uppercase text-white whitespace-nowrap shadow-sm">
+                      Best Value
+                    </span>
+                    <p className="text-lg font-black">{supporter.votes}</p>
+                    <p className="text-[9px] opacity-80 font-medium">votes</p>
+                    <p className="text-sm font-bold mt-1">${(supporter.price / 100).toFixed(2)}</p>
+                    <p className="text-[9px] mt-0.5 text-emerald-100">~{supporterMeals} meals 🐾</p>
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Big CTA for out-of-votes state */}
             {outOfVotes && (
-              <Link
-                href={buyUrl(champion.tier)}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold text-sm hover:shadow-lg transition-all active:scale-[0.98] animate-pulse"
+              <button
+                onClick={() => { setNavigating(champion.tier); router.push(buyUrl(champion.tier)); }}
+                disabled={!!navigating}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold text-sm hover:shadow-lg transition-all active:scale-[0.98] animate-pulse disabled:opacity-70"
               >
-                🏆 Get {champion.votes} votes for ${(champion.price / 100).toFixed(2)} — feed ~{championMeals} pets!
-              </Link>
+                {navigating === champion.tier ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <>🏆 Get {champion.votes} votes for ${(champion.price / 100).toFixed(2)} — feed ~{championMeals} pets!</>
+                )}
+              </button>
             )}
           </div>
 
