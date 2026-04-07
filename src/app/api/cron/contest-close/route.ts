@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
         if (!row.userEmail) continue;
         const alreadySent = await hasContestEmailBeenSent(contest.id, row.userId, CONTEST_EMAIL_TYPES.ALMOST_WON);
         if (alreadySent) continue;
-        const votesFromTop3 = Math.max(1, thirdPlaceVotes - row.totalVotes + 1);
+        const votesFromTop3 = Math.max(0, thirdPlaceVotes - row.totalVotes + 1);
+        if (votesFromTop3 === 0) continue;
         await sendAlmostWonEmail(
           row.userEmail,
           row.userName,

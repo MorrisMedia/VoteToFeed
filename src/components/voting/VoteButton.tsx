@@ -357,7 +357,7 @@ function VoteStats({
   const countdown = useMemo(() => {
     if (!contestEndDate) return null;
     const diff = Math.max(0, new Date(contestEndDate).getTime() - now);
-    if (diff === 0) return null;
+    if (diff < 1000) return null;
     const days = Math.floor(diff / 86400000);
     const hours = Math.floor((diff % 86400000) / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);

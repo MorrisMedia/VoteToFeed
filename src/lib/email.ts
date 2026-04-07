@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { rankSuffix } from "@/lib/utils";
+import { rankSuffix, VOTE_PACKAGES } from "@/lib/utils";
 
 const FROM_EMAIL = "VoteToFeed <noreply@votetofeed.com>";
 
@@ -346,7 +346,8 @@ export async function sendAlmostWonEmail(
   nextContestId: string,
 ) {
   const rSuffix = rankSuffix(rank);
-  const suggestedPkg = votesFromTop3 <= 5 ? "5 votes for $0.99" : votesFromTop3 <= 30 ? "30 votes for $4.99" : votesFromTop3 <= 60 ? "60 votes for $9.99" : "150 votes for $24.99";
+  const bestPkg = VOTE_PACKAGES.find(p => p.votes >= votesFromTop3) ?? VOTE_PACKAGES[VOTE_PACKAGES.length - 1];
+  const suggestedPkg = `${bestPkg.votes} votes for $${(bestPkg.price / 100).toFixed(2)}`;
   await sendEmail({
     from: FROM_EMAIL,
     to: [to],
