@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCreativeSource, trackVoteCastEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
 import { trackPostHogEvent } from "@/lib/analytics";
@@ -39,7 +38,6 @@ export function VoteButton({
   mealRate = 1,
 }: Props) {
   const { status } = useSession();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [voteCount, setVoteCount] = useState(initialWeeklyVotes);
   const [freeVotes, setFreeVotes] = useState(initialFree);
@@ -273,7 +271,7 @@ export function VoteButton({
                   onClick={() => {
                     setNavigatingPkg(pkg.tier);
                     const url = status === "authenticated" ? `/dashboard?buy=${pkg.tier}&pet=${petId}` : `/auth/signin?callbackUrl=/dashboard?buy=${pkg.tier}&pet=${petId}`;
-                    router.push(url);
+                    window.location.href = url;
                   }}
                   disabled={!!navigatingPkg}
                   className={`relative rounded-xl p-3 text-center transition-all hover:shadow-md disabled:opacity-70 ${

@@ -305,7 +305,10 @@ export default async function PetDetailPage({
 
         <div className="lg:col-span-2 space-y-5 px-4 sm:px-0">
           <div>
-            <h1 className="text-4xl font-extrabold text-surface-900 tracking-tight lg:text-3xl">{pet.name}</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-4xl font-extrabold text-surface-900 tracking-tight lg:text-3xl">{pet.name}</h1>
+              {isOwner && <Link href={`/pets/${pet.id}/edit`} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface-100 text-surface-600 hover:bg-surface-200 transition-colors">Edit</Link>}
+            </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-base text-surface-500 lg:text-sm">{pet.type === "DOG" ? "Dog" : pet.type === "CAT" ? "Cat" : "Pet"}</span>
               {pet.breed && <><span className="text-surface-300">·</span><span className="text-base text-surface-500 lg:text-sm">{pet.breed}</span></>}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { VOTE_PACKAGES, calculateMeals } from "@/lib/utils";
 
@@ -50,7 +49,6 @@ export function ImpactModal({
   const urgencyRef = useRef(Math.floor(Math.random() * URGENCY_MESSAGES.length));
   const [closing, setClosing] = useState(false);
   const [navigating, setNavigating] = useState<string | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     if (open) {
@@ -169,7 +167,7 @@ export function ImpactModal({
             {/* 3-column package grid */}
             <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => { setNavigating(starter.tier); router.push(buyUrl(starter.tier)); }}
+                onClick={() => { setNavigating(starter.tier); window.location.href = buyUrl(starter.tier); }}
                 disabled={!!navigating}
                 className="rounded-xl bg-gradient-to-b from-surface-50 to-surface-100 border border-surface-200 p-2.5 text-center hover:shadow-md hover:border-brand-300 transition-all active:scale-95 disabled:opacity-70"
               >
@@ -185,7 +183,7 @@ export function ImpactModal({
                 )}
               </button>
               <button
-                onClick={() => { setNavigating(friend.tier); router.push(buyUrl(friend.tier)); }}
+                onClick={() => { setNavigating(friend.tier); window.location.href = buyUrl(friend.tier); }}
                 disabled={!!navigating}
                 className="rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 text-white p-2.5 text-center hover:shadow-lg transition-all active:scale-95 ring-2 ring-brand-300 disabled:opacity-70"
               >
@@ -201,7 +199,7 @@ export function ImpactModal({
                 )}
               </button>
               <button
-                onClick={() => { setNavigating(supporter.tier); router.push(buyUrl(supporter.tier)); }}
+                onClick={() => { setNavigating(supporter.tier); window.location.href = buyUrl(supporter.tier); }}
                 disabled={!!navigating}
                 className="rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 text-white p-2.5 text-center hover:shadow-lg transition-all active:scale-95 relative disabled:opacity-70"
               >
@@ -224,7 +222,7 @@ export function ImpactModal({
             {/* Big CTA for out-of-votes state */}
             {outOfVotes && (
               <button
-                onClick={() => { setNavigating(champion.tier); router.push(buyUrl(champion.tier)); }}
+                onClick={() => { setNavigating(champion.tier); window.location.href = buyUrl(champion.tier); }}
                 disabled={!!navigating}
                 className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold text-sm hover:shadow-lg transition-all active:scale-[0.98] animate-pulse disabled:opacity-70"
               >

@@ -345,6 +345,7 @@ export function DashboardClient({
                       {pet.weeklyRank != null && <p className="mt-2 text-xs font-medium text-surface-500">{rankSuffix(pet.weeklyRank)} this week</p>}
                       <div className="mt-3 flex gap-2">
                         <Link href={`/pets/${pet.id}`} className="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-surface-100 text-surface-700 hover:bg-surface-200 transition-colors">View</Link>
+                        <Link href={`/pets/${pet.id}/edit`} className="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors">Edit</Link>
                         <Link href={`/pets/${pet.id}`} className="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors">Share</Link>
                       </div>
                     </div>
