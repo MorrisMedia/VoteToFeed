@@ -43,6 +43,7 @@ export default function EditPetPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [fatalError, setFatalError] = useState("");
   const [success, setSuccess] = useState("");
   const [breeds, setBreeds] = useState<BreedOption[]>([]);
   const [breedSearch, setBreedSearch] = useState("");
@@ -76,7 +77,7 @@ export default function EditPetPage() {
       try {
         const res = await fetch(`/api/pets/${petId}`);
         if (!res.ok) {
-          setError("Pet not found or you don't have permission to edit it.");
+          setFatalError("Pet not found or you don't have permission to edit it.");
           setLoading(false);
           return;
         }
@@ -84,13 +85,16 @@ export default function EditPetPage() {
 
         // Check ownership via separate call
         const profileRes = await fetch("/api/users/profile");
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          if (pet.userId !== profile.id) {
-            setError("You can only edit your own pets.");
-            setLoading(false);
-            return;
-          }
+        if (!profileRes.ok) {
+          setFatalError("Unable to verify ownership. Please try again.");
+          setLoading(false);
+          return;
+        }
+        const profile = await profileRes.json();
+        if (pet.userId !== profile.id) {
+          setFatalError("You can only edit your own pets.");
+          setLoading(false);
+          return;
         }
 
         setPetType(pet.type);
@@ -200,6 +204,7 @@ export default function EditPetPage() {
       }
       trackPostHogEvent("pet_edited", { pet_id: petId, pet_type: petType });
       setSuccess("Pet updated successfully!");
+      setSaving(false);
       setTimeout(() => router.push(`/pets/${petId}`), 1200);
     } catch {
       setError("Something went wrong");
@@ -227,10 +232,10 @@ export default function EditPetPage() {
     );
   }
 
-  if (error && !form.name) {
+  if (fatalError) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <p className="text-red-600 mb-4">{error}</p>
+        <p className="text-red-600 mb-4">{fatalError}</p>
         <Link href="/dashboard" className="btn-primary">Back to Dashboard</Link>
       </div>
     );

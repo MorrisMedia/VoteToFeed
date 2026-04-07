@@ -270,7 +270,8 @@ export function VoteButton({
                   key={pkg.tier}
                   onClick={() => {
                     setNavigatingPkg(pkg.tier);
-                    const url = status === "authenticated" ? `/dashboard?buy=${pkg.tier}&pet=${petId}` : `/auth/signin?callbackUrl=/dashboard?buy=${pkg.tier}&pet=${petId}`;
+                    const dashboardUrl = `/dashboard?buy=${pkg.tier}&pet=${petId}`;
+                    const url = status === "authenticated" ? dashboardUrl : `/auth/signin?callbackUrl=${encodeURIComponent(dashboardUrl)}`;
                     window.location.href = url;
                   }}
                   disabled={!!navigatingPkg}
