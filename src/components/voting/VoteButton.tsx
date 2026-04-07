@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getCreativeSource, trackVoteCastEvent, trackVoteToFeedEvent } from "@/lib/meta-pixel";
@@ -347,9 +347,23 @@ function VoteStats({
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
-  const daysLeft = contestEndDate
-    ? Math.max(0, Math.ceil((new Date(contestEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : null;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!contestEndDate) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [contestEndDate]);
+
+  const countdown = useMemo(() => {
+    if (!contestEndDate) return null;
+    const diff = Math.max(0, new Date(contestEndDate).getTime() - now);
+    if (diff === 0) return null;
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return { days, hours, minutes, seconds, totalHours: Math.floor(diff / 3600000) };
+  }, [contestEndDate, now]);
 
   return (
     <div className="card p-5">
@@ -361,12 +375,15 @@ function VoteStats({
             <span className="text-lg font-semibold text-surface-500 ml-1.5">votes</span>
           </p>
         </div>
-        {daysLeft != null && daysLeft > 0 && (
+        {countdown && (
           <div className="text-right flex-shrink-0">
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${daysLeft <= 3 ? "bg-red-100 text-red-700 animate-pulse" : daysLeft <= 7 ? "bg-amber-100 text-amber-700" : "bg-surface-100 text-surface-600"}`}>
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${countdown.totalHours <= 24 ? "bg-red-100 text-red-700 animate-pulse" : countdown.days <= 3 ? "bg-red-50 text-red-600" : countdown.days <= 7 ? "bg-amber-100 text-amber-700" : "bg-surface-100 text-surface-600"}`}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              {daysLeft}d left
+              {countdown.days > 0 ? `${countdown.days}d ${countdown.hours}h` : countdown.hours > 0 ? `${countdown.hours}h ${countdown.minutes}m` : `${countdown.minutes}m ${countdown.seconds}s`}
             </div>
+            {countdown.totalHours <= 48 && (
+              <p className="text-[9px] font-bold text-red-500 mt-1">⚡ Ends soon!</p>
+            )}
           </div>
         )}
       </div>
@@ -394,9 +411,17 @@ function VoteStats({
               <span className="text-[7px] font-black text-white">🏆</span>
             </div>
           </div>
-          <p className="text-[10px] text-surface-400 text-center">
-            Just {votesNeededForTop3} more vote{votesNeededForTop3 !== 1 ? "s" : ""} to win prizes!
-          </p>
+          {(() => {
+            const pkg = VOTE_PACKAGES.find(p => p.votes >= votesNeededForTop3) || VOTE_PACKAGES[VOTE_PACKAGES.length - 1];
+            return (
+              <button
+                onClick={() => { window.location.href = `/dashboard?buy=${pkg.tier}`; }}
+                className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
+              >
+                🔥 Only {votesNeededForTop3} vote{votesNeededForTop3 !== 1 ? "s" : ""} from Top 3 — Get {pkg.votes} for ${(pkg.price / 100).toFixed(2)}!
+              </button>
+            );
+          })()}
         </div>
       )}
 

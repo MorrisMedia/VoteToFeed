@@ -95,6 +95,7 @@ export const CONTEST_EMAIL_TYPES = {
   COUNTDOWN_24H: "countdown_24h",
   DAILY_RANK: "daily_rank",
   REENTRY: "reentry",
+  ALMOST_WON: "almost_won",
   WINNER_1: "winner_1",
   WINNER_2: "winner_2",
   WINNER_3: "winner_3",

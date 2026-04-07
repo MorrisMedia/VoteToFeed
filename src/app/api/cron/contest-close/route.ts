@@ -9,7 +9,7 @@ import {
   hasContestEmailBeenSent,
   logContestEmail,
 } from "@/lib/contest-growth";
-import { sendContestReEntry, sendContestWinner } from "@/lib/email";
+import { sendAlmostWonEmail, sendContestReEntry, sendContestWinner } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +81,30 @@ export async function POST(req: NextRequest) {
       );
       const winnerPetIds = new Set([...winnersByPlacement.values()]);
       const nonWinnerEntries = contest.entries.filter((entry) => !winnerPetIds.has(entry.petId));
+
+      // "Almost Won" emails — send to pets ranked 4th-10th who were close to top 3
+      const thirdPlaceVotes = leaderboard[2]?.totalVotes ?? 0;
+      const almostWonRows = leaderboard.filter(
+        (row) => row.rank >= 4 && row.rank <= 10 && !winnerPetIds.has(row.petId)
+      );
+      let almostWonSent = 0;
+      for (const row of almostWonRows) {
+        if (!row.userEmail) continue;
+        const alreadySent = await hasContestEmailBeenSent(contest.id, row.userId, CONTEST_EMAIL_TYPES.ALMOST_WON);
+        if (alreadySent) continue;
+        const votesFromTop3 = Math.max(1, thirdPlaceVotes - row.totalVotes + 1);
+        await sendAlmostWonEmail(
+          row.userEmail,
+          row.userName,
+          row.petName,
+          contest.name,
+          row.rank,
+          votesFromTop3,
+          nextContest.id,
+        );
+        await logContestEmail(contest.id, row.userId, CONTEST_EMAIL_TYPES.ALMOST_WON);
+        almostWonSent++;
+      }
 
       for (const entry of nonWinnerEntries) {
         await prisma.reEntryToken.create({
@@ -163,6 +187,7 @@ export async function POST(req: NextRequest) {
         nextContestId: nextContest.id,
         nextContestName: nextContest.name,
         winnersAssigned: winnersByPlacement.size,
+        almostWonEmails: almostWonSent,
         reentryCount: nonWinnerEntries.length,
       });
     }
