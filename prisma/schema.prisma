@@ -93,6 +93,7 @@ model User {
   votes          Vote[]
   comments       Comment[]
   scheduledComments ScheduledComment[] @relation("ScheduledCommentEngagementAccount")
+  scheduledVotes    ScheduledVote[]    @relation("ScheduledVoteSeedAccount")
   purchases      Purchase[]
   productOrders  ProductOrder[]
   notifications  UserNotificationPrefs?
@@ -164,6 +165,7 @@ model Pet {
   anonymousVotes AnonymousVote[]
   comments       Comment[]
   scheduledComments ScheduledComment[]
+  scheduledVotes    ScheduledVote[]
   contestEntries ContestEntry[]
   productDesigns ProductDesign[]
   weeklyStats    PetWeeklyStats[]
@@ -448,6 +450,36 @@ model ScheduledComment {
 }
 
 enum ScheduledCommentStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+// ─── SCHEDULED VOTES (Demo Account Auto-Voting) ─────────
+
+model ScheduledVote {
+  id            String              @id @default(cuid())
+  petId         String
+  seedAccountId String
+  votesAmount   Int                 @default(1)
+  weekId        String
+  scheduledFor  DateTime
+  status        ScheduledVoteStatus @default(PENDING)
+  processedAt   DateTime?
+  errorMessage  String?             @db.VarChar(500)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  pet         Pet  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  seedAccount User @relation("ScheduledVoteSeedAccount", fields: [seedAccountId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledFor, status])
+  @@index([petId])
+  @@index([seedAccountId])
+}
+
+enum ScheduledVoteStatus {
   PENDING
   PROCESSING
   PROCESSED
