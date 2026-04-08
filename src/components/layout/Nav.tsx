@@ -276,7 +276,7 @@ export function Nav({
                   <Link href="/dashboard" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
                     My Pets
                   </Link>
-                  {(session.user as Record<string, unknown>)?.id && (
+                  {!!(session.user as Record<string, unknown>)?.id && (
                     <Link href={`/users/${(session.user as Record<string, unknown>).id}`} className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       My Profile
@@ -387,7 +387,7 @@ export function Nav({
             {session && (
               <>
                 <Link href="/dashboard" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>My Pets</Link>
-                {(session.user as Record<string, unknown>)?.id && (
+                {!!(session.user as Record<string, unknown>)?.id && (
                   <Link href={`/users/${(session.user as Record<string, unknown>).id}`} className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>My Profile</Link>
                 )}
                 <Link href="/profile" className="block px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>Account Settings</Link>
