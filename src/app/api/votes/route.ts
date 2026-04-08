@@ -13,6 +13,7 @@ import {
   getClientIp,
 } from "@/lib/anonymous-votes";
 import { sendBatchedVoteAlert } from "@/lib/email";
+import { checkAndAwardBadges } from "@/lib/badges";
 
 // How long (ms) before we send another vote alert for the same pet
 const VOTE_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -246,6 +247,29 @@ export async function POST(req: NextRequest) {
         where: { petId_weekId: { petId, weekId } },
       });
 
+      // ── Follower vote bonus: +1 bonus vote if voter follows the pet owner ──
+      let followerBonus = 0;
+      if (pet.userId !== userId) {
+        const isFollowing = await prisma.follow.findUnique({
+          where: {
+            followerId_followingId: { followerId: userId, followingId: pet.userId },
+          },
+        });
+        if (isFollowing) {
+          followerBonus = 1;
+          await prisma.$transaction(async (tx) => {
+            await tx.petWeeklyStats.upsert({
+              where: { petId_weekId: { petId, weekId } },
+              create: { petId, weekId, totalVotes: 1, freeVotes: 1, paidVotes: 0 },
+              update: { totalVotes: { increment: 1 }, freeVotes: { increment: 1 } },
+            });
+          });
+        }
+      }
+
+      // Badge check (fire-and-forget)
+      checkAndAwardBadges(userId).catch(() => {});
+
       const mealRate = await getMealRate();
       const animalType = await getAnimalType();
 
@@ -278,6 +302,7 @@ export async function POST(req: NextRequest) {
           paidVoteBalance: updatedUser?.paidVoteBalance || 0,
           votingStreak: updatedUser?.votingStreak || 0,
         },
+        followerBonus,
         impact: {
           animalType,
           mealRate,

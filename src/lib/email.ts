@@ -589,3 +589,81 @@ export async function sendBatchedVoteAlert(
     `, `${newVoteCount === 1 ? `1 new vote` : `${newVoteCount} new votes`} for ${petName} — ${totalWeeklyVotes} total this week!`),
   });
 }
+
+export async function sendFollowNotification(
+  to: string,
+  recipientName: string,
+  followerName: string,
+  followerImage: string | null,
+  profileUrl: string,
+) {
+  const initial = followerName[0]?.toUpperCase() || "?";
+  const avatarHtml = followerImage
+    ? `<img src="${followerImage}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #fca5a5;" alt="${followerName}" />`
+    : `<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#dc2626);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;text-align:center;line-height:48px;">${initial}</div>`;
+
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `👋 ${followerName} started following you on VoteToFeed`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;">New Follower</p>
+      <h1 style="margin:0 0 20px;font-size:26px;font-weight:900;color:#18181b;line-height:1.2;">You have a new follower! 🎉</h1>
+      <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 20px;">
+        <tr>
+          <td style="vertical-align:middle;padding-right:16px;">${avatarHtml}</td>
+          <td style="vertical-align:middle;">
+            <p style="margin:0;font-size:17px;font-weight:800;color:#18181b;">${followerName}</p>
+            <p style="margin:4px 0 0;font-size:14px;color:#71717a;">is now following you</p>
+          </td>
+        </tr>
+      </table>
+      ${infoBox(`Hi <strong>${recipientName}</strong>, <strong>${followerName}</strong> just started following you. They'll see your posts and activity on VoteToFeed.`)}
+      ${ctaButton("View Their Profile", profileUrl)}
+    `, `${followerName} started following you on VoteToFeed`),
+  });
+}
+
+export async function sendPostLikeNotification(
+  to: string,
+  recipientName: string,
+  likerName: string,
+  postPreview: string,
+  profileUrl: string,
+) {
+  const preview = postPreview.length > 100 ? postPreview.slice(0, 100) + "…" : postPreview;
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `❤️ ${likerName} liked your post`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;">Post Like</p>
+      <h1 style="margin:0 0 20px;font-size:26px;font-weight:900;color:#18181b;line-height:1.2;">Someone liked your post! ❤️</h1>
+      ${infoBox(`<strong>${likerName}</strong> liked your post:<br/><em style="color:#52525b;">"${preview}"</em>`)}
+      ${ctaButton("View Your Profile", profileUrl)}
+    `, `${likerName} liked your post on VoteToFeed`),
+  });
+}
+
+export async function sendPostCommentNotification(
+  to: string,
+  recipientName: string,
+  commenterName: string,
+  commentText: string,
+  postPreview: string,
+  profileUrl: string,
+) {
+  const preview = postPreview.length > 80 ? postPreview.slice(0, 80) + "…" : postPreview;
+  const comment = commentText.length > 120 ? commentText.slice(0, 120) + "…" : commentText;
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `💬 ${commenterName} commented on your post`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;">New Comment</p>
+      <h1 style="margin:0 0 20px;font-size:26px;font-weight:900;color:#18181b;line-height:1.2;">New comment on your post 💬</h1>
+      ${infoBox(`<strong>${commenterName}</strong> commented on your post "<em>${preview}</em>":<br/><br/><span style="font-size:15px;color:#18181b;">"${comment}"</span>`)}
+      ${ctaButton("View Your Profile", profileUrl)}
+    `, `${commenterName} commented on your post`),
+  });
+}

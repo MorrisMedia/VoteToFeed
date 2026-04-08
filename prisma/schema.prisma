@@ -101,6 +101,16 @@ model User {
   passwordResetTokens PasswordResetToken[]
   chatConversations ChatConversation[]
   commentLikes  CommentLike[]
+
+  // Social
+  followers           Follow[]          @relation("FollowTarget")
+  following           Follow[]          @relation("FollowSource")
+  badges              UserBadge[]
+  posts               UserPost[]
+  postLikes           PostLike[]
+  postComments        PostComment[]
+  postCommentLikes    PostCommentLike[]
+  followBonusLogs     FollowBonusLog[]
 }
 
 enum UserRole {
@@ -648,6 +658,58 @@ enum ShelterPostType {
   GALLERY
 }
 
+// ─── USER POSTS ──────────────────────────────────────────
+
+model UserPost {
+  id        String        @id @default(cuid())
+  content   String        @db.Text
+  imageUrl  String?
+  createdAt DateTime      @default(now())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     PostLike[]
+  comments  PostComment[]
+
+  @@index([userId, createdAt])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      UserPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model PostComment {
+  id        String              @id @default(cuid())
+  postId    String
+  post      UserPost            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String              @db.Text
+  createdAt DateTime            @default(now())
+  likes     PostCommentLike[]
+
+  @@index([postId, createdAt])
+}
+
+model PostCommentLike {
+  id        String      @id @default(cuid())
+  commentId String
+  comment   PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+}
+
 // ─── API KEYS ────────────────────────────────────────────
 
 model ApiKey {
@@ -771,4 +833,67 @@ enum ChatRole {
   USER
   ASSISTANT
   ADMIN
+}
+
+// ─── SOCIAL: FOLLOWS ─────────────────────────────────────
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   // the user who follows
+  followingId String   // the user being followed
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("FollowSource", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowTarget", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model FollowBonusLog {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower User @relation(fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+// ─── BADGES ──────────────────────────────────────────────
+
+model Badge {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  icon        String   // emoji or icon name
+  category    BadgeCategory
+  threshold   Int      @default(0) // the number needed to earn it
+  createdAt   DateTime @default(now())
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+}
+
+enum BadgeCategory {
+  VOTING      // based on votes cast
+  SOCIAL      // based on followers/following
+  PETS        // based on pets registered
+  STREAK      // based on voting streaks
+  COMMUNITY   // special community badges
 }

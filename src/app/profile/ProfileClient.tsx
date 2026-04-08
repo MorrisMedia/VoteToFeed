@@ -4,6 +4,16 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+type Badge = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  earnedAt: string;
+};
+
 type UserProfile = {
   id: string;
   name: string;
@@ -19,6 +29,9 @@ type UserProfile = {
   createdAt: string;
   petCount: number;
   voteCount: number;
+  followerCount: number;
+  followingCount: number;
+  badges: Badge[];
 };
 
 type Tab = "profile" | "password";
@@ -255,10 +268,42 @@ export function ProfileClient({ user }: { user: UserProfile }) {
               <p className="text-xs text-surface-400">Votes Cast</p>
             </div>
             <div className="text-center">
+              <p className="text-lg font-bold text-surface-900">{user.followerCount}</p>
+              <p className="text-xs text-surface-400">Followers</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-surface-900">{user.followingCount}</p>
+              <p className="text-xs text-surface-400">Following</p>
+            </div>
+            <div className="text-center">
               <p className="text-sm font-medium text-surface-600">{memberSince}</p>
               <p className="text-xs text-surface-400">Member Since</p>
             </div>
           </div>
+
+          {/* Badges showcase */}
+          {user.badges.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {user.badges.slice(0, 6).map((b) => (
+                <span
+                  key={b.id}
+                  title={b.description}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
+                >
+                  {b.icon} {b.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* View Public Profile link */}
+          <Link
+            href={`/users/${user.id}`}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            View Public Profile
+          </Link>
 
           {image && (
             <button

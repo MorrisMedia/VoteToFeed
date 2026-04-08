@@ -29,7 +29,11 @@ export default async function ProfilePage() {
       password: true,
       createdAt: true,
       accounts: { select: { provider: true } },
-      _count: { select: { pets: true, votes: true } },
+      _count: { select: { pets: true, votes: true, followers: true, following: true } },
+      badges: {
+        include: { badge: true },
+        orderBy: { earnedAt: "desc" },
+      },
     },
   });
 
@@ -52,6 +56,17 @@ export default async function ProfilePage() {
         createdAt: user.createdAt.toISOString(),
         petCount: user._count.pets,
         voteCount: user._count.votes,
+        followerCount: user._count.followers,
+        followingCount: user._count.following,
+        badges: user.badges.map((ub) => ({
+          id: ub.badge.id,
+          slug: ub.badge.slug,
+          name: ub.badge.name,
+          description: ub.badge.description,
+          icon: ub.badge.icon,
+          category: ub.badge.category,
+          earnedAt: ub.earnedAt.toISOString(),
+        })),
       }}
     />
   );

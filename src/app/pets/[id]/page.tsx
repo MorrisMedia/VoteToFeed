@@ -14,6 +14,7 @@ import { ShareButtons } from "./ShareButtons";
 import { PetImage } from "./PetImage";
 import { PetPhotoGallery } from "./PetPhotoGallery";
 import { AvatarFallback } from "@/components/shared/AvatarFallback";
+import { PetOwnerCard } from "./PetOwnerCard";
 
 export const dynamic = "force-dynamic";
 
@@ -236,6 +237,23 @@ export default async function PetDetailPage({
   const mealRate = await getMealRate();
 
   const isOwner = session?.user && (session.user as { id?: string }).id === pet.userId;
+
+  const currentUserId = session?.user ? (session.user as { id: string }).id : null;
+
+  // Check if current user follows the pet owner
+  const isFollowingOwner = currentUserId && currentUserId !== pet.userId
+    ? !!(await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: currentUserId, followingId: pet.userId } },
+      }))
+    : false;
+
+  // Check if follow bonus was already claimed for this owner
+  const followBonusClaimed = currentUserId && currentUserId !== pet.userId
+    ? !!(await prisma.followBonusLog.findUnique({
+        where: { followerId_followingId: { followerId: currentUserId, followingId: pet.userId } },
+      }))
+    : false;
+
   const freeVotes = session?.user
     ? await prisma.user
         .findUnique({
@@ -244,8 +262,6 @@ export default async function PetDetailPage({
         })
         .then((u) => ({ free: u?.freeVotesRemaining ?? 0, paid: u?.paidVoteBalance ?? 0 }))
     : { free: 0, paid: 0 };
-
-  const currentUserId = session?.user ? (session.user as { id: string }).id : null;
   const likedCommentIds = currentUserId
     ? await prisma.commentLike
         .findMany({ where: { userId: currentUserId }, select: { commentId: true } })
@@ -313,13 +329,17 @@ export default async function PetDetailPage({
               <span className="text-base text-surface-500 lg:text-sm">{pet.type === "DOG" ? "Dog" : pet.type === "CAT" ? "Cat" : "Pet"}</span>
               {pet.breed && <><span className="text-surface-300">·</span><span className="text-base text-surface-500 lg:text-sm">{pet.breed}</span></>}
             </div>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-base text-surface-400 lg:text-sm">by {abbreviateName(pet.ownerName)}</span>
-              {(pet.city || pet.state) && (
-                <span className="text-base text-surface-400 lg:text-sm">· {[pet.city, pet.state].filter(Boolean).join(", ")}</span>
-              )}
-            </div>
           </div>
+
+          <PetOwnerCard
+            owner={{ id: pet.userId, name: pet.ownerName || pet.user?.name || null, image: pet.user?.image || null }}
+            location={[pet.city, pet.state].filter(Boolean).join(", ") || null}
+            isFollowing={!!isFollowingOwner}
+            isLoggedIn={!!session?.user}
+            isOwner={!!isOwner}
+            petId={pet.id}
+            bonusClaimed={!!followBonusClaimed}
+          />
 
           <ShareButtons
             petName={pet.name}
