@@ -111,6 +111,7 @@ model User {
   postComments        PostComment[]
   postCommentLikes    PostCommentLike[]
   followBonusLogs     FollowBonusLog[]
+  nominationsSent     Nomination[]      @relation("NominationsSent")
 }
 
 enum UserRole {
@@ -303,6 +304,7 @@ model Contest {
   entries      ContestEntry[]
   prizes       Prize[]
   shelterPosts ShelterPost[]
+  nominations  Nomination[]
 
   @@index([isActive, petType])
   @@index([isActive, endDate])
@@ -744,6 +746,35 @@ model FlaggedComment {
 
   @@index([status])
   @@index([createdAt])
+}
+
+// ─── NOMINATIONS ──────────────────────────────────
+
+model Nomination {
+  id          String           @id @default(cuid())
+  email       String
+  name        String
+  petName     String?
+  contestId   String
+  status      NominationStatus @default(PENDING)
+  sentAt      DateTime?
+  createdAt   DateTime         @default(now())
+  sentById    String
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  sentBy  User    @relation("NominationsSent", fields: [sentById], references: [id], onDelete: Cascade)
+
+  @@unique([email, contestId])
+  @@index([email])
+  @@index([contestId])
+  @@index([status])
+}
+
+enum NominationStatus {
+  PENDING
+  SENT
+  SIGNED_UP
+  ENTERED
 }
 
 enum FlagStatus {
