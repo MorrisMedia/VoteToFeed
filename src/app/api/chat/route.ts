@@ -176,7 +176,7 @@ async function getAIResponse(
     }
   }
 
-  return "I'm sorry, the AI service is currently unavailable. Please try again later or visit our website at https://votetofeed.com for help.";
+  return "I'm sorry, I'm having trouble right now. Would you like me to connect you with a human support agent? Just say 'yes' and we'll get someone to help you! 🐾";
 }
 
 // POST: Send a message and get AI response

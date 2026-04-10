@@ -418,58 +418,6 @@ export async function sendContestWinner(
   });
 }
 
-export async function sendBookingConfirmation(
-  to: string,
-  name: string,
-  date: string,
-  time: string,
-  purpose: string | null
-) {
-  await sendEmail({
-    from: FROM_EMAIL,
-    to: [to],
-    subject: "Your call with VoteToFeed is confirmed! 📅",
-    html: emailShell(`
-      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;">Booking Confirmed</p>
-      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">You're all set, ${name}! 📅</h1>
-      <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Your call with the VoteToFeed team has been confirmed. Here are your details:</p>
-      ${statRow([{ label: "Date", value: date }, { label: "Time", value: time }])}
-      ${purpose ? infoBox(`<strong>Topic:</strong> ${purpose}`, "#f0fdf4", "#86efac") : ""}
-      ${infoBox(`📌 <strong>Add this to your calendar</strong> so you don't miss it. We'll send a reminder 24 hours before your call.`, "#eff6ff", "#93c5fd")}
-      <p style="margin-top:24px;font-size:14px;color:#52525b;">Need to reschedule? Reply to this email and we'll find a new time that works.</p>
-      <p style="margin-top:8px;font-size:14px;color:#52525b;">Talk soon,<br/><strong>The VoteToFeed Team</strong></p>
-    `, `Your call with VoteToFeed is confirmed for ${date} at ${time}.`),
-  });
-}
-
-export async function sendBookingReminder(
-  to: string,
-  name: string,
-  date: string,
-  time: string,
-  purpose: string | null
-) {
-  await sendEmail({
-    from: FROM_EMAIL,
-    to: [to],
-    subject: `⏰ Reminder: Your call with VoteToFeed is tomorrow at ${time}`,
-    html: emailShell(`
-      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;">Call Reminder</p>
-      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">Hey ${name}, your call<br/>is tomorrow! ⏰</h1>
-      <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Just a friendly reminder that you have a call scheduled with the VoteToFeed team tomorrow. Here are your details:</p>
-      ${statRow([{ label: "Date", value: date }, { label: "Time", value: time }])}
-      ${purpose ? infoBox(`<strong>Topic:</strong> ${purpose}`, "#fff7ed", "#fdba74") : ""}
-      ${infoBox(`💡 <strong>A few tips before your call:</strong><br/>
-        • Find a quiet spot with good internet connection<br/>
-        • Have any questions you want to ask ready<br/>
-        • We'll reach out via email if anything changes`
-        , "#eff6ff", "#93c5fd")}
-      <p style="margin-top:24px;font-size:14px;color:#52525b;">Need to reschedule? Reply to this email <strong>before your call time</strong> and we'll sort it out right away.</p>
-      <p style="margin-top:8px;font-size:14px;color:#52525b;">Looking forward to talking with you,<br/><strong>The VoteToFeed Team</strong></p>
-    `, `Reminder: Your call with VoteToFeed is tomorrow, ${date} at ${time}.`),
-  });
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // COMMENT NOTIFICATION — sent to pet owner when someone comments on their pet
 // ─────────────────────────────────────────────────────────────────────────────
