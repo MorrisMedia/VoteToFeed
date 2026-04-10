@@ -762,8 +762,9 @@ model Nomination {
   sentById    String
 
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  sentBy  User    @relation("NominationsSent", fields: [sentById], references: [id])
+  sentBy  User    @relation("NominationsSent", fields: [sentById], references: [id], onDelete: Cascade)
 
+  @@unique([email, contestId])
   @@index([email])
   @@index([contestId])
   @@index([status])

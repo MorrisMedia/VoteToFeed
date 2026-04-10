@@ -86,9 +86,11 @@ export function NominateClient() {
       if (res.ok) {
         const data = await res.json();
         setContests(data);
+      } else {
+        setMessage({ type: "error", text: "Failed to load contests" });
       }
     } catch {
-      console.error("Failed to load contests");
+      setMessage({ type: "error", text: "Failed to load contests — check your connection" });
     }
   }
 
@@ -99,9 +101,11 @@ export function NominateClient() {
       if (res.ok) {
         const data = await res.json();
         setNominations(data);
+      } else {
+        setMessage({ type: "error", text: "Failed to load nomination history" });
       }
     } catch {
-      console.error("Failed to load nominations");
+      setMessage({ type: "error", text: "Failed to load nomination history — check your connection" });
     } finally {
       setLoading(false);
     }
@@ -120,9 +124,11 @@ export function NominateClient() {
         setPetOwners(data);
         // Select all by default
         setSelectedOwnerIds(new Set(data.map((u) => u.id)));
+      } else {
+        setMessage({ type: "error", text: "Failed to load pet owners" });
       }
     } catch {
-      console.error("Failed to load pet owners");
+      setMessage({ type: "error", text: "Failed to load pet owners — check your connection" });
     } finally {
       setLoadingOwners(false);
     }
@@ -484,7 +490,7 @@ export function NominateClient() {
 
             <button
               type="submit"
-              disabled={sending}
+              disabled={sending || !contestId || recipients.filter((r) => r.email.trim() && r.name.trim()).length === 0}
               className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {sending ? (

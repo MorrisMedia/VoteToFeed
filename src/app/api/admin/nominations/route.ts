@@ -85,17 +85,24 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < recipients.length; i++) {
     const r = recipients[i];
 
-    // Create nomination record
-    const nomination = await prisma.nomination.create({
-      data: {
-        email: r.email,
-        name: r.name,
-        petName: r.petName || null,
-        contestId,
-        sentById: adminId,
-        status: "PENDING",
-      },
-    });
+    let nomination;
+    try {
+      // Create nomination record
+      nomination = await prisma.nomination.create({
+        data: {
+          email: r.email,
+          name: r.name,
+          petName: r.petName || null,
+          contestId,
+          sentById: adminId,
+          status: "PENDING",
+        },
+      });
+    } catch (err) {
+      console.error(`[Nomination] failed to create nomination for ${r.email}:`, err);
+      results.push({ email: r.email, success: false, error: "Already nominated for this contest" });
+      continue;
+    }
 
     // Send email with delay between sends
     try {
