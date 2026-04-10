@@ -89,6 +89,59 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:al
 </html>`;
 }
 
+function nominationEmailShell(content: string, preheader = "") {
+  const url = appUrl();
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>VoteToFeed</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌</div>` : ""}
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f4f4f5;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="background:linear-gradient(135deg,#dc2626 0%,#ef4444 100%);border-radius:16px 16px 0 0;padding:32px 40px;text-align:center;">
+            <p style="margin:0;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">🐾 VoteToFeed</p>
+            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.80);letter-spacing:0.3px;text-transform:uppercase;">Every vote feeds a shelter pet</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;padding:40px;color:#18181b;font-size:16px;line-height:1.7;">
+            ${content}
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;padding:0 40px;">
+            <div style="height:1px;background:#f1f5f9;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
+            <p style="margin:0;font-size:13px;color:#71717a;">
+              <a href="${url}" style="color:#ef4444;text-decoration:none;font-weight:600;">VoteToFeed</a>
+              &nbsp;·&nbsp;
+              <a href="${url}/privacy" style="color:#a1a1aa;text-decoration:none;">Privacy</a>
+              &nbsp;·&nbsp;
+              <a href="${url}/terms" style="color:#a1a1aa;text-decoration:none;">Terms</a>
+            </p>
+          </td>
+        </tr>
+        <tr><td style="height:24px;"></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
 function ctaButton(label: string, href: string, color = "#ef4444") {
   return `<table cellpadding="0" cellspacing="0" role="presentation" style="margin-top:20px;margin-bottom:8px;">
   <tr>
@@ -613,5 +666,45 @@ export async function sendPostCommentNotification(
       ${infoBox(`<strong>${commenterName}</strong> commented on your post "<em>${preview}</em>":<br/><br/><span style="font-size:15px;color:#18181b;">"${comment}"</span>`)}
       ${ctaButton("View Your Profile", profileUrl)}
     `, `${commenterName} commented on your post`),
+  });
+}
+
+export async function sendNominationEmail(
+  to: string,
+  recipientName: string,
+  contestName: string,
+  petType: string,
+  endDate: Date,
+  petName?: string,
+) {
+  const url = appUrl();
+  const signupUrl = `${url}/auth/signup?utm_source=nomination&utm_medium=email`;
+  const daysLeft = Math.max(0, Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  const petTypeLabel = petType === "DOG" ? "dog" : petType === "CAT" ? "cat" : "pet";
+  const petDisplay = petName || `your ${petTypeLabel}`;
+
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `🏆 ${petDisplay} has been nominated for ${contestName}!`,
+    html: nominationEmailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;">You're Nominated!</p>
+      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">🏆 Hey ${recipientName}!</h1>
+      ${infoBox(`<strong>${petDisplay}</strong> has been nominated to compete in the <strong>${contestName}</strong>! This is a free contest where ${petTypeLabel} owners enter their pets to win prizes — and every vote helps feed shelter animals.`)}
+      <p style="font-size:15px;color:#52525b;line-height:1.7;">
+        Here's how it works:<br/>
+        <strong>1.</strong> Sign up free (takes 30 seconds)<br/>
+        <strong>2.</strong> Upload a photo of ${petDisplay}<br/>
+        <strong>3.</strong> Share with friends & family to get votes<br/>
+        <strong>4.</strong> Win prizes — and feed shelter pets with every vote 🐾
+      </p>
+      ${statRow([
+        { label: "Contest", value: contestName.length > 18 ? contestName.slice(0, 18) + "…" : contestName },
+        { label: "Time Left", value: daysLeft > 0 ? `${daysLeft}d` : "Ending soon" },
+        { label: "Entry Fee", value: "Free" },
+      ])}
+      ${ctaButton("Sign Up & Enter Now", signupUrl)}
+      <p style="margin:24px 0 0;font-size:13px;color:#a1a1aa;text-align:center;">Spots fill up fast — don't miss out!</p>
+    `, `${petDisplay} has been nominated for ${contestName} on VoteToFeed!`),
   });
 }
