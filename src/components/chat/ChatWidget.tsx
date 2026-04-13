@@ -103,6 +103,7 @@ export function ChatWidget() {
   const [escalated, setEscalated] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,7 +112,9 @@ export function ChatWidget() {
   const user = session?.user as { name?: string; email?: string; id?: string } | undefined;
 
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
   }, []);
 
   // Load history on first open
@@ -300,7 +303,7 @@ export function ChatWidget() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
+          <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
             {messages.length === 0 && !loading && (
               <div className="text-center py-8">
                 <div className="text-3xl mb-2">🐾</div>
