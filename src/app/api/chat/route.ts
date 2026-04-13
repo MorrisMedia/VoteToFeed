@@ -54,6 +54,7 @@ async function getLiveContext(userId?: string) {
     topPets,
     userPets,
     userData,
+    recentWinners,
   ] = await Promise.all([
     prisma.petWeeklyStats.aggregate({
       where: { weekId },
@@ -91,6 +92,23 @@ async function getLiveContext(userId?: string) {
           select: { freeVotesRemaining: true, paidVoteBalance: true },
         })
       : Promise.resolve(null),
+    // Recent contest winners (last 4 weeks)
+    prisma.prize.findMany({
+      where: {
+        winnerId: { not: null },
+        awardedAt: { not: null },
+        placement: { in: [1, 2, 3] },
+        contest: { endDate: { gte: new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000) } },
+      },
+      select: {
+        placement: true,
+        title: true,
+        contest: { select: { name: true, petType: true, endDate: true } },
+        winnerId: true,
+      },
+      orderBy: { contest: { endDate: "desc" } },
+      take: 15,
+    }),
   ]);
 
   const lines: string[] = [];
@@ -114,6 +132,35 @@ async function getLiveContext(userId?: string) {
     topPets.forEach((p, i) => {
       lines.push(`${i + 1}. ${p.pet.name} (${p.pet.type}) — ${p.totalVotes} votes`);
     });
+  }
+
+  // Recent contest winners
+  if (recentWinners.length > 0) {
+    // Resolve winner pet names
+    const winnerPetIds = [...new Set(recentWinners.map((w) => w.winnerId!))];
+    const winnerPets = await prisma.pet.findMany({
+      where: { id: { in: winnerPetIds } },
+      select: { id: true, name: true, type: true },
+    });
+    const petMap = new Map(winnerPets.map((p) => [p.id, p]));
+
+    // Group by contest
+    const contestMap = new Map<string, typeof recentWinners>();
+    for (const w of recentWinners) {
+      const key = w.contest.name;
+      if (!contestMap.has(key)) contestMap.set(key, []);
+      contestMap.get(key)!.push(w);
+    }
+
+    lines.push(`\nRecent contest winners:`);
+    for (const [contestName, winners] of contestMap) {
+      const endStr = new Date(winners[0].contest.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      lines.push(`"${contestName}" (ended ${endStr}):`);
+      for (const w of winners.sort((a, b) => a.placement - b.placement)) {
+        const pet = petMap.get(w.winnerId!);
+        lines.push(`  #${w.placement} — ${pet?.name ?? "Unknown"} (${pet?.type ?? "?"})`);
+      }
+    }
   }
 
   if (userPets.length > 0) {

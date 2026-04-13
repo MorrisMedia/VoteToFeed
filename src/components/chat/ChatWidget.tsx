@@ -101,9 +101,12 @@ export function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [escalated, setEscalated] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCountRef = useRef<number>(0);
 
   const user = session?.user as { name?: string; email?: string; id?: string } | undefined;
 
@@ -114,6 +117,7 @@ export function ChatWidget() {
   // Load history on first open
   useEffect(() => {
     if (open && !loaded) {
+      setHasUnread(false);
       const sessionId = getSessionId();
       if (sessionId) {
         fetch(`/api/chat?sessionId=${encodeURIComponent(sessionId)}`)
@@ -121,6 +125,7 @@ export function ChatWidget() {
           .then((data) => {
             if (data.messages?.length) {
               setMessages(data.messages);
+              lastCountRef.current = data.messages.length;
             }
             if (data.aiPaused) {
               setEscalated(true);
@@ -129,6 +134,9 @@ export function ChatWidget() {
           .catch(() => {});
       }
       setLoaded(true);
+    }
+    if (open) {
+      setHasUnread(false);
     }
   }, [open, loaded]);
 
@@ -145,6 +153,7 @@ export function ChatWidget() {
             if (data.messages?.length) {
               setMessages((prev) => {
                 if (data.messages.length > prev.length) {
+                  lastCountRef.current = data.messages.length;
                   return data.messages;
                 }
                 return prev;
@@ -161,6 +170,35 @@ export function ChatWidget() {
       }
     };
   }, [open, loaded, escalated]);
+
+  // Background poll when chat is CLOSED — check for new admin messages
+  useEffect(() => {
+    if (!open) {
+      const sessionId = getSessionId();
+      if (!sessionId) return;
+      bgPollRef.current = setInterval(() => {
+        fetch(`/api/chat?sessionId=${encodeURIComponent(sessionId)}`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.messages?.length && data.messages.length > lastCountRef.current) {
+              // Check if the newest message is from admin/assistant (not user)
+              const newest = data.messages[data.messages.length - 1];
+              if (newest.role !== "user") {
+                setHasUnread(true);
+              }
+              lastCountRef.current = data.messages.length;
+            }
+          })
+          .catch(() => {});
+      }, 15000);
+    }
+    return () => {
+      if (bgPollRef.current) {
+        clearInterval(bgPollRef.current);
+        bgPollRef.current = null;
+      }
+    };
+  }, [open]);
 
   useEffect(() => {
     scrollToBottom();
@@ -228,6 +266,12 @@ export function ChatWidget() {
         className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center hover:scale-105 active:scale-95"
         aria-label={open ? "Close chat" : "Open chat"}
       >
+        {hasUnread && !open && (
+          <span className="absolute -top-1 -right-1 flex h-5 w-5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white">!</span>
+          </span>
+        )}
         {open ? (
           <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -256,7 +300,7 @@ export function ChatWidget() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
             {messages.length === 0 && !loading && (
               <div className="text-center py-8">
                 <div className="text-3xl mb-2">🐾</div>
@@ -276,10 +320,10 @@ export function ChatWidget() {
               >
                 <div>
                   {msg.role === "admin" && (
-                    <div className="text-[10px] text-blue-600 font-semibold mb-0.5 ml-1">Admin</div>
+                    <div className="text-[9px] text-blue-600 font-semibold mb-px ml-1">Admin</div>
                   )}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                    className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-[13px] leading-snug ${
                       msg.role === "user"
                         ? "bg-brand-500 text-white rounded-br-md"
                         : msg.role === "admin"
