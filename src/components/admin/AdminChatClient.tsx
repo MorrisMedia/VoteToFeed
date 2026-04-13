@@ -245,21 +245,21 @@ export function AdminChatClient() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-5 py-2 space-y-1">
           {conv.messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${msg.role === "USER" ? "justify-end" : "justify-start"}`}
             >
-              <div className="max-w-[70%]">
+              <div className="max-w-[80%]">
                 {msg.role === "ADMIN" && (
-                  <div className="text-[10px] text-blue-600 font-bold mb-0.5 ml-1">Admin Reply</div>
+                  <div className="text-[9px] text-blue-600 font-bold mb-px ml-1">Admin</div>
                 )}
                 {msg.role === "ASSISTANT" && (
-                  <div className="text-[10px] text-surface-400 font-medium mb-0.5 ml-1">AI</div>
+                  <div className="text-[9px] text-surface-400 font-medium mb-px ml-1">AI</div>
                 )}
                 <div
-                  className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`rounded-2xl px-3 py-1.5 text-[13px] leading-snug whitespace-pre-wrap ${
                     msg.role === "USER"
                       ? "bg-brand-500 text-white rounded-br-md"
                       : msg.role === "ADMIN"
@@ -270,7 +270,7 @@ export function AdminChatClient() {
                   {msg.content}
                 </div>
                 <div
-                  className={`text-[10px] text-surface-400 mt-0.5 ${
+                  className={`text-[9px] text-surface-300 mt-px ${
                     msg.role === "USER" ? "text-right" : "text-left"
                   }`}
                 >
