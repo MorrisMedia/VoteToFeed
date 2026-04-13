@@ -373,6 +373,7 @@ export function AdminEmailsClient() {
           html: broadcastHtml,
           contestId: broadcastSendToAll ? undefined : broadcastContestId || undefined,
           sendToAll: broadcastSendToAll,
+          builtinTemplateId: broadcastSource === "builtin" ? broadcastTemplateId : undefined,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Broadcast failed");
@@ -891,7 +892,7 @@ export function AdminEmailsClient() {
                         const res = await fetch("/api/admin/emails/preview", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ templateId: id }),
+                          body: JSON.stringify({ templateId: id, contestId: broadcastContestId || undefined }),
                         });
                         if (res.ok) {
                           const j = await res.json();
@@ -945,7 +946,23 @@ export function AdminEmailsClient() {
                   {!broadcastSendToAll && (
                     <select
                       value={broadcastContestId}
-                      onChange={(e) => setBroadcastContestId(e.target.value)}
+                      onChange={async (e) => {
+                        const cid = e.target.value;
+                        setBroadcastContestId(cid);
+                        // Re-render built-in template preview with real contest data
+                        if (broadcastSource === "builtin" && broadcastTemplateId && cid) {
+                          const res = await fetch("/api/admin/emails/preview", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ templateId: broadcastTemplateId, contestId: cid }),
+                          });
+                          if (res.ok) {
+                            const j = await res.json();
+                            setBroadcastSubject(j.subject);
+                            setBroadcastHtml(j.html);
+                          }
+                        }
+                      }}
                       className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm focus:border-red-300 outline-none ml-6"
                     >
                       <option value="">Select a contest...</option>
