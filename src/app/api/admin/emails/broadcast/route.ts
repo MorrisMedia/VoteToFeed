@@ -3,19 +3,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { getContestLeaderboard } from "@/lib/contest-growth";
+import { renderBuiltinTemplate, TemplateData, TEMPLATE_FALLBACK } from "@/lib/email-templates";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5min for large batches
 
 // POST /api/admin/emails/broadcast — send email to users
-// Body: { subject, html, contestId?, sendToAll? }
+// Body: { subject, html, contestId?, sendToAll?, builtinTemplateId? }
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { subject, html, contestId, sendToAll } = await req.json();
+  const { subject, html, contestId, sendToAll, builtinTemplateId } = await req.json();
 
   if (!subject || typeof subject !== "string") {
     return NextResponse.json({ error: "Subject required" }, { status: 400 });
@@ -29,6 +31,115 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  // ── If builtinTemplateId + contestId → re-render per user with real data ──
+  if (builtinTemplateId && contestId) {
+    const leaderboard = await getContestLeaderboard(contestId);
+    if (leaderboard.length === 0) {
+      return NextResponse.json({ error: "No entries in this contest" }, { status: 400 });
+    }
+
+    // Fetch contest metadata for TemplateData fields
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: { prizes: { orderBy: { placement: "asc" } } },
+    });
+    if (!contest) {
+      return NextResponse.json({ error: "Contest not found" }, { status: 404 });
+    }
+
+    const daysLeft = Math.max(0, Math.ceil((contest.endDate.getTime() - Date.now()) / 86400000));
+
+    let prizeDescription = contest.prizeDescription || "";
+    if (!prizeDescription && contest.prizes.length > 0) {
+      prizeDescription = contest.prizes
+        .map((p) => {
+          const place = p.placement === 1 ? "1st" : p.placement === 2 ? "2nd" : p.placement === 3 ? "3rd" : `${p.placement}th`;
+          const val = p.value > 0 ? ` ($${(p.value / 100).toFixed(0)})` : "";
+          return `${place} Place: ${p.title}${val}`;
+        })
+        .join(". ") + ".";
+    }
+    if (!prizeDescription) prizeDescription = TEMPLATE_FALLBACK.prizeDescription;
+
+    const nextContest = await prisma.contest.findFirst({
+      where: { startDate: { gt: contest.endDate }, isActive: true },
+      orderBy: { startDate: "asc" },
+      select: { name: true },
+    });
+
+    // Build per-user emails
+    type PersonalEmail = { email: string; subject: string; html: string };
+    const emails: PersonalEmail[] = [];
+
+    for (const row of leaderboard) {
+      if (!row.userEmail) continue;
+
+      // Gap to rank above
+      const aboveIdx = leaderboard.findIndex((r) => r.rank === row.rank - 1);
+      const aboveVotes = aboveIdx >= 0 ? leaderboard[aboveIdx].totalVotes : row.totalVotes;
+      const votesGap = Math.max(1, aboveVotes - row.totalVotes + 1);
+
+      const data: TemplateData = {
+        userName: row.userName,
+        petName: row.petName,
+        contestName: contest.name,
+        contestId: contest.id,
+        rank: row.rank,
+        totalEntries: leaderboard.length,
+        totalVotes: row.totalVotes,
+        votesNeededForTop3: row.votesNeededForTop3,
+        votesNeededFor1st: row.votesNeededFor1st,
+        daysLeft,
+        votesGap,
+        prizeDescription,
+        nextContestName: nextContest?.name || TEMPLATE_FALLBACK.nextContestName,
+      };
+
+      const rendered = renderBuiltinTemplate(builtinTemplateId, data);
+      if (rendered) {
+        emails.push({ email: row.userEmail, subject: rendered.subject, html: rendered.html });
+      }
+    }
+
+    if (emails.length === 0) {
+      return NextResponse.json({ error: "No valid recipients" }, { status: 400 });
+    }
+
+    // Send in batches
+    const BATCH_SIZE = 10;
+    const DELAY_MS = 1000;
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+      const batch = emails.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((e) =>
+          sendEmail({
+            from: "VoteToFeed <noreply@votetofeed.com>",
+            to: e.email,
+            subject: e.subject,
+            html: e.html,
+          })
+        )
+      );
+
+      for (const r of results) {
+        if (r.status === "fulfilled") sent++;
+        else { failed++; errors.push(String(r.reason)); }
+      }
+
+      if (i + BATCH_SIZE < emails.length) {
+        await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+      }
+    }
+
+    return NextResponse.json({ total: emails.length, sent, failed, errors: errors.slice(0, 5) });
+  }
+
+  // ── Fallback: plain HTML broadcast (saved templates, AI, or sendToAll) ──
 
   // Build recipient list with per-user pet details for personalization
   type Recipient = {
