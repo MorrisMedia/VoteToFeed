@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
         const row = leaderboardByPet.get(entry.petId);
         if (!row) continue;
 
+        const daysLeft = Math.max(0, Math.ceil((contest.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+
         await sendDailyRankEmail(
           userEmail,
           row.userName,
@@ -98,7 +100,10 @@ export async function POST(req: NextRequest) {
           contest.id,
           row.rank,
           leaderboard.length,
-          row.votesNeededForTop3
+          row.votesNeededForTop3,
+          row.votesNeededFor1st,
+          daysLeft,
+          contest.prizeDescription,
         );
 
         await logContestEmail(contest.id, entry.pet.userId, CONTEST_EMAIL_TYPES.DAILY_RANK);

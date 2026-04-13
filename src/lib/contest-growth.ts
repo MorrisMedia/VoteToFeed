@@ -100,6 +100,9 @@ export const CONTEST_EMAIL_TYPES = {
   WINNER_2: "winner_2",
   WINNER_3: "winner_3",
   WINNER_RANDOM: "winner_random",
+  CLOSE_RACE: "close_race",
+  NO_VOTES_NUDGE: "no_votes_nudge",
+  FINAL_HOURS_PUSH: "final_hours_push",
 } as const;
 
 export type ContestEmailType = (typeof CONTEST_EMAIL_TYPES)[keyof typeof CONTEST_EMAIL_TYPES];
@@ -113,6 +116,7 @@ export type ContestLeaderboardRow = {
   totalVotes: number;
   rank: number;
   votesNeededForTop3: number;
+  votesNeededFor1st: number;
 };
 
 export async function getContestLeaderboard(contestId: string): Promise<ContestLeaderboardRow[]> {
@@ -194,6 +198,7 @@ export async function getContestLeaderboard(contestId: string): Promise<ContestL
   });
 
   const thirdPlaceVotes = rankedPetIds[2] ? (totals.get(rankedPetIds[2]) ?? 0) : null;
+  const firstPlaceVotes = rankedPetIds[0] ? (totals.get(rankedPetIds[0]) ?? 0) : 0;
 
   return rankedPetIds.map((petId, index) => {
     const entry = entriesByPet.get(petId);
@@ -208,6 +213,7 @@ export async function getContestLeaderboard(contestId: string): Promise<ContestL
       totalVotes,
       rank: index + 1,
       votesNeededForTop3: thirdPlaceVotes === null || index < 3 ? 0 : Math.max(0, thirdPlaceVotes - totalVotes + 1),
+      votesNeededFor1st: index === 0 ? 0 : Math.max(0, firstPlaceVotes - totalVotes + 1),
     };
   });
 }
@@ -240,7 +246,9 @@ export async function logContestEmail(contestId: string, userId: string, emailTy
       userId,
       emailType,
     },
-    update: {},
+    update: {
+      sentAt: new Date(),
+    },
   });
 }
 
@@ -258,6 +266,39 @@ export async function hasDailyRankEmailBeenSentToday(contestId: string, userId: 
   });
 
   return Boolean(existing);
+}
+
+export async function hasEngagementEmailBeenSentToday(contestId: string, userId: string, emailType: ContestEmailType) {
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const existing = await prisma.contestEmailLog.findFirst({
+    where: {
+      contestId,
+      userId,
+      emailType,
+      sentAt: { gte: startOfDay },
+    },
+  });
+
+  return Boolean(existing);
+}
+
+export async function getVotesTodayForPet(petId: string): Promise<number> {
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const [registered, anon] = await Promise.all([
+    prisma.vote.aggregate({
+      where: { petId, createdAt: { gte: startOfDay } },
+      _sum: { quantity: true },
+    }),
+    prisma.anonymousVote.count({
+      where: { petId, createdAt: { gte: startOfDay } },
+    }),
+  ]);
+
+  return (registered._sum.quantity ?? 0) + anon;
 }
 
 export function getCountdownEmailType(daysLeft: number): ContestEmailType | null {

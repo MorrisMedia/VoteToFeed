@@ -308,6 +308,9 @@ function AccountsTab() {
 
 // ─── AUTO-VOTE TAB ───────────────────────────────────────
 
+type ContestOption = { id: string; name: string; petType: string | null; endDate: string };
+type DemoPetItem = { id: string; name: string; type: string; breed: string | null; photo: string | null; weekVotes: number; weekRank: number | null };
+
 function AutoVoteTab() {
   const [mode, setMode] = useState<"all_pets" | "demo_pets" | "specific_pets">("all_pets");
   const [totalVotes, setTotalVotes] = useState(100);
@@ -316,11 +319,46 @@ function AutoVoteTab() {
   const [result, setResult] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
+  // Contest filter (for all_pets and demo_pets modes)
+  const [contests, setContests] = useState<ContestOption[]>([]);
+  const [contestFilter, setContestFilter] = useState<string>(""); // "" = all contests
+
+  // Demo pets list (for demo_pets mode with specific contest)
+  const [demoPets, setDemoPets] = useState<DemoPetItem[]>([]);
+  const [selectedDemoPetIds, setSelectedDemoPetIds] = useState<string[]>([]);
+  const [loadingDemoPets, setLoadingDemoPets] = useState(false);
+
   // For specific_pets mode
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; type: string; ownerName: string }>>([]);
   const [selectedPets, setSelectedPets] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [searching, setSearching] = useState(false);
+
+  // Load contests on mount
+  useEffect(() => {
+    fetch("/api/admin/engagement/auto-vote")
+      .then((r) => r.json())
+      .then((d) => setContests(d.contests || []))
+      .catch(() => {});
+  }, []);
+
+  // When demo_pets mode + contestFilter changes, load demo pets for that contest
+  useEffect(() => {
+    if (mode !== "demo_pets") return;
+    setLoadingDemoPets(true);
+    const url = contestFilter
+      ? `/api/admin/engagement/auto-vote?contestId=${contestFilter}`
+      : "/api/admin/engagement/auto-vote";
+    fetch(url)
+      .then((r) => r.json())
+      .then((d) => {
+        const pets: DemoPetItem[] = d.pets || [];
+        setDemoPets(pets);
+        setSelectedDemoPetIds(pets.map((p) => p.id)); // select all by default
+      })
+      .catch(() => {})
+      .finally(() => setLoadingDemoPets(false));
+  }, [mode, contestFilter]);
 
   const searchPets = async () => {
     if (searchQuery.length < 2) return;
@@ -342,19 +380,40 @@ function AutoVoteTab() {
     setSearching(false);
   };
 
+  const toggleDemoPet = (id: string) => {
+    setSelectedDemoPetIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const scheduleVotes = async () => {
     setSubmitting(true);
     setResult(null);
     try {
-      const res = await fetch("/api/admin/engagement/auto-vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      // For demo_pets mode: if contest selected, send selected pet IDs (specific_pets)
+      // For all_pets/demo_pets without selection filtering, pass contestId
+      let body: Record<string, unknown>;
+      if (mode === "demo_pets" && demoPets.length > 0) {
+        body = {
+          mode: "specific_pets",
+          targetPetIds: selectedDemoPetIds,
+          totalVotes,
+          spreadHours,
+        };
+      } else {
+        body = {
           mode,
           targetPetIds: mode === "specific_pets" ? selectedPets.map((p) => p.id) : undefined,
           totalVotes,
           spreadHours,
-        }),
+          contestId: (mode === "all_pets" || mode === "demo_pets") && contestFilter ? contestFilter : undefined,
+        };
+      }
+
+      const res = await fetch("/api/admin/engagement/auto-vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (res.ok) {
@@ -369,6 +428,13 @@ function AutoVoteTab() {
     setSubmitting(false);
     setTimeout(() => setMsg(""), 5000);
   };
+
+  const isDisabled =
+    submitting ||
+    (mode === "specific_pets" && selectedPets.length === 0) ||
+    (mode === "demo_pets" && demoPets.length > 0 && selectedDemoPetIds.length === 0);
+
+  const selectedContest = contests.find((c) => c.id === contestFilter);
 
   return (
     <div className="space-y-6">
@@ -399,7 +465,12 @@ function AutoVoteTab() {
             ).map((m) => (
               <button
                 key={m.id}
-                onClick={() => setMode(m.id)}
+                onClick={() => {
+                  setMode(m.id);
+                  setContestFilter("");
+                  setDemoPets([]);
+                  setSelectedDemoPetIds([]);
+                }}
                 className={`rounded-xl border-2 p-3 text-left transition-all ${
                   mode === m.id
                     ? "border-brand-500 bg-brand-50"
@@ -412,6 +483,126 @@ function AutoVoteTab() {
             ))}
           </div>
         </div>
+
+        {/* Contest filter — shown for all_pets and demo_pets modes */}
+        {(mode === "all_pets" || mode === "demo_pets") && (
+          <div>
+            <label className="block text-xs font-semibold text-surface-700 mb-2">
+              Filter by Contest
+            </label>
+            <select
+              value={contestFilter}
+              onChange={(e) => setContestFilter(e.target.value)}
+              className="w-full rounded-lg border border-surface-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+            >
+              <option value="">🌐 All Contests</option>
+              {contests.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.petType ? ` (${c.petType})` : ""} — ends {new Date(c.endDate).toLocaleDateString()}
+                </option>
+              ))}
+            </select>
+            {selectedContest && (
+              <p className="text-xs text-surface-500 mt-1.5">
+                Contest: <span className="font-medium text-surface-700">{selectedContest.name}</span>
+                {selectedContest.petType && <span className="ml-1 text-surface-400">· {selectedContest.petType}</span>}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Demo Pets checklist — shown when demo_pets mode */}
+        {mode === "demo_pets" && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-surface-700">
+                Demo Pets{contestFilter ? " in Contest" : ""}{" "}
+                <span className="font-normal text-surface-400">({demoPets.length} total)</span>
+              </label>
+              {demoPets.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedDemoPetIds(demoPets.map((p) => p.id))}
+                    className="text-xs text-brand-600 hover:text-brand-800 font-medium"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-surface-300">·</span>
+                  <button
+                    onClick={() => setSelectedDemoPetIds([])}
+                    className="text-xs text-surface-500 hover:text-red-600 font-medium"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {loadingDemoPets ? (
+              <div className="py-6 text-center text-sm text-surface-400">Loading pets...</div>
+            ) : demoPets.length === 0 ? (
+              <div className="rounded-lg border border-surface-200 p-4 text-center text-sm text-surface-400">
+                {contestFilter ? "No demo pets in this contest." : "No active demo pets found."}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-surface-200 divide-y divide-surface-100 max-h-64 overflow-y-auto">
+                {demoPets.map((pet) => {
+                  const selected = selectedDemoPetIds.includes(pet.id);
+                  return (
+                    <button
+                      key={pet.id}
+                      onClick={() => toggleDemoPet(pet.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                        selected ? "bg-brand-50" : "hover:bg-surface-50"
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <div className={`flex-shrink-0 h-4 w-4 rounded border-2 flex items-center justify-center ${
+                        selected ? "border-brand-500 bg-brand-500" : "border-surface-300"
+                      }`}>
+                        {selected && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 12 12">
+                            <path d="M10 3L5 8.5 2 5.5"/>
+                          </svg>
+                        )}
+                      </div>
+                      {/* Photo */}
+                      {pet.photo ? (
+                        <img src={pet.photo} alt="" className="h-8 w-8 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-lg bg-surface-200 flex-shrink-0" />
+                      )}
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-sm text-surface-800 truncate">{pet.name}</span>
+                          <span className="text-[10px] rounded-full px-1.5 py-0.5 bg-surface-100 text-surface-500 flex-shrink-0">{pet.type}</span>
+                        </div>
+                        {pet.breed && <div className="text-xs text-surface-400 truncate">{pet.breed}</div>}
+                      </div>
+                      {/* Votes */}
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-sm font-semibold text-surface-800">{pet.weekVotes}</div>
+                        <div className="text-[10px] text-surface-400">votes</div>
+                      </div>
+                      {pet.weekRank && (
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-xs font-bold text-brand-600">#{pet.weekRank}</div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {demoPets.length > 0 && (
+              <p className="text-xs text-surface-500 mt-1.5">
+                {selectedDemoPetIds.length} of {demoPets.length} pets selected
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Specific pets picker */}
         {mode === "specific_pets" && (
@@ -539,14 +730,23 @@ function AutoVoteTab() {
 
         {/* Summary */}
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-          <strong>Preview:</strong> {totalVotes} votes distributed across{" "}
-          {mode === "specific_pets" ? `${selectedPets.length} selected pets` : mode === "demo_pets" ? "demo account pets" : "all real pets"},
-          spread gradually over {spreadHours}h. Demo accounts will vote in random batches of 1-5 every 5 minutes.
+          <strong>Preview:</strong>{" "}
+          {totalVotes} votes distributed across{" "}
+          {mode === "specific_pets"
+            ? `${selectedPets.length} selected pets`
+            : mode === "demo_pets"
+              ? demoPets.length > 0
+                ? `${selectedDemoPetIds.length} selected demo pets`
+                : "all demo pets"
+              : contestFilter
+                ? `all real pets in "${selectedContest?.name ?? "contest"}"`
+                : "all real pets"}
+          {", "}spread gradually over {spreadHours}h. Demo accounts will vote in random batches of 1-5 every 5 minutes.
         </div>
 
         <button
           onClick={scheduleVotes}
-          disabled={submitting || (mode === "specific_pets" && selectedPets.length === 0)}
+          disabled={isDisabled}
           className="rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
         >
           {submitting ? "Scheduling..." : "🚀 Schedule Auto-Vote Campaign"}

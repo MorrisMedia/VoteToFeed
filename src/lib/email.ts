@@ -10,7 +10,7 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-async function sendEmail(payload: Parameters<ReturnType<typeof getResend>["emails"]["send"]>[0]) {
+export async function sendEmail(payload: Parameters<ReturnType<typeof getResend>["emails"]["send"]>[0]) {
   const resend = getResend();
   const { data, error } = await resend.emails.send(payload);
   if (error) {
@@ -25,7 +25,7 @@ function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || "https://www.votetofeed.com";
 }
 
-function emailShell(content: string, preheader = "") {
+export function emailShell(content: string, preheader = "") {
   const url = appUrl();
   return `<!DOCTYPE html>
 <html lang="en">
@@ -142,7 +142,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:al
 </html>`;
 }
 
-function ctaButton(label: string, href: string, color = "#ef4444") {
+export function ctaButton(label: string, href: string, color = "#ef4444") {
   return `<table cellpadding="0" cellspacing="0" role="presentation" style="margin-top:20px;margin-bottom:8px;">
   <tr>
     <td style="border-radius:10px;background:${color};" bgcolor="${color}">
@@ -155,7 +155,7 @@ function ctaButton(label: string, href: string, color = "#ef4444") {
 </table>`;
 }
 
-function infoBox(content: string, color = "#fef2f2", border = "#fca5a5") {
+export function infoBox(content: string, color = "#fef2f2", border = "#fca5a5") {
   return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;">
   <tr>
     <td style="background:${color};border-left:4px solid ${border};border-radius:0 8px 8px 0;padding:16px 20px;font-size:15px;line-height:1.6;color:#18181b;">
@@ -165,7 +165,7 @@ function infoBox(content: string, color = "#fef2f2", border = "#fca5a5") {
 </table>`;
 }
 
-function statRow(items: Array<{ label: string; value: string }>) {
+export function statRow(items: Array<{ label: string; value: string }>) {
   const cells = items.map(i => `
     <td align="center" style="padding:16px;border-right:1px solid #f1f5f9;">
       <p style="margin:0 0 4px;font-size:24px;font-weight:800;color:#ef4444;">${i.value}</p>
@@ -332,6 +332,29 @@ export async function sendContestCountdown(
   });
 }
 
+// 14 rotating daily tips — one per day, cycles every 2 weeks
+const DAILY_TIPS: Array<{ emoji: string; title: string; body: string }> = [
+  { emoji: "📱", title: "Share on Instagram Stories", body: "Post a cute photo of your pet with the contest link in your story. Friends swipe up → free votes!" },
+  { emoji: "👨‍👩‍👧‍👦", title: "Ask Family & Friends", body: "Send a quick text to 10 people: \"Hey, can you vote for my pet? Takes 2 seconds!\" You'd be surprised how many will." },
+  { emoji: "📘", title: "Post in Facebook Groups", body: "Pet lover groups on Facebook are full of people who love voting. Share your pet's link in 2-3 groups today." },
+  { emoji: "🔄", title: "Share Every Day", body: "People forget! Re-share your contest link daily — each new post reaches different followers at different times." },
+  { emoji: "💬", title: "Use WhatsApp Broadcasts", body: "Create a broadcast list of friends & family. One message reaches everyone at once without a group chat." },
+  { emoji: "📸", title: "Update Your Pet's Photo", body: "A fresh, high-quality photo gets more votes. Try natural lighting, eye-level angle, and a clean background." },
+  { emoji: "🏆", title: "Mention the Prize", body: "When sharing, mention what you could win! People are more likely to help when they know the stakes." },
+  { emoji: "⏰", title: "Post at Peak Times", body: "Share between 6-9 PM when most people are scrolling. Lunchtime (12-1 PM) is another sweet spot." },
+  { emoji: "🐾", title: "Tell Your Pet's Story", body: "Write a short caption about why your pet deserves to win. Emotional stories get way more engagement." },
+  { emoji: "💪", title: "Buy a Small Vote Boost", body: "Even a small vote package can jump you several spots. Plus, every paid vote feeds a shelter pet!" },
+  { emoji: "🎯", title: "DM Your Closest Friends", body: "A personal DM asking for help is 10x more effective than a public post. Send 5 DMs right now!" },
+  { emoji: "📧", title: "Email Your Contacts", body: "A quick email to coworkers, neighbors, or your kid's school group can bring in a wave of votes." },
+  { emoji: "🎥", title: "Post a Short Video", body: "A 15-second video of your pet being adorable + \"vote for us!\" gets way more engagement than a photo alone." },
+  { emoji: "🤝", title: "Team Up with Other Contestants", body: "Find other contestants and agree to vote for each other. Rising tides lift all boats!" },
+];
+
+function getDailyTip(): (typeof DAILY_TIPS)[number] {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+  return DAILY_TIPS[dayOfYear % DAILY_TIPS.length];
+}
+
 export async function sendDailyRankEmail(
   to: string,
   userName: string,
@@ -340,24 +363,219 @@ export async function sendDailyRankEmail(
   contestId: string,
   rank: number,
   totalEntries: number,
-  votesNeededForTop3: number
+  votesNeededForTop3: number,
+  votesNeededFor1st: number,
+  daysLeft: number,
+  prizeDescription?: string | null,
 ) {
+  const url = appUrl();
+  const tip = getDailyTip();
   const isTop3 = votesNeededForTop3 <= 0;
+  const is1st = rank === 1;
+
+  // Dynamic subject line based on position
+  const subject = is1st
+    ? `🥇 ${petName} is #1! Don't let anyone catch up`
+    : isTop3
+    ? `🏆 ${petName} is #${rank} — hold your spot!`
+    : rank <= 5
+    ? `🔥 ${petName} is #${rank} — SO close to top 3!`
+    : `📈 ${petName} is #${rank} — here's how to climb`;
+
+  // Dynamic heading
+  const heading = is1st
+    ? `${petName} is #1! 🥇`
+    : isTop3
+    ? `${petName} is in the top 3! 🏆`
+    : rank <= 5
+    ? `${petName} is almost there!`
+    : `${petName}'s daily update`;
+
+  // Dynamic message based on position
+  let positionMessage: string;
+  if (is1st) {
+    positionMessage = `<strong>${petName} is leading ${contestName}!</strong> You're in 1st place — but the competition is close. Keep sharing to protect your spot.`;
+  } else if (isTop3) {
+    positionMessage = `<strong>${petName} is ranked #${rank}</strong> in ${contestName} — that's a winning position! You need <strong>${votesNeededFor1st} more vote${votesNeededFor1st === 1 ? "" : "s"}</strong> to take the lead.`;
+  } else if (rank <= 5) {
+    positionMessage = `<strong>${petName} is #${rank}</strong> — just <strong>${votesNeededForTop3} vote${votesNeededForTop3 === 1 ? "" : "s"}</strong> from the top 3! That's totally doable today. Share the link and ask a few friends.`;
+  } else if (rank <= 10) {
+    positionMessage = `<strong>${petName} is ranked #${rank}</strong> out of ${totalEntries} entries. You need <strong>${votesNeededForTop3} votes</strong> to break into the top 3 — a good sharing push today could change everything!`;
+  } else {
+    positionMessage = `<strong>${petName} is ranked #${rank}</strong> out of ${totalEntries}. ${daysLeft > 2 ? `There are still ${daysLeft} days left — plenty of time for a comeback!` : "It's not over yet — big swings happen in the final days!"} Every vote counts, and today's tip can help.`;
+  }
+
+  // Prize section
+  const prizeSection = prizeDescription
+    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #fde68a;border-radius:12px;overflow:hidden;background:#fffbeb;">
+        <tr>
+          <td style="padding:16px 20px;">
+            <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;">🎁 What You Could Win</p>
+            <p style="margin:0;font-size:15px;color:#78350f;line-height:1.6;">${prizeDescription}</p>
+          </td>
+        </tr>
+      </table>`
+    : "";
+
+  // Tip of the day section
+  const tipSection = `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #c7d2fe;border-radius:12px;overflow:hidden;background:#eef2ff;">
+    <tr>
+      <td style="padding:16px 20px;">
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.5px;">${tip.emoji} Tip of the Day</p>
+        <p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#312e81;">${tip.title}</p>
+        <p style="margin:0;font-size:14px;color:#3730a3;line-height:1.6;">${tip.body}</p>
+      </td>
+    </tr>
+  </table>`;
+
   await sendEmail({
     from: FROM_EMAIL,
     to: [to],
-    subject: `📈 ${petName} is #${rank} right now — top 3 wins`,
+    subject,
     html: emailShell(`
-      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;">Daily Rank Update</p>
-      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">${petName} is currently<br/>ranked #${rank} 📈</h1>
-      ${statRow([{ label: "Current Rank", value: `#${rank}` }, { label: "Total Entries", value: String(totalEntries) }, { label: "Votes to Top 3", value: isTop3 ? "In Top 3!" : String(votesNeededForTop3) }])}
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;">Daily Contest Update</p>
+      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">${heading}</h1>
+      ${statRow([
+        { label: "Current Rank", value: `#${rank}` },
+        { label: is1st ? "Lead" : "To #1", value: is1st ? "You're #1!" : `${votesNeededFor1st} votes` },
+        { label: "Days Left", value: daysLeft > 0 ? `${daysLeft}d` : "Final day!" },
+      ])}
+      ${infoBox(positionMessage, isTop3 ? "#f0fdf4" : "#fef2f2", isTop3 ? "#86efac" : "#fca5a5")}
+      ${prizeSection}
+      ${tipSection}
+      ${ctaButton("Vote & Share Now", `${url}/contests/${contestId}`)}
+      ${!is1st ? ctaButton("Buy Votes — Jump the Ranks", `${url}/dashboard#votes`, "#71717a") : ""}
+      <p style="margin-top:20px;font-size:14px;color:#16a34a;">🐾 Every vote feeds shelter pets — win or not, you're making a difference.</p>
+    `, `${petName} is #${rank} in ${contestName} — ${daysLeft}d left. ${is1st ? "Defend your lead!" : `${votesNeededFor1st} votes to #1`}`),
+  });
+}
+
+// ─── ENGAGEMENT EMAILS (automated, push to buy votes + stay active) ───
+
+export async function sendCloseRaceAlert(
+  to: string,
+  userName: string,
+  petName: string,
+  contestName: string,
+  contestId: string,
+  rank: number,
+  nextRank: number,
+  votesGap: number,
+  daysLeft: number,
+) {
+  const url = appUrl();
+  const suggestedPkg = VOTE_PACKAGES.find((p) => p.votes >= votesGap) ?? VOTE_PACKAGES[0];
+  const pkgLabel = `${suggestedPkg.votes} votes for $${(suggestedPkg.price / 100).toFixed(2)}`;
+
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `⚡ ${petName} is only ${votesGap} vote${votesGap !== 1 ? "s" : ""} from #${nextRank}!`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;">Close Race Alert</p>
+      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">Just ${votesGap} vote${votesGap !== 1 ? "s" : ""} to move up! ⚡</h1>
+      ${statRow([
+        { label: "Current Rank", value: `#${rank}` },
+        { label: "Next Rank", value: `#${nextRank}` },
+        { label: "Votes Needed", value: String(votesGap) },
+      ])}
+      ${infoBox(`<strong>${petName}</strong> is neck-and-neck with the pet ranked #${nextRank} in <strong>${contestName}</strong>. Just <strong>${votesGap} more vote${votesGap !== 1 ? "s" : ""}</strong> and you move up! ${daysLeft <= 2 ? "The contest ends soon — act now!" : "This is your moment!"}`, "#fffbeb", "#fde68a")}
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #c7d2fe;border-radius:12px;overflow:hidden;background:#eef2ff;">
+        <tr>
+          <td style="padding:16px 20px;">
+            <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.5px;">💡 Quick Math</p>
+            <p style="margin:0;font-size:15px;color:#312e81;line-height:1.6;">The <strong>${suggestedPkg.label}</strong> package (${pkgLabel}) would move ${petName} up to <strong>#${nextRank}</strong> — and every vote feeds a shelter pet.</p>
+          </td>
+        </tr>
+      </table>
+      ${ctaButton("Buy Votes & Move Up", `${url}/dashboard#votes`, "#d97706")}
+      ${ctaButton("Share & Get Free Votes", `${url}/contests/${contestId}`, "#71717a")}
+      <p style="margin-top:20px;font-size:14px;color:#16a34a;">🐾 Paid votes do double duty — help ${petName} win AND feed shelter animals.</p>
+    `, `${petName} is only ${votesGap} votes from #${nextRank} in ${contestName}!`),
+  });
+}
+
+export async function sendNoVotesNudge(
+  to: string,
+  userName: string,
+  petName: string,
+  contestName: string,
+  contestId: string,
+  rank: number,
+  totalVotes: number,
+  daysLeft: number,
+) {
+  const url = appUrl();
+
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `😟 ${petName} hasn't gotten any votes today`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Heads Up</p>
+      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">${petName} needs some love today 😟</h1>
+      <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${userName}, <strong>${petName}</strong> hasn't received any new votes today in <strong>${contestName}</strong>. Meanwhile, other pets are climbing the ranks.</p>
+      ${statRow([
+        { label: "Current Rank", value: `#${rank}` },
+        { label: "Total Votes", value: String(totalVotes) },
+        { label: "Days Left", value: daysLeft > 0 ? `${daysLeft}d` : "Final day!" },
+      ])}
+      ${infoBox(`<strong>Don't let ${petName} fall behind!</strong> Here are 3 things you can do right now:<br/><br/>1. <strong>Share the contest link</strong> on social media or text it to 5 friends<br/>2. <strong>Buy a small vote pack</strong> — even 5 votes for $0.99 helps<br/>3. <strong>Use your free votes</strong> if you haven't already today`, "#fef2f2", "#fca5a5")}
+      ${ctaButton("Vote & Share Now", `${url}/contests/${contestId}`)}
+      ${ctaButton("Buy a Quick Boost — $0.99", `${url}/dashboard#votes`, "#71717a")}
+      <p style="margin-top:20px;font-size:14px;color:#16a34a;">🐾 Every vote — free or paid — feeds a shelter pet. You're making a difference either way!</p>
+    `, `${petName} has 0 votes today in ${contestName} — help them out!`),
+  });
+}
+
+export async function sendFinalHoursPush(
+  to: string,
+  userName: string,
+  petName: string,
+  contestName: string,
+  contestId: string,
+  rank: number,
+  votesNeededForTop3: number,
+  prizeDescription?: string | null,
+) {
+  const url = appUrl();
+  const isTop3 = votesNeededForTop3 <= 0;
+  const suggestedPkg = !isTop3 && votesNeededForTop3 > 0
+    ? VOTE_PACKAGES.find((p) => p.votes >= votesNeededForTop3) ?? VOTE_PACKAGES[VOTE_PACKAGES.length - 1]
+    : VOTE_PACKAGES[0];
+
+  const prizeSection = prizeDescription
+    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #fde68a;border-radius:12px;overflow:hidden;background:#fffbeb;">
+        <tr>
+          <td style="padding:16px 20px;">
+            <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;">🎁 On The Line</p>
+            <p style="margin:0;font-size:15px;color:#78350f;line-height:1.6;">${prizeDescription}</p>
+          </td>
+        </tr>
+      </table>`
+    : "";
+
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `🚨 LAST CHANCE — ${contestName} ends tomorrow!`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">🚨 Final Hours</p>
+      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">This is it — last chance<br/>for ${petName}!</h1>
+      <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${userName}, <strong>${contestName}</strong> ends <strong>tomorrow</strong>. ${petName} is currently ranked <strong>#${rank}</strong>.</p>
+      ${statRow([
+        { label: "Current Rank", value: `#${rank}` },
+        { label: isTop3 ? "Status" : "To Top 3", value: isTop3 ? "Winning!" : `${votesNeededForTop3} votes` },
+        { label: "Time Left", value: "~24h" },
+      ])}
       ${isTop3
-        ? infoBox(`🏆 <strong>${petName} is already in the top 3!</strong> Hold the position — keep sharing and voting to lock it in.`, "#f0fdf4", "#86efac")
-        : infoBox(`${petName} needs just <strong>${votesNeededForTop3} more vote${votesNeededForTop3 === 1 ? "" : "s"}</strong> to break into the top 3. That's totally doable today!`)}
-      ${ctaButton("Vote Now & Share", `${appUrl()}/contests/${contestId}`)}
-      ${ctaButton("Buy Votes", appUrl(), "#71717a")}
-      <p style="margin-top:20px;font-size:14px;color:#16a34a;">🐾 Paid votes help shelter pets get fed — every vote does good.</p>
-    `, `${petName} is #${rank} out of ${totalEntries} — ${isTop3 ? "already in top 3!" : `${votesNeededForTop3} votes from top 3`}`),
+        ? infoBox(`🏆 <strong>${petName} is in a winning position!</strong> Don't get complacent — the final hours see the biggest swings. Buy a few extra votes to lock it in.`, "#f0fdf4", "#86efac")
+        : infoBox(`<strong>${petName} needs ${votesNeededForTop3} more votes to crack the top 3.</strong> That's just the <strong>${suggestedPkg.label}</strong> pack (${suggestedPkg.votes} votes for $${(suggestedPkg.price / 100).toFixed(2)}). Tomorrow it'll be too late.`, "#fef2f2", "#fca5a5")}
+      ${prizeSection}
+      ${ctaButton(isTop3 ? "Lock In the Win — Buy Votes" : "Buy Votes Now — Last Chance", `${url}/dashboard#votes`, "#dc2626")}
+      ${ctaButton("Share the Link One More Time", `${url}/contests/${contestId}`, "#71717a")}
+      <p style="margin-top:20px;font-size:14px;color:#16a34a;">🐾 Win or not, every vote you've cast has helped feed shelter pets. Thank you! ❤️</p>
+    `, `${contestName} ends tomorrow — ${petName} is #${rank}. ${isTop3 ? "Lock in your win!" : `${votesNeededForTop3} votes from top 3!`}`),
   });
 }
 
@@ -706,5 +924,42 @@ export async function sendNominationEmail(
       ${ctaButton("Sign Up & Enter Now", signupUrl)}
       <p style="margin:24px 0 0;font-size:13px;color:#a1a1aa;text-align:center;">Spots fill up fast — don't miss out!</p>
     `, `${petDisplay} has been nominated for ${contestName} on VoteToFeed!`),
+  });
+}
+
+/**
+ * Notification email when an admin auto-adds a pet to a contest.
+ * Not asking permission — just informing them they're in!
+ */
+export async function sendContestAddedEmail(
+  to: string,
+  userName: string,
+  petName: string,
+  contestName: string,
+  contestId: string,
+  daysLeft: number,
+  prizeDescription?: string | null,
+) {
+  const url = appUrl();
+
+  await sendEmail({
+    from: FROM_EMAIL,
+    to: [to],
+    subject: `🎉 ${petName} is now competing in ${contestName}!`,
+    html: emailShell(`
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;">You're In!</p>
+      <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">🎉 ${petName} is in the contest!</h1>
+      <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${userName}, great news — <strong>${petName}</strong> has been entered into <strong>${contestName}</strong>!</p>
+      ${statRow([
+        { label: "Contest", value: contestName.length > 18 ? contestName.slice(0, 18) + "…" : contestName },
+        { label: "Time Left", value: daysLeft > 0 ? `${daysLeft}d` : "Starting soon" },
+        { label: "Entry Fee", value: "Free" },
+      ])}
+      ${prizeDescription ? infoBox(`<strong>🎁 Prizes:</strong> ${prizeDescription}`) : ""}
+      ${infoBox(`<strong>What to do now:</strong><br/><br/>1. <strong>Share your contest link</strong> with friends &amp; family<br/>2. <strong>Vote for ${petName}</strong> every day (free votes!)<br/>3. <strong>Climb the ranks</strong> — every vote also feeds shelter pets 🐾`)}
+      ${ctaButton("See " + petName + "'s Contest Page", `${url}/contests/${contestId}`)}
+      ${ctaButton("Buy Extra Votes — Jump the Ranks", `${url}/dashboard#votes`, "#71717a")}
+      <p style="margin-top:20px;font-size:14px;color:#16a34a;text-align:center;">🐾 Every vote feeds shelter pets — win or not, you're making a difference.</p>
+    `, `${petName} is now competing in ${contestName} on VoteToFeed!`),
   });
 }

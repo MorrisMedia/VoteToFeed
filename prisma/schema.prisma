@@ -112,6 +112,8 @@ model User {
   postCommentLikes    PostCommentLike[]
   followBonusLogs     FollowBonusLog[]
   nominationsSent     Nomination[]      @relation("NominationsSent")
+  contestEmailLogs    ContestEmailLog[]
+  nominationSendJobs  NominationSendJob[] @relation("NominationSendJobs")
 }
 
 enum UserRole {
@@ -301,10 +303,12 @@ model Contest {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @default(now()) @updatedAt
 
-  entries      ContestEntry[]
-  prizes       Prize[]
-  shelterPosts ShelterPost[]
-  nominations  Nomination[]
+  entries          ContestEntry[]
+  prizes           Prize[]
+  shelterPosts     ShelterPost[]
+  nominations      Nomination[]
+  contestEmailLogs ContestEmailLog[]
+  nominationSendJobs NominationSendJob[]
 
   @@index([isActive, petType])
   @@index([isActive, endDate])
@@ -340,9 +344,22 @@ model ContestEmailLog {
   emailType String
   sentAt    DateTime @default(now())
 
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([contestId, userId, emailType])
   @@index([contestId])
   @@index([userId])
+}
+
+model CustomEmailTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String
+  html      String   @db.Text
+  prompt    String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model ReEntryToken {
@@ -775,6 +792,27 @@ enum NominationStatus {
   SENT
   SIGNED_UP
   ENTERED
+}
+
+// Tracks active/paused/stopped bulk nomination send jobs so progress survives page refresh
+model NominationSendJob {
+  id           String   @id @default(cuid())
+  contestId    String
+  contestName  String
+  recipients   Json     // Array<{ email, name, petName? }>
+  total        Int
+  sent         Int      @default(0)
+  failed       Int      @default(0)
+  status       String   @default("running") // "running" | "paused" | "stopped" | "done"
+  startedAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+  startedById  String
+
+  contest    Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  startedBy  User    @relation("NominationSendJobs", fields: [startedById], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([startedById])
 }
 
 enum FlagStatus {

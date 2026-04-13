@@ -6,6 +6,66 @@ import { getCurrentWeekId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+// GET /api/admin/engagement/auto-vote?contestId=xxx — Return demo pets (optionally filtered by contest)
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as Record<string, unknown>)?.role;
+  if (!session?.user || role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const contestId = searchParams.get("contestId") || null;
+
+  const seedAccounts = await prisma.user.findMany({
+    where: { email: { contains: "@iheartdogs.com" } },
+    select: { id: true },
+  });
+  const seedAccountIds = seedAccounts.map((s) => s.id);
+
+  const pets = await prisma.pet.findMany({
+    where: {
+      userId: { in: seedAccountIds },
+      isActive: true,
+      ...(contestId ? { contestEntries: { some: { contestId } } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      breed: true,
+      photos: true,
+      weeklyStats: {
+        orderBy: { weekId: "desc" },
+        take: 1,
+        select: { totalVotes: true, rank: true },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  // Also return all active contests for the dropdown
+  const contests = await prisma.contest.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, petType: true, endDate: true },
+    orderBy: { endDate: "asc" },
+  });
+
+  return NextResponse.json({
+    pets: pets.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      breed: p.breed,
+      photo: p.photos[0] || null,
+      weekVotes: p.weeklyStats[0]?.totalVotes ?? 0,
+      weekRank: p.weeklyStats[0]?.rank ?? null,
+    })),
+    total: pets.length,
+    contests,
+  });
+}
+
 // POST /api/admin/engagement/auto-vote — Schedule gradual votes from demo accounts to target pets
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -15,11 +75,12 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { mode, targetPetIds, totalVotes, spreadHours } = body as {
+  const { mode, targetPetIds, totalVotes, spreadHours, contestId } = body as {
     mode: "all_pets" | "demo_pets" | "specific_pets";
     targetPetIds?: string[];
     totalVotes: number;
     spreadHours: number;
+    contestId?: string;
   };
 
   if (!mode || !totalVotes || totalVotes < 1 || totalVotes > 50000) {
@@ -46,7 +107,11 @@ export async function POST(req: NextRequest) {
 
   if (mode === "demo_pets") {
     targetPets = await prisma.pet.findMany({
-      where: { userId: { in: seedAccountIds }, isActive: true },
+      where: {
+        userId: { in: seedAccountIds },
+        isActive: true,
+        ...(contestId ? { contestEntries: { some: { contestId } } } : {}),
+      },
       select: { id: true, name: true, userId: true },
     });
   } else if (mode === "specific_pets" && targetPetIds?.length) {
@@ -60,6 +125,7 @@ export async function POST(req: NextRequest) {
       where: {
         isActive: true,
         userId: { notIn: seedAccountIds },
+        ...(contestId ? { contestEntries: { some: { contestId } } } : {}),
       },
       select: { id: true, name: true, userId: true },
     });
