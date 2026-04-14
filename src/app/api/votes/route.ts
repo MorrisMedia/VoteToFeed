@@ -276,6 +276,13 @@ export async function POST(req: NextRequest) {
       // Get total votes across the entire contest period
       const contestTotal = await getContestTotalVotes(petId);
 
+      // Get all-time total votes for this pet
+      const [allTimeAgg, allTimeAnon] = await Promise.all([
+        prisma.vote.aggregate({ where: { petId }, _sum: { quantity: true } }),
+        prisma.anonymousVote.count({ where: { petId } }),
+      ]);
+      const allTimeTotal = (allTimeAgg._sum.quantity ?? 0) + allTimeAnon;
+
       // Fire-and-forget vote alert (debounced — 1 email per 6h per pet)
       if (pet.user.email && pet.userId !== userId) {
         triggerVoteAlert(
@@ -295,7 +302,7 @@ export async function POST(req: NextRequest) {
           quantity: votesToCast,
         },
         pet: {
-          weeklyVotes: contestTotal,
+          weeklyVotes: allTimeTotal,
         },
         user: {
           freeVotesRemaining: updatedUser?.freeVotesRemaining || 0,
@@ -365,6 +372,13 @@ export async function POST(req: NextRequest) {
     // Get total votes across the entire contest period
     const contestTotal = await getContestTotalVotes(petId);
 
+    // Get all-time total votes for this pet
+    const [anonAllTimeAgg, anonAllTimeAnon] = await Promise.all([
+      prisma.vote.aggregate({ where: { petId }, _sum: { quantity: true } }),
+      prisma.anonymousVote.count({ where: { petId } }),
+    ]);
+    const anonAllTimeTotal = (anonAllTimeAgg._sum.quantity ?? 0) + anonAllTimeAnon;
+
     return NextResponse.json({
       success: true,
       vote: {
@@ -373,7 +387,7 @@ export async function POST(req: NextRequest) {
         isAnonymous: true,
       },
       pet: {
-        weeklyVotes: contestTotal,
+        weeklyVotes: anonAllTimeTotal,
       },
       user: {
         freeVotesRemaining: remainingAnonymousVotes,

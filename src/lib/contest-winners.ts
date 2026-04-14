@@ -62,6 +62,14 @@ export async function ensureContestWinnersResolved(contestId?: string) {
         },
       });
     }
+
+    // Deactivate ended contests so cron-missed ones are properly closed
+    if (contest.isActive) {
+      await prisma.contest.update({
+        where: { id: contest.id },
+        data: { isActive: false },
+      });
+    }
   }
 }
 

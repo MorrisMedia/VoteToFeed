@@ -152,6 +152,19 @@ export default async function PetDetailPage({
   });
 
   // Count total votes across the entire contest period (not just current week)
+  // Count ALL-TIME total votes for this pet (shown as "TOTAL" on pet page)
+  const [allTimeVoteAgg, allTimeAnonCount] = await Promise.all([
+    prisma.vote.aggregate({
+      where: { petId: pet.id },
+      _sum: { quantity: true },
+    }),
+    prisma.anonymousVote.count({
+      where: { petId: pet.id },
+    }),
+  ]);
+  const totalAllTimeVotes = (allTimeVoteAgg._sum.quantity ?? 0) + allTimeAnonCount;
+
+  // Count contest-period votes (for ranking within the active contest)
   let totalContestVotes: number;
   if (activeContestEntry) {
     const dateFilter = {
@@ -206,7 +219,7 @@ export default async function PetDetailPage({
     contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
   }
 
-  const weeklyVotes = totalContestVotes;
+  const weeklyVotes = totalAllTimeVotes;
   const weeklyRank = contestRank ?? pet.weeklyStats[0]?.rank ?? null;
 
   // Calculate votes needed for top 3 (for competitive nudge)
