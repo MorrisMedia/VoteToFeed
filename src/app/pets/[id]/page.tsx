@@ -146,12 +146,25 @@ export default async function PetDetailPage({
       },
     },
     include: {
-      contest: { select: { startDate: true, endDate: true } },
+      contest: { select: { name: true, startDate: true, endDate: true } },
     },
     orderBy: { createdAt: "desc" },
   });
 
   // Count total votes across the entire contest period (not just current week)
+  // Count ALL-TIME total votes for this pet (shown as "TOTAL" on pet page)
+  const [allTimeVoteAgg, allTimeAnonCount] = await Promise.all([
+    prisma.vote.aggregate({
+      where: { petId: pet.id },
+      _sum: { quantity: true },
+    }),
+    prisma.anonymousVote.count({
+      where: { petId: pet.id },
+    }),
+  ]);
+  const totalAllTimeVotes = (allTimeVoteAgg._sum.quantity ?? 0) + allTimeAnonCount;
+
+  // Count contest-period votes (for ranking within the active contest)
   let totalContestVotes: number;
   if (activeContestEntry) {
     const dateFilter = {
@@ -206,8 +219,38 @@ export default async function PetDetailPage({
     contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
   }
 
-  const weeklyVotes = totalContestVotes;
-  const weeklyRank = contestRank ?? pet.weeklyStats[0]?.rank ?? null;
+  // If no active contest, compute live rank from all-time votes among same-type pets
+  let liveRank: number | null = null;
+  if (!contestRank) {
+    const samePetIds = await prisma.pet.findMany({
+      where: { type: pet.type, isActive: true },
+      select: { id: true },
+    });
+    const pids = samePetIds.map((p) => p.id);
+    const [liveVotes, liveAnon] = await Promise.all([
+      prisma.vote.groupBy({
+        by: ["petId"],
+        where: { petId: { in: pids } },
+        _sum: { quantity: true },
+      }),
+      prisma.anonymousVote.groupBy({
+        by: ["petId"],
+        where: { petId: { in: pids } },
+        _count: true,
+      }),
+    ]);
+    const liveAnonMap = new Map(liveAnon.map((v) => [v.petId, v._count]));
+    const liveSorted = pids
+      .map((pid) => ({
+        petId: pid,
+        votes: (liveVotes.find((v) => v.petId === pid)?._sum.quantity ?? 0) + (liveAnonMap.get(pid) ?? 0),
+      }))
+      .sort((a, b) => b.votes - a.votes);
+    liveRank = liveSorted.findIndex((s) => s.petId === pet.id) + 1 || null;
+  }
+
+  const weeklyVotes = totalAllTimeVotes;
+  const weeklyRank = contestRank ?? liveRank ?? pet.weeklyStats[0]?.rank ?? null;
 
   // Calculate votes needed for top 3 (for competitive nudge)
   let votesNeededForTop3: number | null = null;
@@ -234,6 +277,7 @@ export default async function PetDetailPage({
   }
 
   const contestEndDate = activeContestEntry?.contest.endDate?.toISOString() ?? null;
+  const contestName = activeContestEntry?.contest.name ?? null;
   const mealRate = await getMealRate();
 
   const isOwner = session?.user && (session.user as { id?: string }).id === pet.userId;
@@ -359,6 +403,7 @@ export default async function PetDetailPage({
             weeklyRank={weeklyRank}
             petType={pet.type}
             contestEndDate={contestEndDate}
+            contestName={contestName}
             votesNeededForTop3={votesNeededForTop3}
             mealRate={mealRate}
           />

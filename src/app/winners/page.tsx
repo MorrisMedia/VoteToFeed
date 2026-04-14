@@ -1,10 +1,18 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { formatDisplayName } from "@/lib/utils";
+import { ensureContestWinnersResolved } from "@/lib/contest-winners";
 
 export default async function WinnersPage() {
+  // Ensures any ended contests have their final winners set (fixes premature awards)
+  await ensureContestWinnersResolved();
+
   const prizes = await prisma.prize.findMany({
-    where: { status: "AWARDED", winnerId: { not: null } },
+    where: {
+      status: "AWARDED",
+      winnerId: { not: null },
+      contest: { endDate: { lt: new Date() } },
+    },
     include: {
       contest: { select: { name: true, petType: true, weekId: true } },
     },
@@ -60,7 +68,7 @@ export default async function WinnersPage() {
                     </>
                   )}
                   <p className="text-brand-600 font-semibold mt-2">
-                    {prize.placement === 1 ? "1st" : prize.placement === 2 ? "2nd" : "3rd"} Place — $
+                    {prize.placement === 0 ? "Lucky Winner" : prize.placement === 1 ? "1st Place" : prize.placement === 2 ? "2nd Place" : "3rd Place"} — $
                     {(prize.value / 100).toLocaleString()} value
                   </p>
                   <p className="text-xs text-surface-400 mt-1">{prize.contest.name}</p>

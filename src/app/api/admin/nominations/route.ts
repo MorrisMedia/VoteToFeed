@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { sendNominationEmail } from "@/lib/email";
+import { sendNominationEmail, sendEmail } from "@/lib/email";
+
+function applyTemplateVars(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +44,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { recipients, contestId } = body as {
+  const { recipients, contestId, templateId } = body as {
     recipients?: Array<{ email: string; name: string; petName?: string }>;
     contestId?: string;
+    templateId?: string;
   };
 
   if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !contestId) {
@@ -79,6 +84,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Contest not found" }, { status: 404 });
   }
 
+  // Load custom template if provided
+  let customTemplate: { subject: string; html: string } | null = null;
+  if (templateId) {
+    customTemplate = await prisma.customEmailTemplate.findUnique({
+      where: { id: templateId },
+      select: { subject: true, html: true },
+    });
+  }
+
   const adminId = (session.user as { id: string }).id;
   const results: Array<{ email: string; success: boolean; error?: string }> = [];
 
@@ -107,7 +121,32 @@ export async function POST(req: NextRequest) {
     // Send email with delay between sends
     try {
       if (i > 0) await sleep(EMAIL_DELAY_MS);
-      await sendNominationEmail(r.email, r.name, contest.name, contest.petType, contest.endDate, r.petName || undefined);
+
+      if (customTemplate) {
+        const daysLeft = Math.max(
+          0,
+          Math.ceil((new Date(contest.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        );
+        const petTypeLabel = contest.petType === "DOG" ? "dog" : contest.petType === "CAT" ? "cat" : "pet";
+        const vars: Record<string, string> = {
+          name: r.name,
+          petName: r.petName || `your ${petTypeLabel}`,
+          contestName: contest.name,
+          daysLeft: String(daysLeft),
+          petType: petTypeLabel,
+          contestLink: `${process.env.NEXTAUTH_URL || "https://votetofeed.com"}/contests/${contest.id}`,
+          signupLink: `${process.env.NEXTAUTH_URL || "https://votetofeed.com"}/auth/signup`,
+        };
+        await sendEmail({
+          from: `VoteToFeed <noreply@votetofeed.com>`,
+          to: r.email,
+          subject: applyTemplateVars(customTemplate.subject, vars),
+          html: applyTemplateVars(customTemplate.html, vars),
+        });
+      } else {
+        await sendNominationEmail(r.email, r.name, contest.name, contest.petType, contest.endDate, r.petName || undefined);
+      }
+
       await prisma.nomination.update({
         where: { id: nomination.id },
         data: { status: "SENT", sentAt: new Date() },

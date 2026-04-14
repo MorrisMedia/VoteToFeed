@@ -56,6 +56,13 @@ function emptyRecipient(): Recipient {
 
 type Tab = "manual" | "existing" | "autoadd";
 
+type SavedTemplate = {
+  id: string;
+  name: string;
+  subject: string;
+  html: string;
+};
+
 export function NominateClient() {
   const [tab, setTab] = useState<Tab>("manual");
   const [contests, setContests] = useState<Contest[]>([]);
@@ -79,6 +86,10 @@ export function NominateClient() {
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
   const [loadingOwners, setLoadingOwners] = useState(false);
 
+  // Template state
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
   // Auto-Add state
   const [autoContestId, setAutoContestId] = useState("");
   const [autoPetType, setAutoPetType] = useState<string>("");
@@ -92,6 +103,10 @@ export function NominateClient() {
   useEffect(() => {
     fetchContests();
     fetchNominations();
+    fetch("/api/admin/emails/templates")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: SavedTemplate[]) => setSavedTemplates(data))
+      .catch(() => null);
   }, []);
 
   // Restore persisted send job on mount (survives page refresh) — reads from DB
@@ -229,6 +244,7 @@ export function NominateClient() {
           petType: autoPetType || undefined,
           userIds: Array.from(autoSelectedIds),
           sendEmail: autoSendEmail,
+          templateId: selectedTemplateId || undefined,
         }),
       });
       const data = await res.json();
@@ -477,7 +493,11 @@ export function NominateClient() {
         const res = await fetch("/api/admin/nominations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contestId: targetContestId, recipients: batch }),
+          body: JSON.stringify({
+            contestId: targetContestId,
+            recipients: batch,
+            templateId: selectedTemplateId || undefined,
+          }),
         });
         const data = await res.json();
         if (res.ok) {
@@ -831,6 +851,28 @@ export function NominateClient() {
               <p className="mt-2 text-xs text-surface-400">No recipient limit — auto-batched in groups of 50 with 2s delay between emails.</p>
             </div>
 
+            {/* Template picker */}
+            <div className="max-w-md">
+              <label className="block text-sm font-medium text-surface-700 mb-1">
+                Email Template <span className="text-surface-400 font-normal">(optional)</span>
+              </label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full rounded-lg border border-surface-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              >
+                <option value="">Use default nomination email</option>
+                {savedTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {selectedTemplateId && (
+                <p className="mt-1.5 text-xs text-surface-400">
+                  Variables replaced automatically: <code className="font-mono">{"{{name}}"}</code>, <code className="font-mono">{"{{petName}}"}</code>, <code className="font-mono">{"{{contestName}}"}</code>, <code className="font-mono">{"{{daysLeft}}"}</code>
+                </p>
+              )}
+            </div>
+
             {message && tab === "manual" && (
               <div className={`rounded-lg px-4 py-3 text-sm ${
                 message.type === "success"
@@ -991,6 +1033,28 @@ export function NominateClient() {
               </div>
             )}
 
+            {/* Template picker */}
+            <div className="max-w-md">
+              <label className="block text-sm font-medium text-surface-700 mb-1">
+                Email Template <span className="text-surface-400 font-normal">(optional)</span>
+              </label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full rounded-lg border border-surface-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              >
+                <option value="">Use default nomination email</option>
+                {savedTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {selectedTemplateId && (
+                <p className="mt-1.5 text-xs text-surface-400">
+                  Variables replaced automatically: <code className="font-mono">{"{{name}}"}</code>, <code className="font-mono">{"{{petName}}"}</code>, <code className="font-mono">{"{{contestName}}"}</code>, <code className="font-mono">{"{{daysLeft}}"}</code>
+                </p>
+              )}
+            </div>
+
             {message && tab === "existing" && (
               <div className={`rounded-lg px-4 py-3 text-sm ${
                 message.type === "success"
@@ -1088,6 +1152,30 @@ export function NominateClient() {
               />
               Send notification email to users when adding them
             </label>
+
+            {/* Template picker (only relevant when sending email) */}
+            {autoSendEmail && (
+              <div className="max-w-md">
+                <label className="block text-sm font-medium text-surface-700 mb-1">
+                  Email Template <span className="text-surface-400 font-normal">(optional)</span>
+                </label>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  className="w-full rounded-lg border border-surface-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                >
+                  <option value="">Use default contest-added email</option>
+                  {savedTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                {selectedTemplateId && (
+                  <p className="mt-1.5 text-xs text-surface-400">
+                    Variables replaced automatically: <code className="font-mono">{"{{name}}"}</code>, <code className="font-mono">{"{{petName}}"}</code>, <code className="font-mono">{"{{contestName}}"}</code>, <code className="font-mono">{"{{daysLeft}}"}</code>
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Loading */}
             {autoLoadingOwners && (

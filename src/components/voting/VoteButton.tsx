@@ -19,6 +19,7 @@ type Props = {
   weeklyRank?: number | null;
   petType?: string;
   contestEndDate?: string | null;
+  contestName?: string | null;
   votesNeededForTop3?: number | null;
   mealRate?: number;
 };
@@ -34,6 +35,7 @@ export function VoteButton({
   weeklyRank,
   petType = "DOG",
   contestEndDate,
+  contestName,
   votesNeededForTop3,
   mealRate = 1,
 }: Props) {
@@ -191,7 +193,7 @@ export function VoteButton({
 
   return (
     <div className="space-y-3">
-      <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={animating} contestEndDate={contestEndDate} votesNeededForTop3={votesNeededForTop3} />
+      <VoteStats voteCount={voteCount} animalType={animalType} weeklyRank={weeklyRank} petType={petType} animating={animating} contestEndDate={contestEndDate} contestName={contestName} votesNeededForTop3={votesNeededForTop3} />
 
       <button
         onClick={handleVote}
@@ -331,6 +333,7 @@ function VoteStats({
   petType,
   animating,
   contestEndDate,
+  contestName,
   votesNeededForTop3,
 }: {
   voteCount: number;
@@ -339,6 +342,7 @@ function VoteStats({
   petType: string;
   animating: boolean;
   contestEndDate?: string | null;
+  contestName?: string | null;
   votesNeededForTop3?: number | null;
 }) {
   const rankSuffix = (n: number) => {
@@ -390,7 +394,7 @@ function VoteStats({
 
       {weeklyRank != null && weeklyRank > 0 && (
         <p className="text-lg font-semibold text-surface-500 mt-1">
-          {rankSuffix(weeklyRank)} in National {petType === "DOG" ? "Dog" : petType === "CAT" ? "Cat" : "Pet"} Contest
+          {rankSuffix(weeklyRank)} in Weekly {petType === "DOG" ? "Dog" : petType === "CAT" ? "Cat" : "Pet"} Leaderboard
         </p>
       )}
 
