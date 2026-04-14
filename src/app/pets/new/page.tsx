@@ -100,6 +100,27 @@ export default function NewPetPage() {
     });
   }, [status]);
 
+  // Autofill owner info from the user's last pet
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/users/me/owner-info")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && (data.ownerFirstName || data.ownerLastName || data.city)) {
+          setForm((prev) => ({
+            ...prev,
+            ownerFirstName: data.ownerFirstName || prev.ownerFirstName,
+            ownerLastName: data.ownerLastName || prev.ownerLastName,
+            address: data.address || prev.address,
+            city: data.city || prev.city,
+            state: data.state || prev.state,
+            zipCode: data.zipCode || prev.zipCode,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [status]);
+
   useEffect(() => {
     if (form.type === "OTHER") {
       setBreeds([]);
