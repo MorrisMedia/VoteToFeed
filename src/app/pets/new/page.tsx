@@ -84,6 +84,7 @@ export default function NewPetPage() {
     type: "DOG" as "DOG" | "CAT" | "OTHER",
     breed: "",
     bio: "",
+    story: "",
     ownerFirstName: "",
     ownerLastName: "",
     address: "",
@@ -304,6 +305,7 @@ export default function NewPetPage() {
           zipCode: form.zipCode || undefined,
           photos: photos.map((p) => p.url),
           contestIds: Array.from(selectedContests),
+          story: form.story || undefined,
         }),
       });
       const data = await res.json();
@@ -583,6 +585,14 @@ export default function NewPetPage() {
             </div>
 
             <p className="text-xs text-surface-400 mt-2">{selectedContests.size} contest{selectedContests.size !== 1 ? "s" : ""} selected</p>
+          </div>
+        )}
+
+        {form.type !== "OTHER" && (
+          <div>
+            <label className="block text-sm font-medium text-surface-700 mb-1.5">Your story <span className="text-surface-400 font-normal">(optional)</span></label>
+            <textarea value={form.story} onChange={(e) => setForm((f) => ({ ...f, story: e.target.value }))} maxLength={500} rows={3} placeholder="Share a funny moment, how you met, or why your pet deserves to win..." className="input-field resize-none" />
+            <p className="text-xs text-surface-400 mt-1 text-right">{form.story.length}/500</p>
           </div>
         )}
 

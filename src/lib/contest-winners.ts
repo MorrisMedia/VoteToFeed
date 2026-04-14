@@ -22,15 +22,19 @@ export async function ensureContestWinnersResolved(contestId?: string) {
   });
 
   for (const contest of contests) {
-    const unresolvedPrizes = contest.prizes.filter((prize) => !prize.winnerId);
-    if (unresolvedPrizes.length === 0) continue;
+    // Only resolve prizes that have no winner yet — once a contest ends, votes are final.
+    const prizesToResolve = contest.prizes.filter((prize) => !prize.winnerId);
+    if (prizesToResolve.length === 0) continue;
 
     const leaderboard = await getContestLeaderboard(contest.id);
     if (leaderboard.length === 0) continue;
 
-    for (const prize of unresolvedPrizes) {
+    const topThreePetIds = new Set(leaderboard.slice(0, 3).map((r) => r.petId));
+    const nonTopRows = leaderboard.filter((r) => !topThreePetIds.has(r.petId));
+
+    for (const prize of prizesToResolve) {
       if (prize.placement === 0) {
-        const eligible = leaderboard.slice(3);
+        const eligible = nonTopRows;
         const randomWinner = eligible[Math.floor(Math.random() * eligible.length)];
         if (!randomWinner) continue;
 
@@ -38,7 +42,7 @@ export async function ensureContestWinnersResolved(contestId?: string) {
           where: { id: prize.id },
           data: {
             winnerId: randomWinner.petId,
-            awardedAt: prize.awardedAt ?? now,
+            awardedAt: now,
             status: prize.fulfilledAt ? "SHIPPED" : "AWARDED",
           },
         });
@@ -53,7 +57,7 @@ export async function ensureContestWinnersResolved(contestId?: string) {
         where: { id: prize.id },
         data: {
           winnerId: winner.petId,
-          awardedAt: prize.awardedAt ?? now,
+          awardedAt: now,
           status: prize.fulfilledAt ? "SHIPPED" : "AWARDED",
         },
       });

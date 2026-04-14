@@ -329,6 +329,7 @@ model ContestEntry {
   id        String   @id @default(cuid())
   contestId String
   petId     String
+  story     String?  @db.Text
   createdAt DateTime @default(now())
 
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)

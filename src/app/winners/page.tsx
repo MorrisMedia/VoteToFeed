@@ -1,10 +1,18 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { formatDisplayName } from "@/lib/utils";
+import { ensureContestWinnersResolved } from "@/lib/contest-winners";
 
 export default async function WinnersPage() {
+  // Ensures any ended contests have their final winners set (fixes premature awards)
+  await ensureContestWinnersResolved();
+
   const prizes = await prisma.prize.findMany({
-    where: { status: "AWARDED", winnerId: { not: null } },
+    where: {
+      status: "AWARDED",
+      winnerId: { not: null },
+      contest: { isActive: false },
+    },
     include: {
       contest: { select: { name: true, petType: true, weekId: true } },
     },

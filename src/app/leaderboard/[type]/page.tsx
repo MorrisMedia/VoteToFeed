@@ -4,7 +4,7 @@ import { PetCard } from "@/components/pets/PetCard";
 import { ShelterBanner } from "@/components/layout/ShelterBanner";
 import { getAnimalType, getWeeklyVoteGoal } from "@/lib/admin-settings";
 import prisma from "@/lib/prisma";
-import { getCurrentWeekId, getWeekDateRange } from "@/lib/utils";
+import { getCurrentWeekId, getWeekDateRange, formatDisplayName } from "@/lib/utils";
 
 type PageProps = { params: { type: string }; searchParams: { state?: string; page?: string } };
 
@@ -18,7 +18,7 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
   const weekId = getCurrentWeekId();
   const { start, end } = getWeekDateRange();
 
-  const [animalType, weeklyGoal, stats, weeklyMealsAgg, entries] = await Promise.all([
+  const [animalType, weeklyGoal, stats, weeklyMealsAgg, entries, allTimeVotes, allTimeAnon] = await Promise.all([
     getAnimalType(),
     getWeeklyVoteGoal(),
     prisma.petWeeklyStats.aggregate({
@@ -41,11 +41,40 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
       skip: (page - 1) * limit,
       take: limit,
     }),
+    prisma.vote.groupBy({
+      by: ["petId"],
+      where: { pet: { type: type as "DOG" | "CAT", isActive: true } },
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: "desc" } },
+    }),
+    prisma.anonymousVote.groupBy({
+      by: ["petId"],
+      where: { pet: { type: type as "DOG" | "CAT", isActive: true } },
+      _count: true,
+    }),
   ]);
 
   const total = await prisma.petWeeklyStats.count({
     where: { weekId, pet: { type: type as "DOG" | "CAT", isActive: true, ...(state ? { state } : {}) } },
   });
+
+  // Build all-time totals map
+  const allTimeTotals = new Map<string, number>();
+  for (const v of allTimeVotes) allTimeTotals.set(v.petId, (allTimeTotals.get(v.petId) ?? 0) + (v._sum.quantity ?? 0));
+  for (const v of allTimeAnon) allTimeTotals.set(v.petId, (allTimeTotals.get(v.petId) ?? 0) + v._count);
+
+  const top3PetIds = [...allTimeTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id]) => id);
+
+  const top3Pets = top3PetIds.length
+    ? await prisma.pet.findMany({
+        where: { id: { in: top3PetIds } },
+        select: { id: true, name: true, photos: true, ownerFirstName: true, ownerLastName: true, ownerName: true, state: true },
+      })
+    : [];
+  const top3PetMap = Object.fromEntries(top3Pets.map((p) => [p.id, p]));
   const weeklyVotes = stats._sum.totalVotes ?? 0;
   const mealsHelped = Math.round(weeklyMealsAgg._sum.mealsProvided ?? 0);
 
@@ -86,6 +115,37 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
       />
 
       <div className="mt-8">
+
+        {/* All-Time Top 3 */}
+        {top3PetIds.length > 0 && (
+          <div className="mb-10">
+            <p className="text-xs font-bold uppercase tracking-wider text-surface-400 mb-4">All-Time Top 3</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[1, 0, 2].map((posIndex, colIndex) => {
+                const petId = top3PetIds[posIndex];
+                const pet = petId ? top3PetMap[petId] : null;
+                const votes = petId ? (allTimeTotals.get(petId) ?? 0) : 0;
+                const isFirst = posIndex === 0;
+                const medals = ["🥇", "🥈", "🥉"];
+                const heightClass = isFirst ? "pt-0" : "pt-6";
+                if (!pet) return <div key={colIndex} />;
+                return (
+                  <Link key={petId} href={`/pets/${pet.id}`} className={`flex flex-col items-center text-center group ${heightClass}`}>
+                    <div className={`relative w-full aspect-square rounded-2xl overflow-hidden mb-2 ring-2 transition-all group-hover:ring-brand-400 ${isFirst ? "ring-yellow-400 shadow-lg" : "ring-surface-200"}`}>
+                      <img src={pet.photos[0] || ""} alt={pet.name} className="w-full h-full object-cover" />
+                      <span className={`absolute top-2 left-2 text-lg leading-none ${isFirst ? "text-2xl" : ""}`}>{medals[posIndex]}</span>
+                    </div>
+                    <p className="font-bold text-surface-900 text-sm truncate w-full">{pet.name}</p>
+                    <p className="text-xs text-surface-500 truncate w-full">{formatDisplayName(pet.ownerFirstName, pet.ownerLastName, pet.ownerName)}</p>
+                    <p className="text-xs font-semibold text-brand-600 mt-0.5">{votes.toLocaleString()} votes</p>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs font-bold uppercase tracking-wider text-surface-400 mb-4">This Week</p>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {entries.map((s, i) => (
             <PetCard

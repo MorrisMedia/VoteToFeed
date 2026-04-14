@@ -155,19 +155,25 @@ export default async function ContestDetailPage({
             {sortedEntries.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {sortedEntries.map((entry, i) => (
-                  <PetCard
-                    key={entry.pet.id}
-                    id={entry.pet.id}
-                    name={entry.pet.name}
-                    ownerName={formatDisplayName(entry.pet.ownerFirstName, entry.pet.ownerLastName, entry.pet.ownerName)}
-                    state={entry.pet.state}
-                    photos={entry.pet.photos}
-                    type={entry.pet.type}
-                    weeklyVotes={votesByPet.get(entry.petId) ?? 0}
-                    weeklyRank={i + 1}
-                    isNew={Date.now() - new Date(entry.pet.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000}
-                    animalType={animalType}
-                  />
+                  <div key={entry.pet.id} className="flex flex-col gap-2">
+                    <PetCard
+                      id={entry.pet.id}
+                      name={entry.pet.name}
+                      ownerName={formatDisplayName(entry.pet.ownerFirstName, entry.pet.ownerLastName, entry.pet.ownerName)}
+                      state={entry.pet.state}
+                      photos={entry.pet.photos}
+                      type={entry.pet.type}
+                      weeklyVotes={votesByPet.get(entry.petId) ?? 0}
+                      weeklyRank={i + 1}
+                      isNew={Date.now() - new Date(entry.pet.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000}
+                      animalType={animalType}
+                    />
+                    {entry.story && (
+                      <div className="card px-3 py-2.5">
+                        <p className="text-xs text-surface-600 leading-relaxed italic">&ldquo;{entry.story}&rdquo;</p>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (
