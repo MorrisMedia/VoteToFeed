@@ -219,8 +219,38 @@ export default async function PetDetailPage({
     contestRank = sorted.findIndex((s) => s.petId === pet.id) + 1 || null;
   }
 
+  // If no active contest, compute live rank from all-time votes among same-type pets
+  let liveRank: number | null = null;
+  if (!contestRank) {
+    const samePetIds = await prisma.pet.findMany({
+      where: { type: pet.type, isActive: true },
+      select: { id: true },
+    });
+    const pids = samePetIds.map((p) => p.id);
+    const [liveVotes, liveAnon] = await Promise.all([
+      prisma.vote.groupBy({
+        by: ["petId"],
+        where: { petId: { in: pids } },
+        _sum: { quantity: true },
+      }),
+      prisma.anonymousVote.groupBy({
+        by: ["petId"],
+        where: { petId: { in: pids } },
+        _count: true,
+      }),
+    ]);
+    const liveAnonMap = new Map(liveAnon.map((v) => [v.petId, v._count]));
+    const liveSorted = pids
+      .map((pid) => ({
+        petId: pid,
+        votes: (liveVotes.find((v) => v.petId === pid)?._sum.quantity ?? 0) + (liveAnonMap.get(pid) ?? 0),
+      }))
+      .sort((a, b) => b.votes - a.votes);
+    liveRank = liveSorted.findIndex((s) => s.petId === pet.id) + 1 || null;
+  }
+
   const weeklyVotes = totalAllTimeVotes;
-  const weeklyRank = contestRank ?? pet.weeklyStats[0]?.rank ?? null;
+  const weeklyRank = contestRank ?? liveRank ?? pet.weeklyStats[0]?.rank ?? null;
 
   // Calculate votes needed for top 3 (for competitive nudge)
   let votesNeededForTop3: number | null = null;
