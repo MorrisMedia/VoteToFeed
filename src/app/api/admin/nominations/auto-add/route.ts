@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { sendContestAddedEmail } from "@/lib/email";
+import { sendContestAddedEmail, sendEmail } from "@/lib/email";
+
+function applyTemplateVars(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+}
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min for large batches
@@ -33,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { contestId, petType, userIds, sendEmail: shouldSendEmail = true } = await req.json();
+  const { contestId, petType, userIds, sendEmail: shouldSendEmail = true, templateId } = await req.json();
 
   if (!contestId || typeof contestId !== "string") {
     return NextResponse.json({ error: "contestId is required" }, { status: 400 });
@@ -152,6 +156,15 @@ export async function POST(req: NextRequest) {
       Math.ceil((contest.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     );
 
+    // Load custom template if provided
+    let customTemplate: { subject: string; html: string } | null = null;
+    if (templateId && typeof templateId === "string") {
+      customTemplate = await prisma.customEmailTemplate.findUnique({
+        where: { id: templateId },
+        select: { subject: true, html: true },
+      });
+    }
+
     // Group by user to send one email per user (use first pet name)
     const byUser = new Map<string, typeof toAdd[0]>();
     for (const item of toAdd) {
@@ -166,8 +179,26 @@ export async function POST(req: NextRequest) {
       const batch = emailList.slice(i, i + BATCH_SIZE);
 
       const results = await Promise.allSettled(
-        batch.map((item) =>
-          sendContestAddedEmail(
+        batch.map((item) => {
+          if (customTemplate) {
+            const petTypeLabel = contest.petType === "DOG" ? "dog" : contest.petType === "CAT" ? "cat" : "pet";
+            const vars: Record<string, string> = {
+              name: item.userName,
+              petName: item.petName,
+              contestName: contest.name,
+              daysLeft: String(daysLeft),
+              petType: petTypeLabel,
+              contestLink: `${process.env.NEXTAUTH_URL || "https://votetofeed.com"}/contests/${contest.id}`,
+              signupLink: `${process.env.NEXTAUTH_URL || "https://votetofeed.com"}/auth/signup`,
+            };
+            return sendEmail({
+              from: `VoteToFeed <noreply@votetofeed.com>`,
+              to: item.userEmail,
+              subject: applyTemplateVars(customTemplate.subject, vars),
+              html: applyTemplateVars(customTemplate.html, vars),
+            });
+          }
+          return sendContestAddedEmail(
             item.userEmail,
             item.userName,
             item.petName,
@@ -175,8 +206,8 @@ export async function POST(req: NextRequest) {
             contest.id,
             daysLeft,
             contest.prizeDescription,
-          )
-        )
+          );
+        })
       );
 
       for (const r of results) {
