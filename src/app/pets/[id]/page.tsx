@@ -146,7 +146,7 @@ export default async function PetDetailPage({
       },
     },
     include: {
-      contest: { select: { startDate: true, endDate: true } },
+      contest: { select: { name: true, startDate: true, endDate: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -247,6 +247,7 @@ export default async function PetDetailPage({
   }
 
   const contestEndDate = activeContestEntry?.contest.endDate?.toISOString() ?? null;
+  const contestName = activeContestEntry?.contest.name ?? null;
   const mealRate = await getMealRate();
 
   const isOwner = session?.user && (session.user as { id?: string }).id === pet.userId;
@@ -372,6 +373,7 @@ export default async function PetDetailPage({
             weeklyRank={weeklyRank}
             petType={pet.type}
             contestEndDate={contestEndDate}
+            contestName={contestName}
             votesNeededForTop3={votesNeededForTop3}
             mealRate={mealRate}
           />
