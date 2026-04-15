@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { PetCard } from "@/components/pets/PetCard";
+import { StorytellerEntry } from "@/components/contests/StorytellerEntry";
 import { getAnimalType } from "@/lib/admin-settings";
 import { formatDisplayName } from "@/lib/utils";
 
@@ -168,11 +169,11 @@ export default async function ContestDetailPage({
                       isNew={Date.now() - new Date(entry.pet.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000}
                       animalType={animalType}
                     />
-                    {entry.story && (
-                      <div className="card px-3 py-2.5">
-                        <p className="text-xs text-surface-600 leading-relaxed italic">&ldquo;{entry.story}&rdquo;</p>
-                      </div>
-                    )}
+                    <StorytellerEntry
+                      story={entry.story ?? null}
+                      bio={entry.pet.bio ?? null}
+                      isStoryteller={contest.isStoryteller}
+                    />
                   </div>
                 ))}
               </div>

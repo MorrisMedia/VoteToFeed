@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
         isRecurring: c.isRecurring,
         recurringInterval: c.recurringInterval,
         recurringCounter: c.recurringCounter,
+        isStoryteller: c.isStoryteller,
         entryCount: c._count.entries,
         prizes: c.prizes,
         // Computed fields
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
     const {
       name, type, petType, state, startDate, endDate, description, rules,
       coverImage, entryFee, maxEntries, prizeDescription, sponsorName,
-      sponsorLogo, sponsorUrl, isFeatured, isRecurring, recurringInterval, prizes,
+      sponsorLogo, sponsorUrl, isFeatured, isRecurring, recurringInterval, prizes, isStoryteller,
     } = body;
 
     if (!name || !type || !petType || !startDate || !endDate) {
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
         isFeatured: isFeatured || false,
         isRecurring: isRecurring || false,
         recurringInterval: isRecurring ? (recurringInterval || "biweekly") : null,
+        isStoryteller: isStoryteller || false,
         isActive: true,
         prizes: prizes?.length
           ? {

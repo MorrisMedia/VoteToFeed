@@ -2109,6 +2109,7 @@ type ContestData = {
   isRecurring: boolean;
   recurringInterval: string | null;
   recurringCounter: number;
+  isStoryteller: boolean;
   hasEnded: boolean;
   prizes?: { placement: number; title: string; value: number; items: string[] }[];
 };
@@ -2158,6 +2159,7 @@ function ContestManager() {
     isFeatured: false,
     isRecurring: false,
     recurringInterval: "biweekly",
+    isStoryteller: false,
     prizes: [
       { placement: 1, title: "1st Place", value: "", items: "" },
       { placement: 2, title: "2nd Place", value: "", items: "" },
@@ -2230,6 +2232,7 @@ function ContestManager() {
       isFeatured: c.isFeatured, isActive: c.isActive,
       entryFee: c.entryFee || 0, maxEntries: c.maxEntries || "",
       isRecurring: c.isRecurring || false, recurringInterval: c.recurringInterval || "biweekly",
+      isStoryteller: c.isStoryteller || false,
       prizes: prizes,
     });
   }
@@ -2313,7 +2316,7 @@ function ContestManager() {
       if (res.ok) {
         setCreateMsg("Contest created!");
         setShowForm(false);
-        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly", prizes: [
+        setCf({ name: "", type: "SEASONAL", petType: "DOG", startDate: new Date().toISOString().split("T")[0], endDate: "", description: "", rules: "", coverImage: "", prizeDescription: "", sponsorName: "", isFeatured: false, isRecurring: false, recurringInterval: "biweekly", isStoryteller: false, prizes: [
           { placement: 1, title: "1st Place", value: "", items: "" },
           { placement: 2, title: "2nd Place", value: "", items: "" },
           { placement: 3, title: "3rd Place", value: "", items: "" },
@@ -2597,6 +2600,10 @@ function ContestManager() {
               <input type="checkbox" checked={cf.isRecurring} onChange={(e) => setCf((f) => ({ ...f, isRecurring: e.target.checked }))} className="w-4 h-4 rounded border-surface-300 text-brand-600" />
               <span className="text-sm text-surface-700">Recurring</span>
             </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={cf.isStoryteller} onChange={(e) => setCf((f) => ({ ...f, isStoryteller: e.target.checked }))} className="w-4 h-4 rounded border-surface-300 text-brand-600" />
+              <span className="text-sm text-surface-700">Storyteller Mode</span>
+            </label>
             {cf.isRecurring && (
               <select value={cf.recurringInterval} onChange={(e) => setCf((f) => ({ ...f, recurringInterval: e.target.value }))} className="input-field text-sm w-auto">
                 <option value="weekly">Weekly</option>
@@ -2741,6 +2748,7 @@ function ContestManager() {
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isFeatured as boolean} onChange={e => setEditForm(f => ({...f, isFeatured: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Featured</label>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isActive as boolean} onChange={e => setEditForm(f => ({...f, isActive: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Active</label>
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={editForm.isRecurring as boolean} onChange={e => setEditForm(f => ({...f, isRecurring: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Recurring</label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs"><input type="checkbox" checked={Boolean(editForm.isStoryteller)} onChange={e => setEditForm(f => ({...f, isStoryteller: e.target.checked}))} className="w-3.5 h-3.5 rounded" /> Storyteller Mode</label>
                     {Boolean(editForm.isRecurring) && (
                       <select value={editForm.recurringInterval as string} onChange={e => setEditForm(f => ({...f, recurringInterval: e.target.value}))} className="input-field text-xs w-auto py-0.5">
                         <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option>

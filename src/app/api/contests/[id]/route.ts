@@ -69,6 +69,7 @@ export async function PUT(
   if (body.sponsorUrl !== undefined) data.sponsorUrl = body.sponsorUrl || null;
   if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring;
   if (body.recurringInterval !== undefined) data.recurringInterval = body.recurringInterval || null;
+  if (body.isStoryteller !== undefined) data.isStoryteller = body.isStoryteller;
 
   // Handle prize updates
   if (body.prizes !== undefined) {
