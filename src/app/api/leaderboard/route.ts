@@ -9,29 +9,25 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const petType = searchParams.get("type") || "DOG"; // DOG or CAT
+    const petType = searchParams.get("type") || "DOG"; // DOG, CAT, or ALL
     const state = searchParams.get("state");
     const breed = searchParams.get("breed");
     const view = searchParams.get("view") || "weekly"; // weekly or alltime
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const weekId = getCurrentWeekId();
+    const isAll = petType === "ALL";
 
     if (view === "weekly") {
       // Weekly leaderboard from PetWeeklyStats
-      const where: Record<string, unknown> = { weekId };
-      const petWhere: Record<string, unknown> = {
-        isActive: true,
-        type: petType,
-      };
+      const petWhere: Record<string, unknown> = { isActive: true };
+      // ALL = dog+cat combined, no petType filter
+      if (!isAll) petWhere.type = petType;
       if (state) petWhere.state = state;
       if (breed) petWhere.breed = { contains: breed, mode: "insensitive" };
 
       const stats = await prisma.petWeeklyStats.findMany({
-        where: {
-          weekId,
-          pet: petWhere,
-        },
+        where: { weekId, pet: petWhere },
         include: {
           pet: {
             include: {
@@ -45,10 +41,7 @@ export async function GET(req: NextRequest) {
       });
 
       const total = await prisma.petWeeklyStats.count({
-        where: {
-          weekId,
-          pet: petWhere,
-        },
+        where: { weekId, pet: petWhere },
       });
 
       // Get admin settings
@@ -57,35 +50,44 @@ export async function GET(req: NextRequest) {
         getAnimalType(),
       ]);
 
-      // Calculate total votes this week for this pet type
+      // Total weekly votes for this filter
       const weeklyAgg = await prisma.petWeeklyStats.aggregate({
-        where: { weekId, pet: { type: petType as "DOG" | "CAT" } },
+        where: { weekId, pet: petWhere },
         _sum: { totalVotes: true, paidVotes: true },
       });
 
+      // Gap-to-#1: first entry (rank 1) votes
+      const topEntry = stats[0];
+      const topVotes = topEntry?.totalVotes || 0;
+
       return NextResponse.json({
-        entries: stats.map((s, i) => ({
-          rank: (page - 1) * limit + i + 1,
-          pet: {
-            id: s.pet.id,
-            name: s.pet.name,
-            type: s.pet.type,
-            breed: s.pet.breed,
-            ownerName: s.pet.ownerName,
-            state: s.pet.state,
-            photos: s.pet.photos,
-            user: s.pet.user,
-            createdAt: s.pet.createdAt,
-          },
-          weeklyVotes: s.totalVotes,
-          isNew:
-            new Date().getTime() - new Date(s.pet.createdAt).getTime() <
-            7 * 24 * 60 * 60 * 1000,
-        })),
+        entries: stats.map((s, i) => {
+          const rank = (page - 1) * limit + i + 1;
+          return {
+            rank,
+            gapToFirst: rank === 1 ? 0 : topVotes - s.totalVotes,
+            pet: {
+              id: s.pet.id,
+              name: s.pet.name,
+              type: s.pet.type,
+              breed: s.pet.breed,
+              ownerName: s.pet.ownerName,
+              state: s.pet.state,
+              photos: s.pet.photos,
+              user: s.pet.user,
+              createdAt: s.pet.createdAt,
+            },
+            weeklyVotes: s.totalVotes,
+            isNew:
+              new Date().getTime() - new Date(s.pet.createdAt).getTime() <
+              7 * 24 * 60 * 60 * 1000,
+          };
+        }),
         total,
         page,
         totalPages: Math.ceil(total / limit),
         weekId,
+        topVotes,
         meta: {
           totalWeeklyVotes: weeklyAgg._sum.totalVotes || 0,
           totalPaidVotes: weeklyAgg._sum.paidVotes || 0,
@@ -95,10 +97,9 @@ export async function GET(req: NextRequest) {
       });
     } else {
       // All-time leaderboard
-      const petWhere: Record<string, unknown> = {
-        isActive: true,
-        type: petType,
-      };
+      const petWhere: Record<string, unknown> = { isActive: true };
+      // ALL = dog+cat combined, no petType filter
+      if (!isAll) petWhere.type = petType;
       if (state) petWhere.state = state;
       if (breed) petWhere.breed = { contains: breed, mode: "insensitive" };
 

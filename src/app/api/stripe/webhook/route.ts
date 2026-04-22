@@ -189,12 +189,35 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "charge.dispute.created": {
+        const dispute = event.data.object as Stripe.Dispute;
+        const charge = dispute.charge as string;
+        // Find purchase by stripePaymentId
+        const disputedPurchase = await prisma.purchase.findFirst({
+          where: { stripePaymentId: charge },
+        });
+        if (disputedPurchase) {
+          // Freeze the vote balance: deduct votes back
+          await prisma.$transaction([
+            prisma.purchase.update({
+              where: { id: disputedPurchase.id },
+              data: { status: "REFUNDED" },
+            }),
+            prisma.user.update({
+              where: { id: disputedPurchase.userId },
+              data: { paidVoteBalance: { decrement: disputedPurchase.votes } },
+            }),
+          ]);
+          console.warn(`Dispute created for purchase ${disputedPurchase.id} — votes revoked from user ${disputedPurchase.userId}`);
+        }
+        break;
+      }
+
       case "invoice.payment_succeeded":
       case "invoice.payment_failed":
       case "customer.subscription.deleted":
       case "customer.subscription.updated": {
-        // Placeholder for future recurring support. We verify and accept these events now so
-        // Stripe can deliver them cleanly when VoteToFeed adds subscriptions.
+        // Placeholder for future recurring support.
         break;
       }
 

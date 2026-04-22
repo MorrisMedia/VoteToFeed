@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { PetCard } from "@/components/pets/PetCard";
 import { ShelterBanner } from "@/components/layout/ShelterBanner";
+import { GapToFirstWidget } from "@/components/shared/GapToFirstWidget";
 import { getAnimalType, getWeeklyVoteGoal } from "@/lib/admin-settings";
 import prisma from "@/lib/prisma";
 import { getCurrentWeekId, getWeekDateRange, formatDisplayName } from "@/lib/utils";
@@ -17,6 +20,9 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
   const limit = 20;
   const weekId = getCurrentWeekId();
   const { start, end } = getWeekDateRange();
+
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as { id?: string } | undefined)?.id;
 
   const [animalType, weeklyGoal, stats, weeklyMealsAgg, entries, allTimeVotes, allTimeAnon] = await Promise.all([
     getAnimalType(),
@@ -78,6 +84,18 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
   const weeklyVotes = stats._sum.totalVotes ?? 0;
   const mealsHelped = Math.round(weeklyMealsAgg._sum.mealsProvided ?? 0);
 
+  // Gap-to-#1 for logged-in user (page 1 only, same type)
+  const topEntry = entries[0];
+  const topVotes = topEntry?.totalVotes ?? 0;
+  let myGapEntry: { petName: string; myVotes: number; myRank: number } | null = null;
+  if (userId && page === 1) {
+    const myPetStats = entries.find((s) => s.pet.userId === userId);
+    if (myPetStats && myPetStats.pet.id !== topEntry?.pet.id) {
+      const myRank = entries.indexOf(myPetStats) + 1;
+      myGapEntry = { petName: myPetStats.pet.name, myVotes: myPetStats.totalVotes, myRank };
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Dog/Cat toggle */}
@@ -113,6 +131,18 @@ export default async function LeaderboardPage({ params, searchParams }: PageProp
         mealsHelped={mealsHelped}
         weeklyGoal={weeklyGoal}
       />
+
+      {/* Gap-to-#1 widget — only for logged-in users whose pet is on this page */}
+      {myGapEntry && (
+        <GapToFirstWidget
+          myVotes={myGapEntry.myVotes}
+          topVotes={topVotes}
+          petName={myGapEntry.petName}
+          myRank={myGapEntry.myRank}
+          showBuyCta
+          className="mt-5"
+        />
+      )}
 
       <div className="mt-8">
 

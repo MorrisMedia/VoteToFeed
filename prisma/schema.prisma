@@ -193,6 +193,7 @@ enum PetType {
   DOG
   CAT
   OTHER
+  ALL
 }
 
 // ─── VOTING ──────────────────────────────────────────────
@@ -266,6 +267,7 @@ enum PackageTier {
   CHAMPION
   HERO
   LEGEND
+  ICON
 }
 
 enum PaymentStatus {
@@ -301,6 +303,14 @@ model Contest {
   recurringInterval String?  // 'weekly', 'biweekly', 'monthly'
   recurringCounter  Int      @default(0) // incremented each recurrence
   isStoryteller     Boolean  @default(false) // show story/bio toggle on entries
+  // Round / phase fields (FLAGSHIP contests)
+  currentPhase      String   @default("OPEN") // OPEN | TOP100 | TOP25 | TOP5 | ENDED
+  round2StartDate   DateTime?
+  round3StartDate   DateTime?
+  finaleStartDate   DateTime?
+  top100CutSize     Int      @default(100)
+  top25CutSize      Int      @default(25)
+  top5CutSize       Int      @default(5)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @default(now()) @updatedAt
 
@@ -324,19 +334,23 @@ enum ContestType {
   BREED
   CHARITY
   CALENDAR
+  FLAGSHIP
 }
 
 model ContestEntry {
-  id        String   @id @default(cuid())
-  contestId String
-  petId     String
-  story     String?  @db.Text
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  contestId        String
+  petId            String
+  story            String?  @db.Text
+  isEliminated     Boolean  @default(false)
+  eliminatedAtRound Int?
+  createdAt        DateTime @default(now())
 
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
   pet     Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
 
   @@unique([contestId, petId])
+  @@index([contestId, isEliminated])
 }
 
 model ContestEmailLog {

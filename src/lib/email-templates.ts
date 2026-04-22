@@ -174,6 +174,141 @@ export function renderBuiltinTemplate(templateId: string, s: TemplateData): { su
         `, `${s.petName} won 1st place — $200 prize pack!`),
       };
 
+    /* ─────────────── FLAGSHIP ROUND EMAILS ─────────────── */
+
+    case "qualified_top100":
+      return {
+        subject: `🎉 ${s.petName} made Round 2! You're in the Top 100`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;">Round 2 — Top 100</p>
+          <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">🎉 ${s.petName} made it<br/>to Round 2!</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, great news — <strong>${s.petName}</strong> survived the first cut and is now in the <strong>Top 100</strong> of <strong>${s.contestName}</strong>!</p>
+          ${statRow([
+            { label: "Current Rank", value: `#${s.rank}` },
+            { label: "Round", value: "2 of 4" },
+            { label: "Phase", value: "TOP 100" },
+          ])}
+          ${infoBox(`💡 <strong>Only the top 25 advance to Round 3.</strong> This is where the real competition begins — keep voting and share your pet's page to stay in the top!`)}
+          ${ctaButton("Vote for " + s.petName + " Now →", `${url}/contests/${s.contestId}`, "#16a34a")}
+          ${ctaButton("Buy Extra Votes — Stay in Top 25", `${url}/dashboard#votes`, "#71717a")}
+        `, `${s.petName} is in the Top 100 — Round 2 of ${s.contestName}!`),
+      };
+
+    case "qualified_top25":
+      return {
+        subject: `🔥 ${s.petName} is in Round 3 — Top 25! Only 25 pets remain`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;">Round 3 — Top 25</p>
+          <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">🔥 ${s.petName} made it<br/>to the Top 25!</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, <strong>${s.petName}</strong> survived Round 2 and is now in the <strong>Top 25</strong> semifinalists of <strong>${s.contestName}</strong>!</p>
+          ${statRow([
+            { label: "Current Rank", value: `#${s.rank}` },
+            { label: "Round", value: "3 of 4" },
+            { label: "Gap to #1", value: `${s.votesNeededFor1st} votes` },
+          ])}
+          ${infoBox(`🏆 <strong>Only 5 pets advance to the Grand Finale.</strong> Push hard now — every vote counts more than ever!`, "#fffbeb", "#fde68a")}
+          ${ctaButton("Vote & Advance to Finale →", `${url}/contests/${s.contestId}`, "#d97706")}
+          ${ctaButton("Get Icon Pack — Maximum Votes", `${url}/dashboard#votes`, "#71717a")}
+        `, `${s.petName} is in the Top 25 — round 3 of ${s.contestName}!`),
+      };
+
+    case "qualified_top5":
+      return {
+        subject: `🏅 ${s.petName} IS IN THE FINALE — Top 5!`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;">🏅 Grand Finale</p>
+          <h1 style="margin:0 0 20px;font-size:32px;font-weight:900;color:#18181b;line-height:1.2;">${s.petName} is one of<br/>5 finalists! 🏅</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, <strong>${s.petName}</strong> made it to the <strong>Grand Finale</strong> of <strong>${s.contestName}</strong>! You're competing against only 4 other pets for the top prize.</p>
+          ${statRow([
+            { label: "Current Rank", value: `#${s.rank}` },
+            { label: "Round", value: "FINALE" },
+            { label: "Pets Left", value: "5" },
+          ])}
+          ${infoBox(`🥇 <strong>Everything is on the line.</strong> The finalists who win the most votes in this last round take home the grand prize. Give it everything you've got!`, "#faf5ff", "#c4b5fd")}
+          ${ctaButton("VOTE IN THE FINALE →", `${url}/contests/${s.contestId}`, "#7c3aed")}
+          ${ctaButton("Max Out Your Votes — Icon Pack", `${url}/dashboard#votes`, "#71717a")}
+        `, `${s.petName} is a TOP 5 FINALIST in ${s.contestName}!`),
+      };
+
+    case "eliminated": {
+      // couponCode passed via dynamic data — fall back to generic message
+      const extData = s as TemplateData & { couponCode?: string; couponExpiry?: string };
+      return {
+        subject: `💔 ${s.petName} was eliminated — here's your 20% off coupon`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Round Update</p>
+          <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">Sadly, ${s.petName}<br/>didn't advance 💔</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, <strong>${s.petName}</strong> finished at <strong>#${s.rank}</strong> and didn't make the next cut in <strong>${s.contestName}</strong>. You made it this far — that's worth celebrating!</p>
+          ${infoBox(`🎁 <strong>As a thank-you for competing, here's an exclusive 20% off coupon</strong> for your next vote purchase. Use it when the next contest starts!`, "#f0fdf4", "#86efac")}
+          ${extData.couponCode ? `
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 20px;border:2px dashed #16a34a;border-radius:12px;background:#f0fdf4;">
+            <tr><td style="padding:20px;text-align:center;">
+              <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px;">Your Coupon Code</p>
+              <p style="margin:0;font-size:28px;font-weight:900;color:#15803d;letter-spacing:2px;">${extData.couponCode}</p>
+              ${extData.couponExpiry ? `<p style="margin:8px 0 0;font-size:12px;color:#166534;">Expires ${extData.couponExpiry}</p>` : ""}
+            </td></tr>
+          </table>
+          ` : ""}
+          ${ctaButton("Enter the Next Contest →", `${url}/contests`, "#16a34a")}
+          ${ctaButton("Buy Votes (20% off) →", `${url}/dashboard#votes`, "#71717a")}
+        `, `${s.petName} was eliminated — here's a 20% off coupon for you.`),
+      };
+    }
+
+    case "rank_drop":
+      return {
+        subject: `📉 ${s.petName} dropped to #${s.rank} — act now!`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Rank Drop Alert</p>
+          <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">📉 ${s.petName} just dropped<br/>to #${s.rank}</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, another pet just passed <strong>${s.petName}</strong> in <strong>${s.contestName}</strong>. They're now at #${s.rank}.</p>
+          ${statRow([
+            { label: "New Rank", value: `#${s.rank}` },
+            { label: "Votes to Climb Back", value: `${s.votesGap}` },
+            { label: "Days Left", value: `${s.daysLeft}d` },
+          ])}
+          ${infoBox(`⚡ <strong>Don't wait — a quick vote boost can recover the rank in minutes.</strong>`, "#fef2f2", "#fca5a5")}
+          ${ctaButton("Recover Rank — Vote Now", `${url}/contests/${s.contestId}`, "#dc2626")}
+          ${ctaButton("Buy Votes", `${url}/dashboard#votes`, "#71717a")}
+        `, `${s.petName} dropped to #${s.rank} in ${s.contestName} — recover now!`),
+      };
+
+    case "near_first":
+      return {
+        subject: `⭐ ${s.petName} is only ${s.votesNeededFor1st} votes from #1!`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;">⭐ So Close!</p>
+          <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">${s.petName} is within striking<br/>distance of #1!</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, <strong>${s.petName}</strong> is ranked <strong>#${s.rank}</strong> and needs just <strong>${s.votesNeededFor1st} more votes</strong> to take the lead in <strong>${s.contestName}</strong>.</p>
+          ${statRow([
+            { label: "Current Rank", value: `#${s.rank}` },
+            { label: "Votes to #1", value: `${s.votesNeededFor1st}` },
+            { label: "Days Left", value: `${s.daysLeft}d` },
+          ])}
+          ${infoBox(`🥇 <strong>You're this close!</strong> A single purchase could put ${s.petName} at #1. Don't leave it to chance.`, "#fffbeb", "#fde68a")}
+          ${ctaButton("Take the Lead — Buy Votes", `${url}/dashboard#votes`, "#d97706")}
+          ${ctaButton("Share & Get Free Votes", `${url}/contests/${s.contestId}`, "#71717a")}
+        `, `${s.petName} needs only ${s.votesNeededFor1st} votes to hit #1!`),
+      };
+
+    case "round_countdown":
+      return {
+        subject: `⏰ ${(s as TemplateData & { hoursLeft?: number }).hoursLeft || s.daysLeft * 24}h left in this round — ${s.petName} needs votes!`,
+        html: emailShell(`
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;">⏰ Round Closing Soon</p>
+          <h1 style="margin:0 0 20px;font-size:28px;font-weight:900;color:#18181b;line-height:1.2;">This round ends in<br/>${(s as TemplateData & { hoursLeft?: number }).hoursLeft || s.daysLeft * 24} hours!</h1>
+          <p style="margin:0 0 20px;color:#52525b;font-size:16px;">Hey ${s.userName}, the current round in <strong>${s.contestName}</strong> is closing soon. <strong>${s.petName}</strong> is currently at <strong>#${s.rank}</strong>.</p>
+          ${statRow([
+            { label: "Current Rank", value: `#${s.rank}` },
+            { label: "Hours Left", value: `${(s as TemplateData & { hoursLeft?: number }).hoursLeft || s.daysLeft * 24}h` },
+            { label: "Votes to #1", value: `${s.votesNeededFor1st}` },
+          ])}
+          ${infoBox(`🚨 <strong>When the round closes, only the top ranked pets advance.</strong> Make sure ${s.petName} is safe!`, "#fef2f2", "#fca5a5")}
+          ${ctaButton("Vote Before the Cut →", `${url}/contests/${s.contestId}`, "#d97706")}
+          ${ctaButton("Buy a Vote Boost", `${url}/dashboard#votes`, "#71717a")}
+        `, `Round closes in ${(s as TemplateData & { hoursLeft?: number }).hoursLeft || s.daysLeft * 24}h — ${s.petName} at #${s.rank}.`),
+      };
+
     default:
       return null;
   }
