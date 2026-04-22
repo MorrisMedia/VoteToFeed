@@ -266,7 +266,7 @@ export function VoteButton({
           <div className="grid grid-cols-3 gap-2">
             {VOTE_PACKAGES.slice(0, 3).map((pkg) => {
               const meals = calculateMeals(pkg.price, mealRate);
-              const isBest = pkg.tier === "SUPPORTER";
+              const isBest = pkg.tier === "CHAMPION";
               return (
                 <button
                   key={pkg.tier}

@@ -2601,19 +2601,19 @@ function ContestManager() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-[10px] font-medium text-surface-600 mb-1">Round 2 Start (Top 100)</label>
-                  <input type="date" value={(cf as Record<string, string>).round2StartDate || ""} onChange={(e) => setCf((f) => ({ ...f, round2StartDate: e.target.value } as typeof f))} className="input-field text-xs" />
+                  <input type="date" value={(cf as unknown as Record<string, string>).round2StartDate || ""} onChange={(e) => setCf((f) => ({ ...f, round2StartDate: e.target.value } as typeof f))} className="input-field text-xs" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-surface-600 mb-1">Round 3 Start (Top 25)</label>
-                  <input type="date" value={(cf as Record<string, string>).round3StartDate || ""} onChange={(e) => setCf((f) => ({ ...f, round3StartDate: e.target.value } as typeof f))} className="input-field text-xs" />
+                  <input type="date" value={(cf as unknown as Record<string, string>).round3StartDate || ""} onChange={(e) => setCf((f) => ({ ...f, round3StartDate: e.target.value } as typeof f))} className="input-field text-xs" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-surface-600 mb-1">Finale Start (Top 5)</label>
-                  <input type="date" value={(cf as Record<string, string>).finaleStartDate || ""} onChange={(e) => setCf((f) => ({ ...f, finaleStartDate: e.target.value } as typeof f))} className="input-field text-xs" />
+                  <input type="date" value={(cf as unknown as Record<string, string>).finaleStartDate || ""} onChange={(e) => setCf((f) => ({ ...f, finaleStartDate: e.target.value } as typeof f))} className="input-field text-xs" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-surface-600 mb-1">Current Phase</label>
-                  <select value={(cf as Record<string, string>).currentPhase || "OPEN"} onChange={(e) => setCf((f) => ({ ...f, currentPhase: e.target.value } as typeof f))} className="input-field text-xs">
+                  <select value={(cf as unknown as Record<string, string>).currentPhase || "OPEN"} onChange={(e) => setCf((f) => ({ ...f, currentPhase: e.target.value } as typeof f))} className="input-field text-xs">
                     <option value="OPEN">OPEN (All entries)</option>
                     <option value="TOP100">TOP 100</option>
                     <option value="TOP25">TOP 25</option>

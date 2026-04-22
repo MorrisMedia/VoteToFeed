@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
         round2StartDate: true,
         round3StartDate: true,
         finaleStartDate: true,
+        startDate: true,
         endDate: true,
         top100CutSize: true,
         top25CutSize: true,
@@ -54,24 +55,24 @@ export async function POST(req: NextRequest) {
         contest.finaleStartDate &&
         contest.finaleStartDate <= now
       ) {
-        await advancePhase(contest.id, "TOP5", contest.top5CutSize, "TOP25");
-        await sendRoundEmails(contest.id, "qualified_top5", "eliminated");
+        await advancePhase(contest.id, "TOP5", contest.top5CutSize, "TOP25", contest.startDate);
+        await sendRoundEmails(contest.id, "qualified_top5", "eliminated", contest.startDate);
         results.push({ contestId: contest.id, name: contest.name, action: "TOP25 → TOP5" });
       } else if (
         contest.currentPhase === "TOP100" &&
         contest.round3StartDate &&
         contest.round3StartDate <= now
       ) {
-        await advancePhase(contest.id, "TOP25", contest.top25CutSize, "TOP100");
-        await sendRoundEmails(contest.id, "qualified_top25", "eliminated");
+        await advancePhase(contest.id, "TOP25", contest.top25CutSize, "TOP100", contest.startDate);
+        await sendRoundEmails(contest.id, "qualified_top25", "eliminated", contest.startDate);
         results.push({ contestId: contest.id, name: contest.name, action: "TOP100 → TOP25" });
       } else if (
         contest.currentPhase === "OPEN" &&
         contest.round2StartDate &&
         contest.round2StartDate <= now
       ) {
-        await advancePhase(contest.id, "TOP100", contest.top100CutSize, "OPEN");
-        await sendRoundEmails(contest.id, "qualified_top100", "eliminated");
+        await advancePhase(contest.id, "TOP100", contest.top100CutSize, "OPEN", contest.startDate);
+        await sendRoundEmails(contest.id, "qualified_top100", "eliminated", contest.startDate);
         results.push({ contestId: contest.id, name: contest.name, action: "OPEN → TOP100" });
       }
     }
@@ -95,21 +96,30 @@ async function advancePhase(
   contestId: string,
   newPhase: string,
   keepCount: number,
-  fromPhase: string
+  fromPhase: string,
+  contestStartDate: Date
 ) {
-  // Get all non-eliminated entries ordered by votes desc
+  // Get all non-eliminated entries
   const entries = await prisma.contestEntry.findMany({
     where: { contestId, isEliminated: false },
-    orderBy: { votes: "desc" },
-    select: { id: true },
+    select: { id: true, petId: true },
   });
 
-  // Entries that survive (top N)
-  const survivorIds = new Set(entries.slice(0, keepCount).map((e) => e.id));
-  const eliminatedIds = entries
-    .slice(keepCount)
-    .map((e) => e.id);
+  // Count votes per pet since contest start
+  const petIds = entries.map((e) => e.petId);
+  const voteCounts = await prisma.vote.groupBy({
+    by: ["petId"],
+    where: { petId: { in: petIds }, createdAt: { gte: contestStartDate } },
+    _sum: { quantity: true },
+  });
+  const voteMap = new Map(voteCounts.map((vc) => [vc.petId, vc._sum.quantity ?? 0]));
 
+  // Sort entries by vote count descending
+  const sorted = [...entries].sort(
+    (a, b) => (voteMap.get(b.petId) ?? 0) - (voteMap.get(a.petId) ?? 0)
+  );
+
+  const eliminatedIds = sorted.slice(keepCount).map((e) => e.id);
   const roundNumber = phaseToRoundNumber(newPhase);
 
   if (eliminatedIds.length > 0) {
@@ -126,7 +136,7 @@ async function advancePhase(
 
   console.log(
     `[advance-rounds] Contest ${contestId}: ${fromPhase} → ${newPhase}. ` +
-    `Kept ${survivorIds.size}, eliminated ${eliminatedIds.length}`
+    `Kept ${Math.min(keepCount, entries.length)}, eliminated ${eliminatedIds.length}`
   );
 }
 
@@ -146,7 +156,8 @@ function phaseToRoundNumber(phase: string): number {
 async function sendRoundEmails(
   contestId: string,
   qualifiedTemplate: string,
-  eliminatedTemplate: string
+  eliminatedTemplate: string,
+  contestStartDate: Date
 ) {
   const contest = await prisma.contest.findUnique({
     where: { id: contestId },
@@ -158,35 +169,55 @@ async function sendRoundEmails(
     (contest.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   ));
 
-  // Get all entries with user/pet data
+  // Get all entries with pet + pet owner data (user is on pet, not on entry)
   const entries = await prisma.contestEntry.findMany({
     where: { contestId },
-    orderBy: { votes: "desc" },
     include: {
-      pet: { select: { name: true, type: true } },
-      user: { select: { id: true, name: true, email: true } },
+      pet: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
     },
   });
 
-  const firstVotes = entries[0]?.votes || 0;
+  // Count votes per pet since contest start
+  const petIds = entries.map((e) => e.petId);
+  const voteCounts = await prisma.vote.groupBy({
+    by: ["petId"],
+    where: { petId: { in: petIds }, createdAt: { gte: contestStartDate } },
+    _sum: { quantity: true },
+  });
+  const voteMap = new Map(voteCounts.map((vc) => [vc.petId, vc._sum.quantity ?? 0]));
 
+  // Sort by votes descending
+  const sorted = [...entries].sort(
+    (a, b) => (voteMap.get(b.petId) ?? 0) - (voteMap.get(a.petId) ?? 0)
+  );
+
+  const firstVotes = voteMap.get(sorted[0]?.petId) ?? 0;
   const emailPromises: Promise<unknown>[] = [];
 
-  entries.forEach((entry, idx) => {
-    if (!entry.user?.email) return;
+  sorted.forEach((entry, idx) => {
+    const userEmail = entry.pet.user?.email;
+    if (!userEmail) return;
     const rank = idx + 1;
+    const entryVotes = voteMap.get(entry.petId) ?? 0;
     const s: TemplateData = {
-      userName: entry.user.name || "Friend",
+      userName: entry.pet.user?.name || "Friend",
       petName: entry.pet.name,
       contestName: contest.name,
       contestId,
       rank,
-      totalEntries: entries.length,
-      totalVotes: entry.votes,
-      votesNeededForTop3: Math.max(0, (entries[2]?.votes || 0) - entry.votes + 1),
-      votesNeededFor1st: Math.max(0, firstVotes - entry.votes),
+      totalEntries: sorted.length,
+      totalVotes: entryVotes,
+      votesNeededForTop3: Math.max(0, (voteMap.get(sorted[2]?.petId) ?? 0) - entryVotes + 1),
+      votesNeededFor1st: Math.max(0, firstVotes - entryVotes),
       daysLeft,
-      votesGap: rank > 1 ? (entries[rank - 2]?.votes || 0) - entry.votes : 0,
+      votesGap: rank > 1 ? (voteMap.get(sorted[rank - 2]?.petId) ?? 0) - entryVotes : 0,
       prizeDescription: "",
       nextContestName: contest.name,
     };
@@ -198,7 +229,7 @@ async function sendRoundEmails(
     emailPromises.push(
       sendEmail({
         from: "VoteToFeed <noreply@votetofeed.com>",
-        to: entry.user.email,
+        to: userEmail,
         subject: rendered.subject,
         html: rendered.html,
       }).catch((err) =>

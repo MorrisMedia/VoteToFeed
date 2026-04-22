@@ -375,7 +375,7 @@ export function DashboardClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
               {VOTE_PACKAGES.map((pkg) => {
                 const meals = calculateMeals(pkg.price, mealRate);
-                const isBest = pkg.tier === "SUPPORTER";
+                const isBest = pkg.tier === "CHAMPION";
                 const isHero = pkg.tier === "HERO" || pkg.tier === "LEGEND";
                 return (
                   <div key={pkg.tier} className={`card p-5 relative transition-all hover:shadow-card-hover ${isBest ? "border-brand-300 ring-2 ring-brand-100 shadow-md" : ""} ${isHero ? "border-accent-200" : ""}`}>
