@@ -146,7 +146,7 @@ export function Nav({
                           <img src={c.coverImage} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
                         ) : (
                           <div className="w-12 h-12 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-lg">{c.petType === "DOG" ? "🐶" : "🐱"}</span>
+                            <span className="text-lg">{c.petType === "DOG" ? "🐶" : c.petType === "CAT" ? "🐱" : c.petType === "ALL" ? "🐶🐱" : "🐾"}</span>
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -326,7 +326,7 @@ export function Nav({
                       <img src={c.coverImage} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
                     ) : (
                       <div className="w-9 h-9 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0 text-sm">
-                        {c.petType === "DOG" ? "🐶" : "🐱"}
+                        {c.petType === "DOG" ? "🐶" : c.petType === "CAT" ? "🐱" : c.petType === "ALL" ? "🐶🐱" : "🐾"}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">

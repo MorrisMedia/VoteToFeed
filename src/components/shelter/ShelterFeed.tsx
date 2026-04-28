@@ -156,7 +156,7 @@ function ShelterPostCard({ post }: { post: ShelterPostData }) {
             href={`/contests/${post.contest.id}`}
             className="inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-lg bg-surface-50 border border-surface-200/80 text-xs font-medium text-surface-600 hover:bg-surface-100 transition-colors"
           >
-            <span>{post.contest.petType === "DOG" ? "🐶" : "🐱"}</span>
+            <span>{post.contest.petType === "DOG" ? "🐶" : post.contest.petType === "CAT" ? "🐱" : post.contest.petType === "ALL" ? "🐶🐱" : "🐾"}</span>
             <span className="truncate max-w-[200px]">{post.contest.name}</span>
           </Link>
         )}
@@ -321,7 +321,7 @@ function PostForm({
         <option value="">Tag a contest (optional)</option>
         {contests.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.petType === "DOG" ? "🐶" : "🐱"} {c.name}
+            {c.petType === "DOG" ? "🐶" : c.petType === "CAT" ? "🐱" : c.petType === "ALL" ? "🐶🐱" : "🐾"} {c.name}
           </option>
         ))}
       </select>

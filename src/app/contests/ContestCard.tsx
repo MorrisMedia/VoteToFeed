@@ -58,7 +58,7 @@ export function ContestCard({ contest, isEnded }: ContestCardProps) {
       <div className="relative h-36 sm:h-44 bg-surface-100 overflow-hidden">
         {/* Always render fallback underneath */}
         <div className="absolute inset-0 bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center">
-          <span className="text-5xl">{contest.petType === "DOG" ? "🐶" : "🐱"}</span>
+          <span className="text-5xl">{contest.petType === "DOG" ? "🐶" : contest.petType === "CAT" ? "🐱" : contest.petType === "ALL" ? "🐶🐱" : "🐾"}</span>
         </div>
 
         {/* Cover image on top — hidden on error */}
@@ -76,7 +76,7 @@ export function ContestCard({ contest, isEnded }: ContestCardProps) {
             {typeLabel}
           </span>
           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-100/90 text-surface-800 backdrop-blur-sm">
-            {contest.petType === "DOG" ? "Dogs" : "Cats"}
+            {contest.petType === "DOG" ? "Dogs" : contest.petType === "CAT" ? "Cats" : contest.petType === "ALL" ? "Dogs & Cats" : "Pets"}
           </span>
           {contest.isFeatured && (
             <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-100/90 text-yellow-700 backdrop-blur-sm">Featured</span>

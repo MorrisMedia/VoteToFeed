@@ -88,7 +88,7 @@ export default async function ContestDetailPage({
           <img src={contest.coverImage} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-brand-200 to-brand-400 flex items-center justify-center">
-            <span className="text-7xl">{contest.petType === "DOG" ? "🐶" : "🐱"}</span>
+            <span className="text-7xl">{contest.petType === "DOG" ? "🐶" : contest.petType === "CAT" ? "🐱" : contest.petType === "ALL" ? "🐶🐱" : "🐾"}</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
@@ -99,7 +99,7 @@ export default async function ContestDetailPage({
                 {typeLabel(contest.type)}
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm">
-                {contest.petType === "DOG" ? "Dogs" : "Cats"}
+                {contest.petType === "DOG" ? "Dogs" : contest.petType === "CAT" ? "Cats" : contest.petType === "ALL" ? "Dogs & Cats" : "Pets"}
               </span>
               {contest.isFeatured && (
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-yellow-100/90 text-yellow-700">Featured</span>
@@ -199,7 +199,7 @@ export default async function ContestDetailPage({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-surface-500">Pet Type</span>
-                  <span className="font-medium text-surface-800">{contest.petType === "DOG" ? "Dogs" : "Cats"}</span>
+                  <span className="font-medium text-surface-800">{contest.petType === "DOG" ? "Dogs" : contest.petType === "CAT" ? "Cats" : contest.petType === "ALL" ? "Dogs & Cats" : "Pets"}</span>
                 </div>
                 {contest.maxEntries && (
                   <div className="flex justify-between">
