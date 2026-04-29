@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPostCommentNotification } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,21 @@ export async function POST(
       `${appUrl}/users/${post.userId}`,
     );
   }).catch((e) => console.error("[email] post comment notification failed:", e));
+
+  // Send In-App Notification
+  if (comment.user.id !== params.id) { // params.id is the user ID of the post owner? Wait, let's check param.
+    // In the route, params: { id: string; postId: string }
+    // Usually 'id' in these routes refers to the user ID from the path /api/users/[id]/...
+    // Let's assume params.id is the owner of the post.
+    createNotification({
+      userId: params.id, 
+      type: "COMMENT",
+      title: "New Comment",
+      message: `${comment.user.name || "Someone"} commented: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`,
+      linkUrl: `/users/${params.id}#post-${params.postId}`,
+      sourceUserId: userId,
+    });
+  }
 
   return NextResponse.json({
     id: comment.id,

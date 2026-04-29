@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { sendFollowNotification } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,23 @@ export async function POST(
       );
     });
   }).catch((e) => console.error("[email] follow notification failed:", e));
+
+  // Send In-App Notification (wait for it to run so it's guaranteed, but it's okay)
+  const followerUser = await prisma.user.findUnique({
+    where: { id: followerId },
+    select: { name: true },
+  });
+  
+  if (followerUser) {
+    await createNotification({
+      userId: followingId, // Send to the person being followed
+      type: "FOLLOW",
+      title: "New Follower!",
+      message: `${followerUser.name || "Someone"} started following you.`,
+      linkUrl: `/users/${followerId}`,
+      sourceUserId: followerId,
+    });
+  }
 
   return NextResponse.json({
     followed: true,

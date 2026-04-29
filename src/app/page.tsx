@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { PetImage } from "@/app/pets/[id]/PetImage";
 import { getAnimalType, getWeeklyVoteGoal } from "@/lib/admin-settings";
@@ -90,7 +91,7 @@ function StepCard({
   step,
   title,
   description,
-}: {
+} : {
   step: string;
   title: string;
   description: string;
@@ -110,7 +111,7 @@ function BenefitCard({
   emoji,
   title,
   description,
-}: {
+} : {
   emoji: string;
   title: string;
   description: string;
@@ -125,8 +126,15 @@ function BenefitCard({
 }
 
 export default async function HomePage() {
-  const [data, session] = await Promise.all([getHomeData(), getServerSession(authOptions)]);
-  const isLoggedIn = !!session?.user;
+  const session = await getServerSession(authOptions);
+  
+  // Directly redirect to Feed if user is logged in
+  if (session?.user) {
+    redirect("/feed");
+  }
+
+  const data = await getHomeData();
+  const isLoggedIn = false;
   const featuredPet = data.topPets[0] ?? null;
   const spotlightPets = data.topPets;
   const goalPercent = data.weeklyGoal > 0 ? Math.min(100, Math.round((data.weeklyVotes / data.weeklyGoal) * 100)) : 0;

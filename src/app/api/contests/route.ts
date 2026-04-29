@@ -147,7 +147,6 @@ export async function POST(req: NextRequest) {
         recurringInterval: isRecurring ? (recurringInterval || "biweekly") : null,
         isStoryteller: isStoryteller || false,
         isActive: true,
-        // FLAGSHIP round fields
         currentPhase: validatedPhase,
         round2StartDate: round2StartDate ? new Date(round2StartDate) : null,
         round3StartDate: round3StartDate ? new Date(round3StartDate) : null,
@@ -172,6 +171,21 @@ export async function POST(req: NextRequest) {
         _count: { select: { entries: true } },
       },
     });
+
+    // Notify ALL users about the new contest asynchronously
+    prisma.user.findMany({ select: { id: true } })
+      .then((users) => {
+        const notifications = users.map(u => ({
+          userId: u.id,
+          type: "CONTEST" as const,
+          title: "New Contest!",
+          message: `A new contest '${name}' has just started! Enter your pet now! 🏆`,
+          linkUrl: `/contests/${contest.id}`,
+        }));
+        
+        return prisma.notification.createMany({ data: notifications });
+      })
+      .catch(e => console.error("Failed to notify users about new contest", e));
 
     return NextResponse.json(contest, { status: 201 });
   } catch (error) {

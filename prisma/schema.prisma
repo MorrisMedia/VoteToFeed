@@ -114,6 +114,8 @@ model User {
   nominationsSent     Nomination[]      @relation("NominationsSent")
   contestEmailLogs    ContestEmailLog[]
   nominationSendJobs  NominationSendJob[] @relation("NominationSendJobs")
+  inAppNotifications  Notification[]    @relation("NotificationTarget")
+  sentNotifications   Notification[]    @relation("NotificationSource")
 }
 
 enum UserRole {
@@ -988,4 +990,32 @@ enum BadgeCategory {
   PETS        // based on pets registered
   STREAK      // based on voting streaks
   COMMUNITY   // special community badges
+}
+
+// ─── NOTIFICATIONS ───────────────────────────────────────
+
+model Notification {
+  id           String           @id @default(cuid())
+  userId       String           // The user who receives the notification
+  type         NotificationType
+  title        String
+  message      String
+  isRead       Boolean          @default(false)
+  linkUrl      String?          // URL to redirect upon click
+  sourceUserId String?          // Optional: user who triggered the action
+  createdAt    DateTime         @default(now())
+
+  user       User  @relation("NotificationTarget", fields: [userId], references: [id], onDelete: Cascade)
+  sourceUser User? @relation("NotificationSource", fields: [sourceUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  CONTEST     // New contest, contest ending, etc.
+  LIKE        // Someone liked a post
+  COMMENT     // Someone commented
+  FOLLOW      // Someone followed
+  SYSTEM      // Admin warnings, badges earned, etc.
 }

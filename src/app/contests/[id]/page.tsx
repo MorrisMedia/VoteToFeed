@@ -8,6 +8,40 @@ import { formatDisplayName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+/* ─── Formats text with bullet points and line breaks ─── */
+function FormattedText({ text }: { text: string }) {
+  // Split on newlines OR "•" bullets, filter empty segments
+  const sections = text.split(/\n|(?=•)/).map((s) => s.trim()).filter(Boolean);
+
+  // Group into headings (ALL CAPS words followed by :) and bullet items
+  return (
+    <div className="space-y-1 text-sm text-surface-600 leading-relaxed">
+      {sections.map((line, i) => {
+        const isBullet = line.startsWith("•");
+        const isHeading = !isBullet && /^[A-Z][A-Z\s]+:/.test(line);
+        const content = isBullet ? line.replace(/^•\s*/, "") : line;
+
+        if (isHeading) {
+          return (
+            <p key={i} className="font-semibold text-surface-800 mt-3 first:mt-0">
+              {content}
+            </p>
+          );
+        }
+        if (isBullet) {
+          return (
+            <div key={i} className="flex gap-2">
+              <span className="mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-400" />
+              <span>{content}</span>
+            </div>
+          );
+        }
+        return <p key={i}>{content}</p>;
+      })}
+    </div>
+  );
+}
+
 export default async function ContestDetailPage({
   params,
   searchParams,
@@ -133,8 +167,9 @@ export default async function ContestDetailPage({
             <p className="text-2xl font-bold text-surface-900 mt-1">{hasEnded ? "Ended" : `${daysLeft}d`}</p>
           </div>
           <div className="card p-4 text-center">
-            <p className="text-xs font-medium text-surface-400 uppercase">Total Prizes</p>
+            <p className="text-xs font-medium text-surface-400 uppercase">Prize Pack Value</p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">{prizeTotal > 0 ? `$${(prizeTotal / 100).toLocaleString()}` : "TBD"}</p>
+            <p className="text-[10px] text-surface-400 mt-0.5">in prizes</p>
           </div>
           <div className="card p-4 text-center">
             <p className="text-xs font-medium text-surface-400 uppercase">Entry Fee</p>
@@ -212,15 +247,15 @@ export default async function ContestDetailPage({
 
             {contest.description && (
               <div className="card p-5">
-                <h3 className="text-sm font-bold text-surface-900 mb-2">About</h3>
-                <p className="text-sm text-surface-600 leading-relaxed">{contest.description}</p>
+                <h3 className="text-sm font-bold text-surface-900 mb-3">About</h3>
+                <FormattedText text={contest.description} />
               </div>
             )}
 
             {contest.rules && (
               <div className="card p-5">
-                <h3 className="text-sm font-bold text-surface-900 mb-2">Rules</h3>
-                <p className="text-sm text-surface-600 leading-relaxed">{contest.rules}</p>
+                <h3 className="text-sm font-bold text-surface-900 mb-3">Rules</h3>
+                <FormattedText text={contest.rules} />
               </div>
             )}
 
