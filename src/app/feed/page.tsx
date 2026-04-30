@@ -121,7 +121,27 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const [modalMaxH, setModalMaxH] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Use visualViewport API for 100% accurate keyboard-aware height on iOS & Android
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    function onResize() {
+      // Leave 10px breathing room above keyboard
+      setModalMaxH(Math.floor((vv as VisualViewport).height * 0.95));
+    }
+
+    onResize();
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
+  }, []);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -188,14 +208,17 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-modal-backdrop" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 animate-modal-backdrop">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      {/* Modal card — visualViewport-driven height so keyboard never covers it */}
       <div
-        className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-modal-slide-up"
+        className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-modal-slide-up"
+        style={{ maxHeight: modalMaxH ? `${modalMaxH}px` : "85dvh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-surface-100">
+        {/* Header — always visible at top */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-surface-100 shrink-0">
           <button onClick={onClose} className="text-sm font-semibold text-surface-500 hover:text-surface-700 transition-colors">Cancel</button>
           <h3 className="text-base font-bold text-surface-900">Create Post</h3>
           <button
@@ -212,8 +235,8 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </button>
         </div>
 
-        {/* Compose area */}
-        <div className="px-5 py-4">
+        {/* Scrollable compose area */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="flex gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center flex-shrink-0">
               {session?.user?.image ? (
@@ -229,7 +252,7 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Share a fun moment, a new photo, or what your pet is up to today! 🐶🐱✨"
-                rows={4}
+                rows={3}
                 maxLength={1000}
                 className="w-full resize-none text-sm text-surface-800 placeholder:text-surface-400 focus:outline-none leading-relaxed"
               />
@@ -238,7 +261,7 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
           {imagePreview && (
             <div className="mt-3 relative rounded-xl overflow-hidden border border-surface-200">
-              <img src={imagePreview} alt="Preview" className="w-full h-auto block max-h-64 object-cover" />
+              <img src={imagePreview} alt="Preview" className="w-full h-auto block max-h-48 object-cover" />
               <button
                 onClick={removeImage}
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 transition-colors"
@@ -249,8 +272,8 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
           )}
         </div>
 
-        {/* Actions bar */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-surface-100 bg-surface-50/50">
+        {/* Actions bar — pinned at bottom, above iOS safe area */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-surface-100 bg-surface-50/50 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
           <div className="flex gap-1">
             <label className="w-10 h-10 rounded-full hover:bg-brand-50 flex items-center justify-center cursor-pointer transition-colors">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>

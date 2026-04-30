@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const petType = searchParams.get("petType");
     const includeEnded = searchParams.get("includeEnded") === "true";
+    const includeNotStarted = searchParams.get("includeNotStarted") === "true";
     const featured = searchParams.get("featured");
 
     const now = new Date();
@@ -18,8 +19,10 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = {};
     if (!includeEnded) {
       where.isActive = true;
-      where.endDate = { gte: now }; // only contests that haven't ended
-      where.startDate = { lte: now }; // only contests that have started
+      where.endDate = { gte: now };
+      if (!includeNotStarted) {
+        where.startDate = { lte: now };
+      }
     }
     if (petType) where.petType = petType;
     if (featured === "true") where.isFeatured = true;

@@ -9,6 +9,7 @@ type NavContest = {
   name: string;
   type: string;
   petType: string;
+  startDate: string;
   daysLeft: number;
   totalPrizeValue: number;
   entryCount: number;
@@ -87,9 +88,9 @@ export function Nav({
   useDropdownAutoClose(leaderboardRef, leaderboardOpen, closeLeaderboard);
   useDropdownAutoClose(menuRef, menuOpen, closeMenu);
 
-  // Fetch active contests for the dropdown
+  // Fetch active + upcoming contests for the dropdown
   useEffect(() => {
-    fetch("/api/contests")
+    fetch("/api/contests?includeNotStarted=true")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setContests(data.filter((c: NavContest) => !c.hasEnded)); })
       .catch(() => {});
@@ -291,7 +292,7 @@ export function Nav({
                 </button>
                 
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-surface-200/80 z-50 animate-fade-in overflow-hidden">
+                  <div className="fixed left-2 right-2 top-[4.5rem] sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 w-auto bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-surface-200/80 z-50 animate-fade-in overflow-hidden">
                     <div className="px-4 py-3 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
                       <h3 className="font-bold text-surface-900">Notifications</h3>
                       {unreadCount > 0 && (
@@ -310,19 +311,30 @@ export function Nav({
                             className={`flex items-start gap-3 px-4 py-3 hover:bg-surface-50 transition-colors border-b border-surface-100/50 ${n.isRead ? '' : 'bg-brand-50/30'}`}
                             onClick={closeNotifications}
                           >
-                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-surface-100 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-surface-100">
                               {n.sourceUser?.image ? (
                                 <img src={n.sourceUser.image} alt="" className="w-full h-full object-cover" />
+                              ) : n.type === "CONTEST" ? (
+                                <span className="text-lg">🏆</span>
+                              ) : n.type === "LIKE" ? (
+                                <span className="text-lg">❤️</span>
+                              ) : n.type === "COMMENT" ? (
+                                <span className="text-lg">💬</span>
+                              ) : n.type === "FOLLOW" ? (
+                                <span className="text-lg">👥</span>
+                              ) : n.sourceUser?.name ? (
+                                <span className="text-sm font-bold text-brand-600">{n.sourceUser.name[0].toUpperCase()}</span>
                               ) : (
-                                <span className="text-sm font-bold text-brand-600">{(n.sourceUser?.name || "U")[0].toUpperCase()}</span>
+                                <span className="text-sm font-bold text-brand-600">🔔</span>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-surface-800">{n.message}</p>
-                              <p className="text-xs text-surface-500 font-semibold mt-0.5">{new Date(n.createdAt).toLocaleDateString()}</p>
+                              <p className="text-sm font-semibold text-surface-900">{n.title}</p>
+                              <p className="text-xs text-surface-600 mt-0.5 leading-snug">{n.message}</p>
+                              <p className="text-[10px] text-surface-400 font-medium mt-1">{new Date(n.createdAt).toLocaleDateString()}</p>
                             </div>
                             {!n.isRead && (
-                              <div className="w-2 h-2 rounded-full bg-brand-500 shrink-0 self-center"></div>
+                              <div className="w-2 h-2 rounded-full bg-brand-500 shrink-0 self-center mt-1"></div>
                             )}
                           </Link>
                         ))
@@ -422,37 +434,50 @@ export function Nav({
         <div className="md:hidden border-t border-surface-200/60 bg-white animate-fade-in">
           <div className="px-4 py-3 space-y-1">
             {/* Mobile contests section */}
-            {contests.length > 0 && (
-              <div className="pb-2 mb-2 border-b border-surface-100">
-                <p className="px-3 py-1.5 text-[10px] font-bold text-surface-800 uppercase tracking-wider">Active Contests</p>
-                {contests.slice(0, 5).map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/contests/${c.id}`}
-                    className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-surface-50"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {c.coverImage ? (
-                      <img src={c.coverImage} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0 text-sm">
-                        {c.petType === "DOG" ? "🐶" : c.petType === "CAT" ? "🐱" : c.petType === "ALL" ? "🐶🐱" : "🐾"}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-semibold text-surface-800 truncate">{c.name}</p>
-                      <div className="flex items-center gap-2 text-[11px] text-surface-700">
-                        <span className={`font-bold uppercase tracking-wider px-1 py-0.5 rounded text-[8px] ${contestTypeBadgeColor(c.type)}`}>
-                          {contestTypeLabel(c.type)}
-                        </span>
-                        <span>{c.daysLeft}d left</span>
-                        {c.totalPrizeValue > 0 && <span className="text-emerald-600 font-medium">${(c.totalPrizeValue / 100).toLocaleString()}</span>}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+            <div className="pb-2 mb-2 border-b border-surface-100">
+              <div className="flex items-center justify-between px-3 py-1.5">
+                <p className="text-[10px] font-bold text-surface-800 uppercase tracking-wider">Contests</p>
+                <Link href="/contests" className="text-[10px] font-bold text-brand-600 uppercase tracking-wider" onClick={() => setMobileOpen(false)}>View all →</Link>
               </div>
-            )}
+              {contests.length > 0 ? contests.slice(0, 4).map((c) => {
+                  const now = new Date();
+                  const hasStarted = new Date(c.startDate ?? now) <= now;
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/contests/${c.id}`}
+                      className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-surface-50"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {c.coverImage ? (
+                        <img src={c.coverImage} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0 text-sm">
+                          {c.petType === "DOG" ? "🐶" : c.petType === "CAT" ? "🐱" : c.petType === "ALL" ? "🐶🐱" : "🐾"}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-semibold text-surface-800 truncate">{c.name}</p>
+                        <div className="flex items-center gap-2 text-[11px] text-surface-700">
+                          <span className={`font-bold uppercase tracking-wider px-1 py-0.5 rounded text-[8px] ${contestTypeBadgeColor(c.type)}`}>
+                            {contestTypeLabel(c.type)}
+                          </span>
+                          {hasStarted ? (
+                            <span>{c.daysLeft}d left</span>
+                          ) : (
+                            <span className="text-amber-600 font-semibold">Starting soon</span>
+                          )}
+                          {c.totalPrizeValue > 0 && <span className="text-emerald-600 font-medium">${(c.totalPrizeValue / 100).toLocaleString()}</span>}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                }) : (
+                  <Link href="/contests" className="flex items-center gap-2.5 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
+                    <span>🏅</span> Browse Contests
+                  </Link>
+                )}
+              </div>
             {/* Leaderboard section */}
             <div className="pb-2 mb-2 border-b border-surface-100">
               <p className="px-3 py-1.5 text-[10px] font-bold text-surface-800 uppercase tracking-wider">Leaderboard</p>
