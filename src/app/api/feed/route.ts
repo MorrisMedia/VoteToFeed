@@ -5,6 +5,15 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type FeedComment = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  user: { id: string; name: string | null; image: string | null };
+  _count: { likes: number };
+  likes: { id: string }[];
+};
+
 /**
  * GET /api/feed — Returns recent posts across all users, cursor-paginated.
  * `isFollowing` flag indicates posts from users the viewer follows.
@@ -89,7 +98,7 @@ export async function GET(req: NextRequest) {
     isLiked: viewerId ? (p.likes as { id: string }[]).length > 0 : false,
     isFollowing: followedSet.has(p.user.id),
     isOwnPost: viewerId === p.user.id,
-    comments: p.comments
+    comments: (p.comments as FeedComment[])
       .map((c) => ({
         id: c.id,
         content: c.content,
