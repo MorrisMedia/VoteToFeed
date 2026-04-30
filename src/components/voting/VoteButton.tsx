@@ -394,7 +394,7 @@ function VoteStats({
 
       {weeklyRank != null && weeklyRank > 0 && (
         <p className="text-lg font-semibold text-surface-500 mt-1">
-          {rankSuffix(weeklyRank)} in Weekly {petType === "DOG" ? "Dog" : petType === "CAT" ? "Cat" : "Pet"} Leaderboard
+          {rankSuffix(weeklyRank)} in {contestName ? contestName : `Weekly ${petType === "DOG" ? "Dog" : petType === "CAT" ? "Cat" : "Pet"} Leaderboard`}
         </p>
       )}
 

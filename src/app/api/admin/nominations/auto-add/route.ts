@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendContestAddedEmail, sendEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 function applyTemplateVars(text: string, vars: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { contestId, petType, userIds, sendEmail: shouldSendEmail = true, templateId } = await req.json();
+  const { contestId, petType, userIds, sendEmail: shouldSendEmail = true, templateId, fromContestId } = await req.json();
 
   if (!contestId || typeof contestId !== "string") {
     return NextResponse.json({ error: "contestId is required" }, { status: 400 });
@@ -64,46 +65,10 @@ export async function POST(req: NextRequest) {
   // Get existing entries to avoid duplicates
   const existingEntries = await prisma.contestEntry.findMany({
     where: { contestId },
-    select: { petId: true },
+    select: { petId: true, pet: { select: { userId: true } } },
   });
   const existingPetIds = new Set(existingEntries.map((e) => e.petId));
-
-  // Find eligible users and their pets
-  const effectivePetType = petType || contest.petType;
-
-  const whereClause: Record<string, unknown> = {
-    email: { not: null },
-    pets: {
-      some: {
-        type: effectivePetType,
-        isActive: true,
-      },
-    },
-  };
-
-  if (userIds && Array.isArray(userIds) && userIds.length > 0) {
-    whereClause.id = { in: userIds };
-  }
-
-  const users = await prisma.user.findMany({
-    where: whereClause,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      pets: {
-        where: {
-          type: effectivePetType as "DOG" | "CAT" | "OTHER",
-          isActive: true,
-        },
-        select: {
-          id: true,
-          name: true,
-          type: true,
-        },
-      },
-    },
-  });
+  const existingTargetUserIds = new Set(existingEntries.map((e) => e.pet.userId));
 
   // Build list of pets to add (skip already entered)
   const toAdd: Array<{
@@ -113,18 +78,154 @@ export async function POST(req: NextRequest) {
     petId: string;
     petName: string;
   }> = [];
+  let createdCount = 0;
 
-  for (const user of users) {
-    if (!user.email) continue;
-    for (const pet of user.pets) {
-      if (existingPetIds.has(pet.id)) continue;
-      toAdd.push({
-        userId: user.id,
-        userName: user.name?.trim() || user.email.split("@")[0],
-        userEmail: user.email,
-        petId: pet.id,
-        petName: pet.name,
+  // ── RE-ADD MODE ─────────────────────────────────────────────
+  // When fromContestId is provided, clone each source pet into a NEW Pet record
+  // so the new contest entry starts from 0 votes and the original pet/votes
+  // remain untouched in the source contest.
+  if (fromContestId && typeof fromContestId === "string") {
+    const filterUserIds = Array.isArray(userIds) && userIds.length > 0 ? new Set<string>(userIds) : null;
+
+    const sourceEntries = await prisma.contestEntry.findMany({
+      where: { contestId: fromContestId },
+      select: {
+        pet: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            breed: true,
+            bio: true,
+            ownerName: true,
+            ownerFirstName: true,
+            ownerLastName: true,
+            address: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            country: true,
+            photos: true,
+            tags: true,
+            optInDesigns: true,
+            isActive: true,
+            userId: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    for (const e of sourceEntries) {
+      const src = e.pet;
+      if (!src.isActive) continue;
+      if (!src.user.email) continue;
+      if (filterUserIds && !filterUserIds.has(src.userId)) continue;
+      if (existingTargetUserIds.has(src.userId)) continue; // user already in target
+      if (petType && src.type !== petType) continue;
+
+      // Clone the Pet so it starts fresh in the new contest (no carry-over votes)
+      const cloned = await prisma.pet.create({
+        data: {
+          name: src.name,
+          type: src.type,
+          breed: src.breed,
+          bio: src.bio,
+          ownerName: src.ownerName,
+          ownerFirstName: src.ownerFirstName,
+          ownerLastName: src.ownerLastName,
+          address: src.address,
+          city: src.city,
+          state: src.state,
+          zipCode: src.zipCode,
+          country: src.country ?? "US",
+          photos: src.photos,
+          tags: src.tags,
+          optInDesigns: src.optInDesigns,
+          isActive: true,
+          userId: src.userId,
+        },
       });
+
+      await prisma.contestEntry.create({
+        data: { contestId, petId: cloned.id },
+      });
+
+      // Track this user so duplicate source entries (multiple pets) don't all skip;
+      // keep adding pets for the same user, but block other future-source duplicates.
+      // existingTargetUserIds.add(src.userId);  // commented: allow multiple pets per user
+
+      createdCount++;
+      toAdd.push({
+        userId: src.userId,
+        userName: src.user.name?.trim() || src.user.email.split("@")[0],
+        userEmail: src.user.email,
+        petId: cloned.id,
+        petName: cloned.name,
+      });
+    }
+  } else {
+    // ── FRESH ADD MODE (default) ──────────────────────────────
+    // Find eligible users and their pets
+    const effectivePetType = petType || contest.petType;
+
+    const whereClause: Record<string, unknown> = {
+      email: { not: null },
+      pets: {
+        some: {
+          type: effectivePetType,
+          isActive: true,
+        },
+      },
+    };
+
+    if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      whereClause.id = { in: userIds };
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pets: {
+          where: {
+            type: effectivePetType as "DOG" | "CAT" | "OTHER",
+            isActive: true,
+          },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+      },
+    });
+
+    for (const user of users) {
+      if (!user.email) continue;
+      for (const pet of user.pets) {
+        if (existingPetIds.has(pet.id)) continue;
+        toAdd.push({
+          userId: user.id,
+          userName: user.name?.trim() || user.email.split("@")[0],
+          userEmail: user.email,
+          petId: pet.id,
+          petName: pet.name,
+        });
+      }
+    }
+
+    if (toAdd.length > 0) {
+      const created = await prisma.contestEntry.createMany({
+        data: toAdd.map((item) => ({
+          contestId,
+          petId: item.petId,
+        })),
+        skipDuplicates: true,
+      });
+      createdCount = created.count;
     }
   }
 
@@ -133,18 +234,11 @@ export async function POST(req: NextRequest) {
       added: 0,
       emailsSent: 0,
       skipped: existingEntries.length,
-      message: "No new pets to add — all eligible pets are already entered.",
+      message: fromContestId
+        ? "No pets to re-add — all eligible users from the source contest are already entered."
+        : "No new pets to add — all eligible pets are already entered.",
     });
   }
-
-  // Bulk create ContestEntry records
-  const created = await prisma.contestEntry.createMany({
-    data: toAdd.map((item) => ({
-      contestId,
-      petId: item.petId,
-    })),
-    skipDuplicates: true,
-  });
 
   // Send notification emails (dedup by user — one email per user even if multiple pets)
   let emailsSent = 0;
@@ -222,10 +316,38 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── In-app notifications (one per user, regardless of email setting) ──
+  let notificationsSent = 0;
+  try {
+    const notifiedUsers = new Set<string>();
+    const contestLink = `/contests/${contest.id}`;
+    for (const item of toAdd) {
+      if (notifiedUsers.has(item.userId)) continue;
+      notifiedUsers.add(item.userId);
+      // Pick the first pet for this user as the message subject
+      const userPets = toAdd.filter((t) => t.userId === item.userId);
+      const petLabel =
+        userPets.length === 1
+          ? userPets[0].petName
+          : `${userPets[0].petName} +${userPets.length - 1} more`;
+      await createNotification({
+        userId: item.userId,
+        type: "CONTEST",
+        title: "You're entered in a new contest!",
+        message: `${petLabel} ${userPets.length === 1 ? "was" : "were"} added to ${contest.name}. Share to start collecting votes!`,
+        linkUrl: contestLink,
+      });
+      notificationsSent++;
+    }
+  } catch (err) {
+    console.error("[auto-add] notifications error:", err);
+  }
+
   return NextResponse.json({
-    added: created.count,
+    added: createdCount,
     emailsSent,
     emailsFailed,
+    notificationsSent,
     totalPets: toAdd.length,
     totalUsers: new Set(toAdd.map((t) => t.userId)).size,
     contestName: contest.name,
