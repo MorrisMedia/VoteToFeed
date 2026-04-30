@@ -17,6 +17,17 @@ type NavContest = {
   hasEnded: boolean;
 };
 
+type AppNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  linkUrl: string | null;
+  createdAt: string;
+  sourceUser: { name: string | null; image: string | null } | null;
+};
+
 function useDropdownAutoClose(
   ref: RefObject<HTMLElement | null>,
   isOpen: boolean,
@@ -58,14 +69,19 @@ export function Nav({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [contestsOpen, setContestsOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [contests, setContests] = useState<NavContest[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const contestRef = useRef<HTMLDivElement>(null);
   const leaderboardRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   const closeContests = useCallback(() => setContestsOpen(false), []);
   const closeLeaderboard = useCallback(() => setLeaderboardOpen(false), []);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
 
   useDropdownAutoClose(contestRef, contestsOpen, closeContests);
   useDropdownAutoClose(leaderboardRef, leaderboardOpen, closeLeaderboard);
@@ -78,6 +94,29 @@ export function Nav({
       .then((data) => { if (Array.isArray(data)) setContests(data.filter((c: NavContest) => !c.hasEnded)); })
       .catch(() => {});
   }, []);
+
+  // Fetch notifications
+  useEffect(() => {
+    if (session) {
+      fetch("/api/notifications")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.notifications) {
+            setNotifications(data.notifications);
+            setUnreadCount(data.unreadCount || 0);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [session]);
+
+  const markAllRead = async () => {
+    try {
+      await fetch("/api/notifications/read", { method: "POST" });
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (e) {}
+  };
 
   function contestTypeLabel(type: string) {
     const map: Record<string, string> = { NATIONAL: "Weekly", SEASONAL: "Seasonal", CHARITY: "Charity", CALENDAR: "Calendar", BREED: "Breed", STATE: "Regional" };
@@ -206,9 +245,11 @@ export function Nav({
             )}
           </div>
 
-          <Link href="/votesforshelters" className="btn-ghost text-surface-800 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse-subtle" />
-            Shelters
+          <Link href="/feed" className="btn-ghost text-surface-800 flex items-center gap-1.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            Feed
           </Link>
           {session && (
             <Link href="/dashboard" className="btn-ghost text-surface-800">My Pets</Link>
@@ -236,7 +277,67 @@ export function Nav({
           {status === "loading" ? (
             <div className="w-9 h-9 rounded-full bg-surface-100 animate-pulse" />
           ) : session ? (
-            <div className="relative" ref={menuRef}>
+            <>
+              {/* Notifications Dropdown */}
+              <div className="relative" ref={notificationsRef}>
+                <button
+                  onClick={() => setNotificationsOpen(!notificationsOpen)}
+                  className="flex items-center justify-center w-11 h-11 rounded-full text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors relative"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                  )}
+                </button>
+                
+                {notificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-surface-200/80 z-50 animate-fade-in overflow-hidden">
+                    <div className="px-4 py-3 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
+                      <h3 className="font-bold text-surface-900">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllRead} className="text-xs font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
+                      )}
+                    </div>
+                    
+                    <div className="max-h-[360px] overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-sm text-surface-500">No new notifications.</div>
+                      ) : (
+                        notifications.map((n) => (
+                          <Link 
+                            key={n.id}
+                            href={n.linkUrl || "/feed"} 
+                            className={`flex items-start gap-3 px-4 py-3 hover:bg-surface-50 transition-colors border-b border-surface-100/50 ${n.isRead ? '' : 'bg-brand-50/30'}`}
+                            onClick={closeNotifications}
+                          >
+                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-surface-100 flex items-center justify-center">
+                              {n.sourceUser?.image ? (
+                                <img src={n.sourceUser.image} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-sm font-bold text-brand-600">{(n.sourceUser?.name || "U")[0].toUpperCase()}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-surface-800">{n.message}</p>
+                              <p className="text-xs text-surface-500 font-semibold mt-0.5">{new Date(n.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            {!n.isRead && (
+                              <div className="w-2 h-2 rounded-full bg-brand-500 shrink-0 self-center"></div>
+                            )}
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                    
+                    <div className="px-4 py-3 text-center border-t border-surface-100 bg-surface-50/50">
+                      <Link href="/feed" className="text-xs font-bold text-surface-500 hover:text-brand-600 transition-colors uppercase tracking-wider" onClick={closeNotifications}>View All</Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* User Menu */}
+              <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-2 rounded-full p-1 pr-3 border border-surface-200 hover:border-surface-300 hover:bg-surface-50 transition-all min-h-[44px]"
@@ -259,6 +360,10 @@ export function Nav({
                     <p className="text-sm font-semibold text-surface-900">{session.user?.name}</p>
                     <p className="text-xs text-surface-700 truncate">{session.user?.email}</p>
                   </div>
+                  <Link href="/feed" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Feed
+                  </Link>
                   <Link href="/dashboard" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
                     My Pets
                   </Link>
@@ -271,6 +376,10 @@ export function Nav({
                   <Link href="/profile" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Account Settings
+                  </Link>
+                  <Link href="/votesforshelters" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                    Shelters
                   </Link>
                   <Link href="/dashboard#votes" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-surface-700 hover:bg-surface-50" onClick={closeMenu}>
                     Buy Votes
@@ -289,6 +398,7 @@ export function Nav({
                 </div>
               )}
             </div>
+            </>
           ) : (
             <div className="flex items-center gap-2">
               <Link href="/auth/signin" className="btn-ghost text-surface-700 hidden sm:inline-flex">Log in</Link>
@@ -357,6 +467,12 @@ export function Nav({
               </Link>
             </div>
 
+            <Link href="/feed" className="flex items-center gap-2 px-3 py-3 text-base font-semibold text-brand-600 rounded-lg hover:bg-brand-50" onClick={() => setMobileOpen(false)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              Feed
+            </Link>
             <Link href="/votesforshelters" className="flex items-center gap-2 px-3 py-3 text-base font-semibold text-surface-700 rounded-lg hover:bg-surface-50" onClick={() => setMobileOpen(false)}>
               <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse-subtle" />
               Shelters

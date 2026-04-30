@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FollowButton } from "@/components/shared/FollowButton";
 import { BadgeGrid } from "@/components/shared/BadgeGrid";
@@ -94,6 +94,27 @@ export function PublicProfileClient({
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [submittingComment, setSubmittingComment] = useState<string | null>(null);
+  const [likesModalPostId, setLikesModalPostId] = useState<string | null>(null);
+
+  // Scroll to post from URL hash (notification deep-link)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#post-")) return;
+    const postId = hash.replace("#post-", "");
+    // Load posts tab, then scroll
+    setTab("posts");
+    loadPosts().then(() => {
+      setTimeout(() => {
+        const el = document.getElementById(`post-${postId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-brand-400", "ring-offset-2");
+          setTimeout(() => el.classList.remove("ring-2", "ring-brand-400", "ring-offset-2"), 3000);
+        }
+      }, 400);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function loadPosts() {
     if (postsLoaded) return;
@@ -579,7 +600,8 @@ export function PublicProfileClient({
             posts.map((post, i) => (
               <div
                 key={post.id}
-                className="bg-white rounded-2xl border border-surface-200/60 shadow-sm overflow-hidden animate-profile-slide-up"
+                id={`post-${post.id}`}
+                className="bg-white rounded-2xl border border-surface-200/60 shadow-sm overflow-hidden animate-profile-slide-up transition-all"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 {/* Post header */}
@@ -635,8 +657,15 @@ export function PublicProfileClient({
                     <svg width="16" height="16" viewBox="0 0 24 24" fill={post.isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
                     </svg>
-                    {post.likeCount > 0 && <span>{post.likeCount}</span>}
                   </button>
+                  {post.likeCount > 0 && (
+                    <button
+                      onClick={() => setLikesModalPostId(post.id)}
+                      className="text-sm font-semibold text-surface-500 hover:text-red-500 transition-colors -ml-1"
+                    >
+                      {post.likeCount}
+                    </button>
+                  )}
                   <button
                     onClick={() => setExpandedComments((s) => { const n = new Set(s); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n; })}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-surface-400 hover:text-brand-500 transition-colors"
@@ -734,6 +763,78 @@ export function PublicProfileClient({
           onClose={() => setShowFollowers(null)}
         />
       )}
+
+      {/* ─── Likes Modal ─── */}
+      {likesModalPostId && (
+        <LikesModal
+          postId={likesModalPostId}
+          postUserId={profile.id}
+          onClose={() => setLikesModalPostId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Who Liked Modal ─── */
+function LikesModal({ postId, postUserId, onClose }: { postId: string; postUserId: string; onClose: () => void }) {
+  const [users, setUsers] = useState<{ id: string; name: string | null; image: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/users/${postUserId}/posts/${postId}/like`)
+      .then((r) => r.json())
+      .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [postId, postUserId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-100">
+          <h3 className="text-base font-bold text-surface-900 flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            </span>
+            Liked by
+          </h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-surface-100 flex items-center justify-center transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div className="max-h-72 overflow-y-auto">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : users.length === 0 ? (
+            <p className="text-center text-sm text-surface-500 py-8">No likes yet.</p>
+          ) : (
+            users.map((u) => (
+              <Link
+                key={u.id}
+                href={`/users/${u.id}`}
+                onClick={onClose}
+                className="flex items-center gap-3 px-5 py-3 hover:bg-surface-50 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-brand-50 flex-shrink-0 flex items-center justify-center">
+                  {u.image ? (
+                    <img src={u.image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-bold text-brand-600">{(u.name || "?")[0].toUpperCase()}</span>
+                  )}
+                </div>
+                <span className="text-sm font-semibold text-surface-800">{u.name || "User"}</span>
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPostCommentNotification } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,18 @@ export async function POST(
       `${appUrl}/users/${post.userId}`,
     );
   }).catch((e) => console.error("[email] post comment notification failed:", e));
+
+  // Send In-App Notification (fire-and-forget, skip self-comment)
+  if (comment.user.id !== params.id) {
+    createNotification({
+      userId: params.id,
+      type: "COMMENT",
+      title: "New Comment",
+      message: `${comment.user.name || "Someone"} commented: "${content.substring(0, 30)}${content.length > 30 ? "..." : ""}"`,
+      linkUrl: `/users/${params.id}#post-${params.postId}`,
+      sourceUserId: userId,
+    }).catch((e) => console.error("[notification] comment failed:", e));
+  }
 
   return NextResponse.json({
     id: comment.id,

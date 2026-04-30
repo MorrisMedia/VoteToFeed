@@ -3,8 +3,26 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPostLikeNotification } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
+
+// GET — list users who liked a post
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string; postId: string } }
+) {
+  const likes = await prisma.postLike.findMany({
+    where: { postId: params.postId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: {
+      user: { select: { id: true, name: true, image: true } },
+    },
+  });
+
+  return NextResponse.json(likes.map((l) => l.user));
+}
 
 // POST — toggle like on a post
 export async function POST(
@@ -45,11 +63,29 @@ export async function POST(
           post.user.name || "there",
           liker?.name || "Someone",
           post.content,
-          `${appUrl}/users/${post.userId}`,
+          `${appUrl}/users/${post.userId}`
         );
       });
     }).catch((e) => console.error("[email] post like notification failed:", e));
 
+    // Send In-App Notification (fire-and-forget, skip self-like)
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    }).then((liker) => {
+      if (liker) {
+        return createNotification({
+          userId: params.id,
+          type: "LIKE",
+          title: "New Like",
+          message: `${liker.name || "Someone"} liked your post.`,
+          linkUrl: `/users/${params.id}#post-${params.postId}`,
+          sourceUserId: userId,
+        });
+      }
+    }).catch((e) => console.error("[notification] like failed:", e));
+
     return NextResponse.json({ liked: true, likeCount: count });
   }
 }
+

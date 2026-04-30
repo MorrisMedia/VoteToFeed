@@ -147,7 +147,6 @@ export async function POST(req: NextRequest) {
         recurringInterval: isRecurring ? (recurringInterval || "biweekly") : null,
         isStoryteller: isStoryteller || false,
         isActive: true,
-        // FLAGSHIP round fields
         currentPhase: validatedPhase,
         round2StartDate: round2StartDate ? new Date(round2StartDate) : null,
         round3StartDate: round3StartDate ? new Date(round3StartDate) : null,
@@ -173,9 +172,44 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Notify ALL users about the new contest asynchronously (batched in pages of 500)
+    notifyAllUsersOfContest(contest.id, name).catch((e) =>
+      console.error("Failed to notify users about new contest", e)
+    );
+
     return NextResponse.json(contest, { status: 201 });
   } catch (error) {
     console.error("Error creating contest:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+async function notifyAllUsersOfContest(contestId: string, name: string) {
+  const PAGE = 500;
+  let cursor: string | undefined;
+
+  while (true) {
+    const users = await prisma.user.findMany({
+      select: { id: true },
+      take: PAGE,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: { id: "asc" },
+    });
+
+    if (!users.length) break;
+
+    await prisma.notification.createMany({
+      data: users.map((u) => ({
+        userId: u.id,
+        type: "CONTEST" as const,
+        title: "New Contest!",
+        message: `A new contest '${name}' has just started! Enter your pet now! 🏆`,
+        linkUrl: `/contests/${contestId}`,
+      })),
+      skipDuplicates: true,
+    });
+
+    cursor = users[users.length - 1].id;
+    if (users.length < PAGE) break;
   }
 }
