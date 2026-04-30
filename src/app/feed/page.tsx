@@ -494,9 +494,22 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
 /* ─── Pet Card (shown inline in feed) ─── */
 function PetCard({ pet }: { pet: FeedPet }) {
-  const photo = pet.photos?.[0] || null;
+  const photos = (pet.photos || []).filter(Boolean);
   const location = [pet.city, pet.state].filter(Boolean).join(", ");
   const petEmoji = pet.type === "DOG" ? "🐶" : pet.type === "CAT" ? "🐱" : "🐾";
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const hasMultiple = photos.length > 1;
+
+  function prevPhoto(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setPhotoIdx((i) => (i - 1 + photos.length) % photos.length);
+  }
+  function nextPhoto(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setPhotoIdx((i) => (i + 1) % photos.length);
+  }
 
   return (
     <article className="bg-white rounded-2xl border border-brand-100 shadow-sm overflow-hidden hover:shadow-md transition-all">
@@ -543,11 +556,50 @@ function PetCard({ pet }: { pet: FeedPet }) {
         )}
       </div>
 
-      {/* Photo */}
-      {photo && (
-        <Link href={`/pets/${pet.id}`}>
-          <img src={photo} alt={pet.name} className="w-full object-cover max-h-80 bg-surface-100" />
-        </Link>
+      {/* Photo carousel */}
+      {photos.length > 0 && (
+        <div className="relative group/photo">
+          <Link href={`/pets/${pet.id}`} className="block">
+            <img
+              src={photos[photoIdx]}
+              alt={pet.name}
+              className="w-full object-cover max-h-80 bg-surface-100 transition-opacity"
+            />
+          </Link>
+          {hasMultiple && (
+            <>
+              {/* Counter pill */}
+              <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-semibold backdrop-blur-sm">
+                {photoIdx + 1} / {photos.length}
+              </div>
+              {/* Prev */}
+              <button
+                onClick={prevPhoto}
+                aria-label="Previous photo"
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 hover:bg-white shadow-md flex items-center justify-center text-surface-700 opacity-0 group-hover/photo:opacity-100 transition-opacity active:scale-95"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              {/* Next */}
+              <button
+                onClick={nextPhoto}
+                aria-label="Next photo"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 hover:bg-white shadow-md flex items-center justify-center text-surface-700 opacity-0 group-hover/photo:opacity-100 transition-opacity active:scale-95"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              {/* Dots */}
+              <div className="absolute bottom-2.5 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+                {photos.map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all ${idx === photoIdx ? "w-5 bg-white" : "w-1.5 bg-white/55"}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* Footer — votes + CTA */}
@@ -1051,6 +1103,17 @@ export default function FeedPage() {
             ))}
           </div>
         ) : posts.length === 0 ? (
+          feedPets.length > 0 ? (
+            // No posts yet — but we have pets! Show pet cards instead of an empty state.
+            <div className="space-y-4">
+              <div className="rounded-xl border border-brand-100 bg-brand-50/40 px-4 py-3 text-sm text-surface-600">
+                <span className="font-semibold text-brand-700">No posts yet.</span> Meanwhile, here are some pets from the community 👇
+              </div>
+              {feedPets.map((pet) => (
+                <PetCard key={pet.id} pet={pet} />
+              ))}
+            </div>
+          ) : (
           <div className="text-center py-20 bg-white rounded-2xl border border-surface-200/60 shadow-sm">
             <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-brand-50 flex items-center justify-center">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1075,6 +1138,7 @@ export default function FeedPage() {
               </Link>
             )}
           </div>
+          )
         ) : (
           <div className="space-y-4">
             {posts.map((post, i) => (
@@ -1331,9 +1395,9 @@ export default function FeedPage() {
                   </div>
                 )}
               </article>
-                {/* Insert a pet card after every 4th post */}
-                {feedPets.length > 0 && (i + 1) % 4 === 0 && feedPets[Math.floor((i + 1) / 4) - 1] && (
-                  <PetCard pet={feedPets[Math.floor((i + 1) / 4) - 1]} />
+                {/* Insert a pet card after every 2nd post (cycles through feedPets so we never run out) */}
+                {feedPets.length > 0 && (i + 1) % 2 === 0 && (
+                  <PetCard pet={feedPets[(Math.floor((i + 1) / 2) - 1) % feedPets.length]} />
                 )}
               </React.Fragment>
             ))}
@@ -1348,15 +1412,29 @@ export default function FeedPage() {
             )}
 
             {!nextCursor && posts.length > 0 && (
-              <div className="text-center py-10">
-                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-surface-100 flex items-center justify-center">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/>
-                  </svg>
+              <>
+                <div className="text-center py-10">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-surface-100 flex items-center justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/>
+                    </svg>
+                  </div>
+                  <p className="text-sm font-semibold text-surface-500">You&apos;re all caught up!</p>
+                  <p className="text-xs text-surface-400 mt-1">You&apos;ve seen all the latest posts.</p>
                 </div>
-                <p className="text-sm font-semibold text-surface-500">You&apos;re all caught up!</p>
-                <p className="text-xs text-surface-400 mt-1">You&apos;ve seen all the latest posts.</p>
-              </div>
+
+                {/* After "caught up" — keep the feed alive with more pets */}
+                {feedPets.length > 0 && (
+                  <>
+                    <div className="rounded-xl border border-brand-100 bg-brand-50/40 px-4 py-3 text-sm text-surface-600 mb-4">
+                      <span className="font-semibold text-brand-700">Discover more pets</span> — give them some love 🐾
+                    </div>
+                    {feedPets.map((pet) => (
+                      <PetCard key={`tail-${pet.id}`} pet={pet} />
+                    ))}
+                  </>
+                )}
+              </>
             )}
           </div>
         )}
