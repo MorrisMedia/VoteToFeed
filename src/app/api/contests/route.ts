@@ -24,7 +24,14 @@ export async function GET(req: NextRequest) {
         where.startDate = { lte: now };
       }
     }
-    if (petType) where.petType = petType;
+    if (petType) {
+      // Contests marked ALL accept any pet type — include them when filtering by a specific type
+      if (petType === "DOG" || petType === "CAT" || petType === "OTHER") {
+        where.petType = { in: [petType, "ALL"] };
+      } else {
+        where.petType = petType;
+      }
+    }
     if (featured === "true") where.isFeatured = true;
 
     const contests = await prisma.contest.findMany({

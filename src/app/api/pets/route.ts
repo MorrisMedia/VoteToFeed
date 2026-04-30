@@ -172,13 +172,13 @@ export async function POST(req: NextRequest) {
             where: {
               id: { in: contestIds },
               isActive: true,
-              petType: type,
+              petType: { in: [type, "ALL"] },
               endDate: { gte: new Date() },
             },
             select: { id: true },
           }).then((contests) => contests.map((contest) => contest.id))
         : await tx.contest.findMany({
-            where: { isActive: true, weekId, petType: type, type: "NATIONAL" },
+            where: { isActive: true, weekId, petType: { in: [type, "ALL"] }, type: "NATIONAL" },
             select: { id: true },
           }).then((contests) => contests.map((contest) => contest.id));
 
