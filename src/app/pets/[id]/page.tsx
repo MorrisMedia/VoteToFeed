@@ -182,7 +182,8 @@ export default async function PetDetailPage({
     ]);
     totalContestVotes = (voteAgg._sum.quantity ?? 0) + anonCount;
   } else {
-    totalContestVotes = pet.weeklyStats[0]?.totalVotes ?? 0;
+    // No active contest — fall back to all-time votes (not weekly)
+    totalContestVotes = totalAllTimeVotes;
   }
 
   // Get rank based on contest leaderboard
@@ -249,7 +250,7 @@ export default async function PetDetailPage({
     liveRank = liveSorted.findIndex((s) => s.petId === pet.id) + 1 || null;
   }
 
-  const weeklyVotes = totalAllTimeVotes;
+  const weeklyVotes = totalContestVotes;
   const weeklyRank = contestRank ?? liveRank ?? pet.weeklyStats[0]?.rank ?? null;
 
   // Calculate votes needed for top 3 (for competitive nudge)

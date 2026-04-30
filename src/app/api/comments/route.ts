@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { checkForSpam } from "@/lib/spam-filter";
 import { sendCommentNotification, sendReplyNotification } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 // POST /api/comments - Create a comment (with spam filtering)
 export async function POST(req: NextRequest) {
@@ -85,6 +86,19 @@ export async function POST(req: NextRequest) {
         ).catch((err) => console.error("[email] comment notification failed:", err));
       }
 
+      // In-app notification for pet owner (independent of email opt-in for the bell)
+      if (petForNotif?.user?.id && petForNotif.user.id !== userId) {
+        const isReply = Boolean(parentId);
+        createNotification({
+          userId: petForNotif.user.id,
+          type: "COMMENT",
+          title: isReply ? "New reply on your pet" : "New comment on your pet",
+          message: `${comment.user.name ?? "Someone"} ${isReply ? "replied to a comment on" : "commented on"} ${petForNotif.name}: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
+          linkUrl: `/pets/${petForNotif.id}`,
+          sourceUserId: userId,
+        }).catch((err) => console.error("[notif] comment notification failed:", err));
+      }
+
       // If this is a reply, also notify the original commenter — unless they ARE the pet owner
       // (pet owner already received the comment notification above)
       if (parentId) {
@@ -114,6 +128,22 @@ export async function POST(req: NextRequest) {
               parentComment.text,
               text
             ).catch((err) => console.error("[email] reply notification failed:", err));
+          }
+
+          // In-app notification for original commenter (independent of email opt-in)
+          if (
+            parentComment?.user?.id &&
+            parentComment.user.id !== userId &&
+            parentComment.user.id !== petForNotif?.user?.id
+          ) {
+            createNotification({
+              userId: parentComment.user.id,
+              type: "COMMENT",
+              title: "Someone replied to your comment",
+              message: `${comment.user.name ?? "Someone"} replied: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
+              linkUrl: `/pets/${petId}`,
+              sourceUserId: userId,
+            }).catch((err) => console.error("[notif] reply notification failed:", err));
           }
         } catch (replyNotifErr) {
           console.error("[email] failed to send reply notification:", replyNotifErr);

@@ -56,6 +56,14 @@ export default async function PublicProfilePage({
             take: 1,
             select: { totalVotes: true, weekId: true },
           },
+          contestEntries: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              contest: {
+                select: { id: true, name: true, isActive: true, endDate: true },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -100,11 +108,23 @@ export default async function PublicProfilePage({
         country: user.country,
         createdAt: user.createdAt.toISOString(),
         votingStreak: user.votingStreak,
-        pets: user.pets.map((p) => ({
-          ...p,
-          createdAt: p.createdAt.toISOString(),
-          totalVotes: p.weeklyStats[0]?.totalVotes ?? 0,
-        })),
+        pets: user.pets.map((p) => {
+          const now = new Date();
+          return {
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            breed: p.breed,
+            photos: p.photos,
+            createdAt: p.createdAt.toISOString(),
+            totalVotes: p.weeklyStats[0]?.totalVotes ?? 0,
+            contests: p.contestEntries.map((ce) => ({
+              id: ce.contest.id,
+              name: ce.contest.name,
+              isActive: ce.contest.isActive && ce.contest.endDate >= now,
+            })),
+          };
+        }),
         followerCount: user._count.followers,
         followingCount: user._count.following,
         petCount: user._count.pets,

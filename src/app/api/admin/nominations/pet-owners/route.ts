@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const petType = searchParams.get("petType"); // DOG, CAT, OTHER
   const contestId = searchParams.get("contestId");
+  const fromContestId = searchParams.get("fromContestId"); // re-add mode: source contest
 
-  if (!petType) {
-    return NextResponse.json({ error: "petType is required" }, { status: 400 });
+  if (!petType && !fromContestId) {
+    return NextResponse.json({ error: "petType or fromContestId is required" }, { status: 400 });
   }
 
   // Get user IDs that already have an entry in this contest
@@ -47,6 +48,54 @@ export async function GET(req: NextRequest) {
     } else {
       excludeUserIds = [...new Set(entryUserIds)];
     }
+  }
+
+  // RE-ADD MODE: list users whose pets were entered in `fromContestId`
+  if (fromContestId) {
+    const sourceEntries = await prisma.contestEntry.findMany({
+      where: { contestId: fromContestId },
+      select: {
+        pet: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            isActive: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    // Group pets by user, applying optional petType filter and excluding users already in target
+    const userMap = new Map<string, { id: string; name: string; type: string }[]>();
+    for (const e of sourceEntries) {
+      const p = e.pet;
+      if (!p.isActive) continue;
+      if (excludeUserIds.includes(p.userId)) continue;
+      if (petType && p.type !== petType) continue;
+      const list = userMap.get(p.userId) ?? [];
+      list.push({ id: p.id, name: p.name, type: p.type });
+      userMap.set(p.userId, list);
+    }
+
+    const userIds = Array.from(userMap.keys());
+    if (userIds.length === 0) return NextResponse.json([]);
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, email: { not: null } },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    });
+
+    return NextResponse.json(
+      users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        pets: userMap.get(u.id) ?? [],
+      }))
+    );
   }
 
   // Find users with pets of the specified type

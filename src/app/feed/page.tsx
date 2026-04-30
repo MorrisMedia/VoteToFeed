@@ -820,6 +820,78 @@ export default function FeedPage() {
     }
   }
 
+  async function toggleCommentLike(post: FeedPost, comment: FeedComment) {
+    if (!session?.user) return;
+    // Optimistic update
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === post.id
+          ? {
+              ...p,
+              comments: p.comments.map((c) =>
+                c.id === comment.id
+                  ? { ...c, isLiked: !c.isLiked, likeCount: c.likeCount + (c.isLiked ? -1 : 1) }
+                  : c
+              ),
+            }
+          : p
+      )
+    );
+    try {
+      const res = await fetch(
+        `/api/users/${post.user.id}/posts/${post.id}/comment/${comment.id}/like`,
+        { method: "POST" }
+      );
+      if (res.ok) {
+        const { liked, likeCount } = await res.json();
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === post.id
+              ? {
+                  ...p,
+                  comments: p.comments.map((c) =>
+                    c.id === comment.id ? { ...c, isLiked: liked, likeCount } : c
+                  ),
+                }
+              : p
+          )
+        );
+      } else {
+        // Revert on failure
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === post.id
+              ? {
+                  ...p,
+                  comments: p.comments.map((c) =>
+                    c.id === comment.id
+                      ? { ...c, isLiked: comment.isLiked, likeCount: comment.likeCount }
+                      : c
+                  ),
+                }
+              : p
+          )
+        );
+      }
+    } catch {
+      // Revert on network failure
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id
+            ? {
+                ...p,
+                comments: p.comments.map((c) =>
+                  c.id === comment.id
+                    ? { ...c, isLiked: comment.isLiked, likeCount: comment.likeCount }
+                    : c
+                ),
+              }
+            : p
+        )
+      );
+    }
+  }
+
   // Double-tap to like (Instagram-style)
   function handleDoubleTap(post: FeedPost) {
     if (!session?.user) return;
@@ -1190,12 +1262,34 @@ export default function FeedPage() {
                             <span className="text-xs font-bold text-surface-500">{c.user.name?.[0]?.toUpperCase() || "?"}</span>
                           )}
                         </Link>
-                        <div className="flex-1 bg-white rounded-2xl px-3 py-2 border border-surface-100">
-                          <div className="flex items-baseline gap-2">
-                            <Link href={`/users/${c.user.id}`} className="text-xs font-bold text-surface-800 hover:text-brand-600 transition-colors">{c.user.name || "User"}</Link>
-                            <span className="text-[10px] text-surface-400">{timeAgo(c.createdAt)}</span>
+                        <div className="flex-1">
+                          <div className="bg-white rounded-2xl px-3 py-2 border border-surface-100">
+                            <div className="flex items-baseline gap-2">
+                              <Link href={`/users/${c.user.id}`} className="text-xs font-bold text-surface-800 hover:text-brand-600 transition-colors">{c.user.name || "User"}</Link>
+                              <span className="text-[10px] text-surface-400">{timeAgo(c.createdAt)}</span>
+                            </div>
+                            <p className="text-xs text-surface-700 mt-0.5 leading-relaxed whitespace-pre-wrap">{c.content}</p>
                           </div>
-                          <p className="text-xs text-surface-700 mt-0.5 leading-relaxed whitespace-pre-wrap">{c.content}</p>
+                          {isLoggedIn && (
+                            <button
+                              onClick={() => toggleCommentLike(post, c)}
+                              className={`mt-1 ml-3 inline-flex items-center gap-1 text-[11px] font-semibold transition-all active:scale-95 ${
+                                c.isLiked ? "text-red-500" : "text-surface-400 hover:text-red-400"
+                              }`}
+                              aria-label={c.isLiked ? "Unlike comment" : "Like comment"}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill={c.isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                              </svg>
+                              {c.likeCount > 0 ? c.likeCount : "Like"}
+                            </button>
+                          )}
+                          {!isLoggedIn && c.likeCount > 0 && (
+                            <span className="mt-1 ml-3 inline-flex items-center gap-1 text-[11px] font-semibold text-surface-400">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></svg>
+                              {c.likeCount}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}

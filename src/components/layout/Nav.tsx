@@ -87,6 +87,7 @@ export function Nav({
   useDropdownAutoClose(contestRef, contestsOpen, closeContests);
   useDropdownAutoClose(leaderboardRef, leaderboardOpen, closeLeaderboard);
   useDropdownAutoClose(menuRef, menuOpen, closeMenu);
+  useDropdownAutoClose(notificationsRef, notificationsOpen, closeNotifications);
 
   // Fetch active + upcoming contests for the dropdown
   useEffect(() => {
