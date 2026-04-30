@@ -121,25 +121,33 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
-  const [modalMaxH, setModalMaxH] = useState<number | null>(null);
+  // vvBottom: how many px above the keyboard to push the modal
+  // vvMaxH:  max height of the modal so it never overlaps the keyboard
+  const [vvBottom, setVvBottom] = useState(0);
+  const [vvMaxH, setVvMaxH] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Use visualViewport API for 100% accurate keyboard-aware height on iOS & Android
+  // visualViewport API — works on iOS 13+, Android Chrome 61+
+  // When keyboard opens, visualViewport.height shrinks and offsetTop may change.
+  // We use that to push the sheet up exactly to the top of the keyboard.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
 
-    function onResize() {
-      // Leave 10px breathing room above keyboard
-      setModalMaxH(Math.floor((vv as VisualViewport).height * 0.95));
+    function update() {
+      const v = vv as VisualViewport;
+      // Distance from bottom of visual viewport to bottom of layout viewport
+      const bottomGap = window.innerHeight - (v.offsetTop + v.height);
+      setVvBottom(Math.max(0, bottomGap));
+      setVvMaxH(Math.floor(v.height * 0.92));
     }
 
-    onResize();
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
     };
   }, []);
 
@@ -211,10 +219,13 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
     <div className="fixed inset-0 z-50 animate-modal-backdrop">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      {/* Modal card — visualViewport-driven height so keyboard never covers it */}
+      {/* Modal card — pinned just above keyboard via visualViewport bottom offset */}
       <div
-        className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-modal-slide-up"
-        style={{ maxHeight: modalMaxH ? `${modalMaxH}px` : "85dvh" }}
+        className="fixed inset-x-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-modal-slide-up"
+        style={{
+          bottom: `${vvBottom}px`,
+          maxHeight: vvMaxH ? `${vvMaxH}px` : "85svh",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header — always visible at top */}
