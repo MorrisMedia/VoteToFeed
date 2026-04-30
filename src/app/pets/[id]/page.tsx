@@ -393,21 +393,23 @@ export default async function PetDetailPage({
             appUrl={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
           />
 
-          <VoteButton
-            petId={pet.id}
-            petName={pet.name}
-            isOwner={!!isOwner}
-            initialWeeklyVotes={weeklyVotes}
-            freeVotesRemaining={freeVotes.free}
-            paidVoteBalance={freeVotes.paid}
-            animalType={animalType}
-            weeklyRank={weeklyRank}
-            petType={pet.type}
-            contestEndDate={contestEndDate}
-            contestName={contestName}
-            votesNeededForTop3={votesNeededForTop3}
-            mealRate={mealRate}
-          />
+          <div id="buy-votes" className="scroll-mt-24">
+            <VoteButton
+              petId={pet.id}
+              petName={pet.name}
+              isOwner={!!isOwner}
+              initialWeeklyVotes={weeklyVotes}
+              freeVotesRemaining={freeVotes.free}
+              paidVoteBalance={freeVotes.paid}
+              animalType={animalType}
+              weeklyRank={weeklyRank}
+              petType={pet.type}
+              contestEndDate={contestEndDate}
+              contestName={contestName}
+              votesNeededForTop3={votesNeededForTop3}
+              mealRate={mealRate}
+            />
+          </div>
 
           {pet.votes.length > 0 && (
             <div>

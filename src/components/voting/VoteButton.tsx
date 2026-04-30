@@ -139,13 +139,17 @@ export function VoteButton({
         setAnimating(true);
         setTimeout(() => setAnimating(false), 600);
 
-        // Show impact modal: every 3 votes under 10, every 10 after that, or when out of votes
+        // Show impact modal: every 3 votes under 10, every 10 after that, or when out of votes.
+        // Skip the upsell when the user already holds a healthy stockpile of paid votes —
+        // they don't need a "buy more" pitch right now.
         const newVoteCount = data.pet.weeklyVotes;
         const outOfVotes = data.user.freeVotesRemaining === 0 && data.user.paidVoteBalance === 0;
+        const hasPlentyOfPaidVotes = data.user.paidVoteBalance >= 30;
         const shouldShowModal =
           outOfVotes ||
-          (newVoteCount < 10 && newVoteCount % 3 === 0) ||
-          (newVoteCount >= 10 && newVoteCount % 10 === 0);
+          (!hasPlentyOfPaidVotes &&
+            ((newVoteCount < 10 && newVoteCount % 3 === 0) ||
+              (newVoteCount >= 10 && newVoteCount % 10 === 0)));
 
         if (shouldShowModal) {
           setImpactVoteCount(newVoteCount);

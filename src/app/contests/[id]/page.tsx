@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { PetCard } from "@/components/pets/PetCard";
 import { StorytellerEntry } from "@/components/contests/StorytellerEntry";
+import { EntriesPaginator } from "@/components/contests/EntriesPaginator";
 import { getAnimalType } from "@/lib/admin-settings";
 import { formatDisplayName } from "@/lib/utils";
 
@@ -50,6 +53,8 @@ export default async function ContestDetailPage({
   searchParams?: { reentry?: string; petId?: string };
 }) {
   const animalType = await getAnimalType();
+  const session = await getServerSession(authOptions);
+  const currentUserId = (session?.user as { id?: string } | undefined)?.id ?? null;
   const now = new Date();
 
   const contest = await prisma.contest.findUnique({
@@ -105,6 +110,27 @@ export default async function ContestDetailPage({
       const bVotes = votesByPet.get(b.petId) ?? 0;
       return bVotes - aVotes;
     });
+
+  // Find the current user's pets in this contest with their rank
+  const myEntries = currentUserId
+    ? sortedEntries
+        .map((entry, idx) => ({ entry, rank: idx + 1, votes: votesByPet.get(entry.petId) ?? 0 }))
+        .filter((row) => row.entry.pet.userId === currentUserId)
+    : [];
+  const totalEntries = sortedEntries.length;
+
+  // Compute votes-needed-to-reach-next-rank for each owned pet (helps pitch buying votes)
+  const myEntriesWithGap = myEntries.map(({ entry, rank, votes }) => {
+    let gap = 0;
+    let nextPetName: string | null = null;
+    if (rank > 1) {
+      const ahead = sortedEntries[rank - 2]; // 0-indexed: pet immediately above
+      const aheadVotes = votesByPet.get(ahead.petId) ?? 0;
+      gap = Math.max(1, aheadVotes - votes + 1);
+      nextPetName = ahead.pet.name;
+    }
+    return { entry, rank, votes, gap, nextPetName };
+  });
 
   function typeLabel(type: string) {
     const map: Record<string, string> = { NATIONAL: "Weekly", SEASONAL: "Seasonal", CHARITY: "Charity", CALENDAR: "Calendar", BREED: "Breed", STATE: "Regional" };
@@ -179,6 +205,182 @@ export default async function ContestDetailPage({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
+            {/* Personal "your pets in this contest" panel — designed to convert votes purchases */}
+            {myEntries.length > 0 && (
+              <div className="mb-6 rounded-3xl overflow-hidden shadow-xl shadow-brand-200/40 ring-1 ring-brand-200/60">
+                {/* Gradient header */}
+                <div className="relative bg-gradient-to-r from-brand-600 via-pink-500 to-amber-500 px-5 py-4 text-white overflow-hidden">
+                  <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+                  <div className="absolute -bottom-12 -left-4 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+                  <div className="relative flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">
+                        {myEntries.length === 1 ? "Your contestant" : "Your contestants"}
+                      </p>
+                      <h3 className="text-lg sm:text-xl font-extrabold mt-0.5 drop-shadow-sm">
+                        {myEntries.length === 1
+                          ? `${myEntries[0].entry.pet.name} is in the race! 🎉`
+                          : `You have ${myEntries.length} pets competing 🎉`}
+                      </h3>
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-widest bg-white/20 backdrop-blur px-3 py-1.5 rounded-full">
+                      {totalEntries.toLocaleString()} pets
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cards */}
+                <div className="bg-white p-3 sm:p-4 space-y-3">
+                  {myEntriesWithGap.map(({ entry, rank, votes, gap, nextPetName }) => {
+                    const photo = entry.pet.photos?.[0];
+                    const placement =
+                      rank === 1 ? "🥇 #1" : rank === 2 ? "🥈 #2" : rank === 3 ? "🥉 #3" : `#${rank}`;
+                    const aheadOfPct =
+                      totalEntries > 1
+                        ? Math.round(((totalEntries - rank) / (totalEntries - 1)) * 100)
+                        : 100;
+
+                    // Contextual urgency message
+                    let pitch = "";
+                    let pitchAccent = "";
+                    if (rank === 1) {
+                      pitch = "👑 You're in the lead — defend your spot before someone overtakes you!";
+                      pitchAccent = "from-yellow-50 to-amber-50 text-amber-800 border-amber-200";
+                    } else if (rank <= 3) {
+                      pitch = `🔥 Only ${gap.toLocaleString()} ${gap === 1 ? "vote" : "votes"} away from #${rank - 1}${nextPetName ? ` (${nextPetName})` : ""}. Take the crown!`;
+                      pitchAccent = "from-rose-50 to-pink-50 text-rose-700 border-rose-200";
+                    } else if (rank <= 10) {
+                      pitch = `💪 ${gap.toLocaleString()} more ${gap === 1 ? "vote" : "votes"} to break into the top ${rank - 1}. You've got this!`;
+                      pitchAccent = "from-brand-50 to-pink-50 text-brand-700 border-brand-200";
+                    } else {
+                      pitch = `🚀 You're ahead of ${aheadOfPct}% of pets — a vote boost can rocket ${entry.pet.name} into the top 10!`;
+                      pitchAccent = "from-violet-50 to-fuchsia-50 text-violet-700 border-violet-200";
+                    }
+
+                    return (
+                      <div
+                        key={entry.pet.id}
+                        className="rounded-2xl border border-surface-200 bg-white overflow-hidden hover:border-brand-300 hover:shadow-lg transition-all"
+                      >
+                        {/* Top row: photo + name + rank */}
+                        <Link href={`/pets/${entry.pet.id}`} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 group">
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-surface-100 flex-shrink-0 ring-2 ring-white shadow-md">
+                            {photo ? (
+                              <img src={photo} alt={entry.pet.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-3xl">
+                                {entry.pet.type === "DOG" ? "🐶" : entry.pet.type === "CAT" ? "🐱" : "🐾"}
+                              </div>
+                            )}
+                            {/* Rank chip overlay */}
+                            <span
+                              className={`absolute -top-1 -left-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md border-2 border-white ${
+                                rank === 1
+                                  ? "bg-yellow-400 text-yellow-900"
+                                  : rank === 2
+                                    ? "bg-surface-300 text-surface-800"
+                                    : rank === 3
+                                      ? "bg-orange-400 text-orange-900"
+                                      : "bg-brand-500 text-white"
+                              }`}
+                            >
+                              {placement.split(" ")[1] ?? `#${rank}`}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <p className="font-extrabold text-base sm:text-lg text-surface-900 group-hover:text-brand-600 transition-colors truncate">
+                                {entry.pet.name}
+                              </p>
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                                  rank === 1
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : rank <= 3
+                                      ? "bg-rose-100 text-rose-700"
+                                      : rank <= 10
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-surface-100 text-surface-600"
+                                }`}
+                              >
+                                Ranked {placement}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-surface-500 mt-1">
+                              <span className="font-bold text-surface-800">{votes.toLocaleString()}</span>{" "}
+                              {votes === 1 ? "vote" : "votes"}
+                              <span className="text-surface-300 mx-1.5">·</span>
+                              <span>#{rank} of {totalEntries.toLocaleString()}</span>
+                              {totalEntries > 1 && (
+                                <>
+                                  <span className="text-surface-300 mx-1.5">·</span>
+                                  <span>ahead of {aheadOfPct}% of pets</span>
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        </Link>
+
+                        {/* Pitch banner */}
+                        <div className={`mx-3 sm:mx-4 rounded-xl border bg-gradient-to-r ${pitchAccent} px-3 py-2 text-xs sm:text-[13px] font-semibold leading-snug`}>
+                          {pitch}
+                        </div>
+
+                        {/* Action row: Buy Votes (primary) + Share */}
+                        {!hasEnded && (
+                          <div className="p-3 sm:p-4 pt-3 flex items-center gap-2 flex-wrap">
+                            <Link
+                              href={`/pets/${entry.pet.id}#buy-votes`}
+                              className="flex-1 min-w-[180px] inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                              </svg>
+                              {rank === 1
+                                ? "Buy votes — defend #1"
+                                : rank <= 3
+                                  ? "Buy votes — take the crown"
+                                  : rank <= 10
+                                    ? "Buy votes — climb the ranks"
+                                    : "Buy votes — boost ranking"}
+                            </Link>
+                            <Link
+                              href={`/pets/${entry.pet.id}`}
+                              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-3 rounded-xl border border-surface-200 text-surface-700 hover:bg-surface-50 text-sm font-semibold transition-colors"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                              </svg>
+                              Share
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Footer reassurance */}
+                  {!hasEnded && (
+                    <p className="text-[11px] text-center text-surface-400 pt-1">
+                      🐾 Every vote helps shelter pets — proceeds support shelter rescue partners.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Prompt non-logged users / users without entry to add their pet */}
+            {currentUserId && myEntries.length === 0 && !hasEnded && (
+              <div className="mb-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/40 px-4 py-3 text-sm text-brand-700 flex items-center justify-between gap-3 flex-wrap">
+                <span>You don&apos;t have a pet in this contest yet.</span>
+                <Link href="/pets/new" className="btn-primary text-xs px-4 py-2">
+                  Enter your pet
+                </Link>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="section-title">Contestants ({sortedEntries.length})</h2>
               {!hasEnded && (
@@ -189,7 +391,7 @@ export default async function ContestDetailPage({
             </div>
 
             {sortedEntries.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <EntriesPaginator initialCount={60} step={60}>
                 {sortedEntries.map((entry, i) => (
                   <div key={entry.pet.id} className="flex flex-col gap-2">
                     <PetCard
@@ -211,7 +413,7 @@ export default async function ContestDetailPage({
                     />
                   </div>
                 ))}
-              </div>
+              </EntriesPaginator>
             ) : (
               <div className="card p-12 text-center">
                 <p className="text-surface-500">No entries yet. Be the first!</p>
