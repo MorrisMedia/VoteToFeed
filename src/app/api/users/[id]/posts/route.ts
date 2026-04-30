@@ -74,17 +74,35 @@ export async function POST(
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 });
   if (content.length > 1000) return NextResponse.json({ error: "Too long" }, { status: 400 });
 
-  // Only allow URLs that originate from this project's own blob storage (prevent URL injection)
-  const BLOB_PREFIX = (process.env.BLOB_BASE_URL ?? "https://public.blob.vercel-storage.com").replace(/\/+$/, "");
+  // Only allow URLs that originate from trusted media storage (prevent URL injection)
+  // Vercel Blob URLs: https://<storeId>.public.blob.vercel-storage.com/...
+  //                   https://public.blob.vercel-storage.com/...
+  // Local dev uploads: /uploads/...
+  function isTrustedMediaUrl(url: string): boolean {
+    if (!url) return false;
+    // Local disk fallback (dev only)
+    if (url.startsWith("/uploads/")) return true;
+    try {
+      const { hostname, protocol } = new URL(url);
+      if (protocol !== "https:") return false;
+      if (hostname === "public.blob.vercel-storage.com") return true;
+      if (hostname.endsWith(".public.blob.vercel-storage.com")) return true;
+      // Custom BLOB_BASE_URL override
+      if (process.env.BLOB_BASE_URL) {
+        try { if (hostname === new URL(process.env.BLOB_BASE_URL).hostname) return true; } catch { /* ignore */ }
+      }
+      return false;
+    } catch { return false; }
+  }
 
   // Support mediaUrls[] (multi-image/video) stored as JSON, or single imageUrl for compat
   let imageUrl: string | null = null;
   if (Array.isArray(body.mediaUrls) && body.mediaUrls.length > 0) {
     const urls = (body.mediaUrls as unknown[])
-      .filter((u): u is string => typeof u === "string" && u.trim().startsWith(BLOB_PREFIX))
+      .filter((u): u is string => typeof u === "string" && isTrustedMediaUrl(u.trim()))
       .slice(0, 3);
     imageUrl = urls.length === 1 ? urls[0] : urls.length > 1 ? JSON.stringify(urls) : null;
-  } else if (typeof body.imageUrl === "string" && body.imageUrl.trim().startsWith(BLOB_PREFIX)) {
+  } else if (typeof body.imageUrl === "string" && isTrustedMediaUrl(body.imageUrl.trim())) {
     imageUrl = body.imageUrl.trim();
   }
 
