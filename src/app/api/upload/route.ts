@@ -14,17 +14,28 @@ const ACCEPTED_TYPES = new Set([
   "image/png",
   "image/gif",
   "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/ogg",
+  "video/x-msvideo",
 ]);
 
 const ACCEPTED_EXTENSIONS = new Set([
   ".jpg", ".jpeg", ".png", ".gif", ".webp",
+  ".mp4", ".webm", ".mov", ".ogg", ".avi",
 ]);
+
+const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".ogg", ".avi"]);
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime", "video/ogg", "video/x-msvideo"]);
 
 const HEIC_EXTENSIONS = new Set([".heic", ".heif"]);
 const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB per file
-const MAX_FILES = 10;
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;  // 20 MB
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB
+const MAX_FILE_SIZE = MAX_IMAGE_SIZE; // kept for compat
+const MAX_FILES = 3; // aligned with post-creation cap (MAX_MEDIA=3 on client)
 
 function validateFile(file: File) {
   const ext = path.extname(file.name).toLowerCase();
@@ -36,11 +47,14 @@ function validateFile(file: File) {
 
   const isValidType = ACCEPTED_TYPES.has(file.type) || ACCEPTED_EXTENSIONS.has(ext);
   if (!isValidType) {
-    return `Unsupported file type: ${file.name}. Accepted: JPG, PNG, GIF, WebP`;
+    return `Unsupported file type: ${file.name}. Accepted: JPG, PNG, GIF, WebP, MP4, WebM, MOV`;
   }
 
-  if (file.size > MAX_FILE_SIZE) {
-    return `File too large: ${file.name}. Maximum 20MB per file.`;
+  const isVideo = VIDEO_TYPES.has(file.type) || VIDEO_EXTENSIONS.has(ext);
+  const sizeLimit = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  if (file.size > sizeLimit) {
+    const limitMB = sizeLimit / 1024 / 1024;
+    return `File too large: ${file.name}. Maximum ${limitMB}MB for ${isVideo ? "videos" : "images"}.`;
   }
 
   return null;
@@ -48,9 +62,11 @@ function validateFile(file: File) {
 
 async function uploadToBlob(file: File) {
   const ext = path.extname(file.name).toLowerCase() || ".jpg";
-  const baseName = path.basename(file.name, ext).replace(/[^a-zA-Z0-9-_]/g, "-") || "pet-photo";
+  const baseName = path.basename(file.name, ext).replace(/[^a-zA-Z0-9-_]/g, "-") || "upload";
+  const isVideo = VIDEO_EXTENSIONS.has(ext) || VIDEO_TYPES.has(file.type);
+  const folder = isVideo ? "videos" : "posts";
 
-  const blob = await put(`pets/${baseName}${ext}`, file, {
+  const blob = await put(`${folder}/${baseName}${ext}`, file, {
     access: "public",
     addRandomSuffix: true,
     contentType: file.type || undefined,

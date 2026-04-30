@@ -64,15 +64,34 @@ export async function POST(
   if (currentUserId !== params.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json();
-  const content = (body.content || "").trim();
+  interface CreatePostBody {
+    content?: unknown;
+    mediaUrls?: unknown[];
+    imageUrl?: unknown;
+  }
+  const body = (await req.json()) as CreatePostBody;
+  const content = (typeof body.content === "string" ? body.content : "").trim();
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 });
   if (content.length > 1000) return NextResponse.json({ error: "Too long" }, { status: 400 });
+
+  // Only allow URLs that originate from this project's own blob storage (prevent URL injection)
+  const BLOB_PREFIX = (process.env.BLOB_BASE_URL ?? "https://public.blob.vercel-storage.com").replace(/\/+$/, "");
+
+  // Support mediaUrls[] (multi-image/video) stored as JSON, or single imageUrl for compat
+  let imageUrl: string | null = null;
+  if (Array.isArray(body.mediaUrls) && body.mediaUrls.length > 0) {
+    const urls = (body.mediaUrls as unknown[])
+      .filter((u): u is string => typeof u === "string" && u.trim().startsWith(BLOB_PREFIX))
+      .slice(0, 3);
+    imageUrl = urls.length === 1 ? urls[0] : urls.length > 1 ? JSON.stringify(urls) : null;
+  } else if (typeof body.imageUrl === "string" && body.imageUrl.trim().startsWith(BLOB_PREFIX)) {
+    imageUrl = body.imageUrl.trim();
+  }
 
   const post = await prisma.userPost.create({
     data: {
       content,
-      imageUrl: body.imageUrl?.trim() || null,
+      imageUrl,
       userId: currentUserId,
     },
     select: { id: true, content: true, imageUrl: true, createdAt: true },
